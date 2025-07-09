@@ -1,72 +1,71 @@
 #!/usr/bin/env node
-// Environment variable checker for WishCraft
 
-const requiredEnvVars = [
+/**
+ * Environment Variable Checker
+ * Validates that all required environment variables are present
+ */
+
+const requiredVars = [
   'DATABASE_URL',
   'SHOPIFY_API_KEY', 
   'SHOPIFY_API_SECRET',
-  'SCOPES',
-  'HOST'
-];
-
-const optionalEnvVars = [
-  'PORT',
-  'NODE_ENV',
   'SHOPIFY_APP_URL',
-  'ENCRYPTION_KEY',
   'SESSION_SECRET'
 ];
 
-console.log('🔍 Checking environment variables for WishCraft...\n');
+const optionalVars = [
+  'SHOPIFY_WEBHOOK_SECRET',
+  'SHOPIFY_API_VERSION',
+  'SCOPES',
+  'NODE_ENV'
+];
+
+console.log('🔍 Checking environment variables...\n');
+
+let missingVars = [];
+let warningVars = [];
 
 // Check required variables
-console.log('Required Environment Variables:');
-let missingRequired = false;
-requiredEnvVars.forEach(varName => {
-  if (process.env[varName]) {
-    console.log(`✅ ${varName}: Set`);
+requiredVars.forEach(varName => {
+  if (!process.env[varName]) {
+    missingVars.push(varName);
   } else {
-    console.log(`❌ ${varName}: Missing`);
-    missingRequired = true;
+    console.log(`✅ ${varName}: Set`);
   }
 });
 
-console.log('\nOptional Environment Variables:');
-optionalEnvVars.forEach(varName => {
-  if (process.env[varName]) {
-    console.log(`✅ ${varName}: Set`);
+// Check optional but recommended variables
+optionalVars.forEach(varName => {
+  if (!process.env[varName]) {
+    warningVars.push(varName);
   } else {
-    console.log(`⚠️  ${varName}: Not set (using defaults)`);
+    console.log(`✅ ${varName}: Set`);
   }
 });
-
-// Special checks
-console.log('\nSpecial Checks:');
 
 // Check DATABASE_URL format
 if (process.env.DATABASE_URL) {
   const dbUrl = process.env.DATABASE_URL;
-  if (dbUrl.startsWith('postgresql://') || dbUrl.startsWith('postgres://')) {
-    console.log('✅ DATABASE_URL format: Valid PostgreSQL URL');
-  } else {
-    console.log('❌ DATABASE_URL format: Invalid (must be postgresql:// or postgres://)');
-    missingRequired = true;
+  if (!dbUrl.includes('sslmode=require')) {
+    console.log('⚠️  DATABASE_URL should include ?sslmode=require for Railway');
   }
 }
 
-// Check PORT
-const port = process.env.PORT || '3000';
-console.log(`ℹ️  PORT: ${port}`);
-
-// Check NODE_ENV
-const nodeEnv = process.env.NODE_ENV || 'development';
-console.log(`ℹ️  NODE_ENV: ${nodeEnv}`);
-
-if (missingRequired) {
-  console.log('\n❌ Missing required environment variables!');
-  console.log('Please set all required variables before deploying.');
-  process.exit(1);
-} else {
-  console.log('\n✅ All required environment variables are set!');
-  process.exit(0);
+// Check HOST format
+if (process.env.HOST && process.env.HOST.startsWith('http')) {
+  console.log('⚠️  HOST should not include protocol (http/https)');
 }
+
+// Report results
+console.log('\n📋 Environment Check Results:');
+
+if (missingVars.length > 0) {
+  console.log(`❌ Missing required variables: ${missingVars.join(', ')}`);
+  process.exit(1);
+}
+
+if (warningVars.length > 0) {
+  console.log(`⚠️  Optional variables not set: ${warningVars.join(', ')}`);
+}
+
+console.log('✅ All required environment variables are present\n');
