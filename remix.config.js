@@ -8,11 +8,27 @@ export default {
   serverConditions: ["node"],
   serverModuleFormat: "esm",
   serverDependenciesToBundle: [/.+/],
+  serverNodeBuiltinsPolyfill: {
+    modules: {
+      stream: true,
+      buffer: true,
+      util: true,
+      process: true,
+      path: true,
+      url: true,
+      fs: "empty",
+    },
+    globals: {
+      Buffer: true,
+      process: true,
+    },
+  },
   future: {
-    v2_errorBoundary: true,
-    v2_headers: true,
-    v2_meta: true,
-    v2_normalizeFormMethod: true,
-    v2_routeConvention: true,
+    // v3 flags for React Router v7 compatibility
+    v3_fetcherPersist: true,
+    v3_lazyRouteDiscovery: true,
+    v3_relativeSplatPath: true,
+    v3_singleFetch: true,
+    v3_throwAbortReason: true,
   },
 };
