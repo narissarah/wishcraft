@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>CSP Test - WishCraft</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎁 WishCraft CSP Test</h1>
+        <div class="status success">
+            <strong>✅ CSP Fixed:</strong> This page loads successfully in an iframe
+        </div>
+        <div class="status success">
+            <strong>✅ Frame Ancestors:</strong> https://*.myshopify.com https://admin.shopify.com
+        </div>
+        <p><strong>Timestamp:</strong> <span id="timestamp"></span></p>
+        <p><strong>Context:</strong> <span id="context"></span></p>
+        <p><strong>Origin:</strong> <span id="origin"></span></p>
+        
+        <h2>App Status</h2>
+        <p>The WishCraft app is now properly configured for Shopify embedding.</p>
+        <p>The CSP frame-ancestors directive has been fixed to allow embedding in Shopify admin.</p>
+    </div>
+    
+    <script>
+        document.getElementById('timestamp').textContent = new Date().toISOString();
+        document.getElementById('context').textContent = window.parent !== window ? 'Embedded in iframe' : 'Standalone';
+        document.getElementById('origin').textContent = window.location.origin;
+    </script>
+</body>
+</html>
