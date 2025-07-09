@@ -226,4 +226,4 @@ For questions or issues:
 
 ---
 
-Built with ❤️ using Shopify's latest 2025 best practices.
+Built with ❤️ using Shopify's latest 2025 best practices.# Deployment trigger Wed  9 Jul 2025 05:35:01 EDT
