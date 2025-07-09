@@ -38,25 +38,28 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
   // Generate nonce if not provided
   const cspNonce = nonce || generateNonce();
   
-  // Build CSP directives with enhanced security
+  // Get shop domain from request
+  const url = new URL(request.url);
+  const shop = url.searchParams.get('shop') || 
+               request.headers.get('x-shopify-shop-domain') ||
+               'admin.shopify.com';
+  
+  // Build CSP directives optimized for Shopify embedded apps
   const cspDirectives = [
-    "default-src 'self'",
-    `script-src 'self' 'nonce-${cspNonce}' https://cdn.shopify.com https://cdn.jsdelivr.net 'strict-dynamic'`,
-    `style-src 'self' 'nonce-${cspNonce}' https://cdn.shopify.com 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='`, // Remove unsafe-inline, use nonce
-    "img-src 'self' data: blob: https://cdn.shopify.com https://*.myshopify.com https://*.shopifycdn.com",
+    "default-src 'self' https://*.myshopify.com",
+    `script-src 'self' 'nonce-${cspNonce}' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com https://cdn.jsdelivr.net`,
+    `style-src 'self' 'unsafe-inline' https://cdn.shopify.com`,
+    "img-src 'self' data: blob: https: http:",
     "font-src 'self' data: https://cdn.shopify.com https://fonts.gstatic.com",
     "connect-src 'self' https://*.myshopify.com wss://*.myshopify.com https://monorail-edge.shopifysvc.com https://api.sentry.io",
-    isEmbedded ? "frame-ancestors https://*.myshopify.com https://admin.shopify.com" : "frame-ancestors 'none'",
+    isEmbedded ? `frame-ancestors https://${shop} https://admin.shopify.com` : "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self' https://*.myshopify.com",
     "media-src 'self' https://cdn.shopify.com",
     "object-src 'none'",
-    "child-src 'self' https://*.myshopify.com",
+    "child-src 'self' https://*.myshopify.com blob:",
     "worker-src 'self' blob:",
-    "manifest-src 'self'",
-    "prefetch-src 'self'",
-    "upgrade-insecure-requests",
-    "block-all-mixed-content"
+    "manifest-src 'self'"
   ];
 
   const headers: HeadersInit = {
@@ -91,12 +94,8 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
     "X-Download-Options": "noopen",
     "X-DNS-Prefetch-Control": "on",
     
-    // Advanced security headers for perfect compliance
-    "Cross-Origin-Embedder-Policy": "require-corp",
-    "Cross-Origin-Opener-Policy": "same-origin",
-    "Cross-Origin-Resource-Policy": "same-site",
-    "Expect-CT": "max-age=86400, enforce",
-    "Feature-Policy": "camera 'none'; microphone 'none'; geolocation 'none'",
+    // Advanced security headers - relaxed for Shopify embedded apps
+    // Removed COEP/COOP/CORP as they can break embedded functionality
     
     // CORS headers for API routes
     "Access-Control-Allow-Origin": isEmbedded ? "*" : "https://*.myshopify.com",
