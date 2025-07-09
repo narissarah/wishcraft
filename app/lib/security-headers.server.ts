@@ -45,13 +45,14 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
                'admin.shopify.com';
   
   // Build CSP directives optimized for Shopify embedded apps
+  // Note: Removing nonces to allow Shopify's inline scripts to work
   const cspDirectives = [
     "default-src 'self' https://*.myshopify.com",
-    `script-src 'self' 'nonce-${cspNonce}' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com https://cdn.jsdelivr.net`,
-    `style-src 'self' 'unsafe-inline' https://cdn.shopify.com`,
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com https://cdn.jsdelivr.net https://www.googletagmanager.com",
+    "style-src 'self' 'unsafe-inline' https://cdn.shopify.com https://fonts.googleapis.com",
     "img-src 'self' data: blob: https: http:",
     "font-src 'self' data: https://cdn.shopify.com https://fonts.gstatic.com",
-    "connect-src 'self' https://*.myshopify.com wss://*.myshopify.com https://monorail-edge.shopifysvc.com https://api.sentry.io",
+    "connect-src 'self' https://*.myshopify.com wss://*.myshopify.com https://monorail-edge.shopifysvc.com https://api.sentry.io https://*.google-analytics.com",
     isEmbedded ? `frame-ancestors https://${shop} https://admin.shopify.com` : "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self' https://*.myshopify.com",
