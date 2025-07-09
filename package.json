@@ -49,7 +49,12 @@
     "deploy:dry-run": "node deploy/production-deploy.js production railway --dry-run",
     "backup:full": "./deploy/backup.sh full",
     "backup:schema": "./deploy/backup.sh schema",
-    "health:check": "curl -f http://localhost:3000/health && curl -f http://localhost:3000/health/db"
+    "health:check": "curl -f http://localhost:3000/health && curl -f http://localhost:3000/health/db",
+    "debug:railway": "node scripts/debug-railway.js",
+    "debug:db": "node scripts/test-db-connection.js",
+    "debug:server": "node deploy/debug-server.js",
+    "debug:deploy": "./deploy/railway-debug.sh",
+    "debug:all": "npm run debug:railway && npm run debug:db"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
