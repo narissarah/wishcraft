@@ -52,13 +52,9 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
     "X-Permitted-Cross-Domain-Policies": "none",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     
-    // Only set CSP frame-ancestors for embedded apps
-    ...(isEmbedded ? {
-      "Content-Security-Policy": `frame-ancestors https://${shop} https://admin.shopify.com;`
-    } : {
-      "X-Frame-Options": "DENY",
-      "Content-Security-Policy": "frame-ancestors 'none';"
-    }),
+    // Always allow Shopify embedding since this is a Shopify app
+    // The helmet middleware in server.js will handle the full CSP
+    "X-Frame-Options": "SAMEORIGIN",
     
     // Permissions Policy (Feature Policy)
     "Permissions-Policy": [

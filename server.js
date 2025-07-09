@@ -30,7 +30,8 @@ app.use(helmet({
       frameAncestors: ["https://*.myshopify.com", "https://admin.shopify.com"]
     }
   },
-  crossOriginEmbedderPolicy: false // Required for Shopify embedded apps
+  crossOriginEmbedderPolicy: false, // Required for Shopify embedded apps
+  frameguard: false // Disable X-Frame-Options since we're setting frame-ancestors in CSP
 }));
 
 // Enable compression for all responses

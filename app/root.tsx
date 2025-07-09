@@ -66,7 +66,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 // Apply security headers to all responses
-export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders }) => {
+export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders, actionHeaders }) => {
   const headers = new Headers(parentHeaders);
   
   // Copy loader headers (for rate limiting)
@@ -74,11 +74,18 @@ export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders }) => {
     headers.set(key, value);
   });
   
-  // Apply security headers
-  const securityHeaders = getSecurityHeaders(new Request("https://wishcraft.app"));
-  Object.entries(securityHeaders).forEach(([key, value]) => {
-    if (value) headers.set(key, value);
-  });
+  // Copy action headers if present
+  if (actionHeaders) {
+    actionHeaders.forEach((value, key) => {
+      headers.set(key, value);
+    });
+  }
+  
+  // Don't set conflicting CSP headers here - let helmet middleware handle it
+  // Just add basic non-conflicting security headers
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Permitted-Cross-Domain-Policies", "none");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   
   return headers;
 };
