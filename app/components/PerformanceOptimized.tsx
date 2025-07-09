@@ -167,7 +167,7 @@ export function ResourceHints({ hints }: { hints: ResourceHint[] }) {
           rel={hint.rel}
           href={hint.href}
           as={hint.as}
-          crossOrigin={hint.crossOrigin}
+          crossOrigin={hint.crossOrigin as "anonymous" | "use-credentials" | "" | undefined}
         />
       ))}
     </>
@@ -197,7 +197,7 @@ export function PerformanceMonitor() {
       // First Input Delay
       new PerformanceObserver((entryList) => {
         const firstInput = entryList.getEntries()[0];
-        const fid = firstInput.processingStart - firstInput.startTime;
+        const fid = (firstInput.processingStart || 0) - firstInput.startTime;
         
         if (window.gtag) {
           window.gtag('event', 'web-vitals', {

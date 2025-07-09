@@ -312,7 +312,7 @@ function calculateEstimatedDelivery(methodName: string): Date {
   }
 
   // Skip weekends for delivery calculation
-  let deliveryDate = new Date(now);
+  const deliveryDate = new Date(now);
   let daysAdded = 0;
   
   while (daysAdded < daysToAdd) {

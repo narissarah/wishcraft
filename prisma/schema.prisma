@@ -96,6 +96,10 @@ model ShopSettings {
   enableMultipleAddresses   Boolean @default(true)
   defaultShippingZone       String?
   
+  // App lifecycle
+  appActive                 Boolean  @default(true)
+  appUninstalledAt         DateTime?
+  
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 

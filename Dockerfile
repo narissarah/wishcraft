@@ -22,8 +22,8 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Clean install dependencies (including platform-specific binaries)
-RUN rm -rf node_modules && \
-    npm ci --production=false
+# Use npm install instead of ci for better error messages and platform handling
+RUN npm install --production=false --verbose
 
 # Copy source code
 COPY . .
@@ -67,6 +67,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 # Copy additional production files
 COPY --chown=nextjs:nodejs deploy/docker-entrypoint.sh ./
 COPY --chown=nextjs:nodejs deploy/healthcheck.js ./
+COPY --chown=nextjs:nodejs start-debug.js ./
 
 # Make scripts executable
 RUN chmod +x ./docker-entrypoint.sh

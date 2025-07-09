@@ -3,8 +3,8 @@
  * Automated color contrast validation for accessibility compliance
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { Badge, Box, InlineStack, Text, Icon, Button, Modal, BlockStack, Card } from '@shopify/polaris';
+import React, { useState, useEffect } from 'react';
+import { Badge, Box, InlineStack, Text, Button, Modal, BlockStack, Card } from '@shopify/polaris';
 import { AlertCircleIcon, CheckCircleIcon, InfoIcon } from '@shopify/polaris-icons';
 import { colorContrast } from '~/lib/accessibility';
 import { useAccessibleColors } from '~/components/ThemeProvider';
@@ -90,7 +90,7 @@ export function ContrastValidator({
 }: ContrastValidatorProps) {
   const [contrastResult, setContrastResult] = useState<ContrastResult | null>(null);
   const [showModal, setShowModal] = useState(false);
-  const { getAccessiblePair } = useAccessibleColors();
+  // const { getAccessiblePair } = useAccessibleColors(); // Uncomment when needed
   
   const isLargeText = textSize === 'large';
   
@@ -132,7 +132,7 @@ export function ContrastValidator({
   
   const getHelpText = () => {
     const minRatio = isLargeText ? 3 : 4.5;
-    const aaaRatio = isLargeText ? 4.5 : 7;
+    // const aaaRatio = isLargeText ? 4.5 : 7; // Uncomment when needed
     
     if (contrastResult.isValidAAA) {
       return 'Excellent contrast - meets AAA standards';
@@ -194,7 +194,7 @@ export function ContrastValidator({
         </InlineStack>
         
         <Box paddingBlockStart="100">
-          <Text variant="bodySm" tone="subdued">
+          <Text as="p" variant="bodySm" tone="subdued">
             {getHelpText()}
           </Text>
         </Box>
@@ -214,18 +214,18 @@ export function ContrastValidator({
             <BlockStack gap="400">
               <Card>
                 <BlockStack gap="300">
-                  <Text variant="headingSm">Current Colors</Text>
+                  <Text as="h3" variant="headingSm">Current Colors</Text>
                   <div style={previewStyle}>
                     Sample text with current colors
                   </div>
                   <InlineStack gap="400">
                     <Box>
-                      <Text variant="bodySm" tone="subdued">Foreground</Text>
-                      <Text variant="bodyMd" fontWeight="medium">{foregroundColor}</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">Foreground</Text>
+                      <Text as="p" variant="bodyMd" fontWeight="medium">{foregroundColor}</Text>
                     </Box>
                     <Box>
-                      <Text variant="bodySm" tone="subdued">Background</Text>
-                      <Text variant="bodyMd" fontWeight="medium">{backgroundColor}</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">Background</Text>
+                      <Text as="p" variant="bodyMd" fontWeight="medium">{backgroundColor}</Text>
                     </Box>
                   </InlineStack>
                 </BlockStack>
@@ -233,17 +233,17 @@ export function ContrastValidator({
               
               <Card>
                 <BlockStack gap="300">
-                  <Text variant="headingSm">Contrast Analysis</Text>
+                  <Text as="h3" variant="headingSm">Contrast Analysis</Text>
                   <InlineStack gap="400">
                     <Box>
-                      <Text variant="bodySm" tone="subdued">Contrast Ratio</Text>
-                      <Text variant="bodyMd" fontWeight="medium">
+                      <Text as="p" variant="bodySm" tone="subdued">Contrast Ratio</Text>
+                      <Text as="p" variant="bodyMd" fontWeight="medium">
                         {contrastResult.ratio.toFixed(2)}:1
                       </Text>
                     </Box>
                     <Box>
-                      <Text variant="bodySm" tone="subdued">Text Size</Text>
-                      <Text variant="bodyMd" fontWeight="medium">
+                      <Text as="p" variant="bodySm" tone="subdued">Text Size</Text>
+                      <Text as="p" variant="bodyMd" fontWeight="medium">
                         {isLargeText ? 'Large (18px+)' : 'Normal (14px)'}
                       </Text>
                     </Box>
@@ -254,13 +254,13 @@ export function ContrastValidator({
                       tone={contrastResult.isValidAA ? 'success' : 'critical'}
                       icon={contrastResult.isValidAA ? CheckCircleIcon : AlertCircleIcon}
                     >
-                      WCAG AA {contrastResult.isValidAA ? 'Pass' : 'Fail'}
+                      {`WCAG AA ${contrastResult.isValidAA ? 'Pass' : 'Fail'}`}
                     </Badge>
                     <Badge 
                       tone={contrastResult.isValidAAA ? 'success' : 'warning'}
                       icon={contrastResult.isValidAAA ? CheckCircleIcon : AlertCircleIcon}
                     >
-                      WCAG AAA {contrastResult.isValidAAA ? 'Pass' : 'Fail'}
+                      {`WCAG AAA ${contrastResult.isValidAAA ? 'Pass' : 'Fail'}`}
                     </Badge>
                   </InlineStack>
                 </BlockStack>
@@ -268,23 +268,23 @@ export function ContrastValidator({
               
               <Card>
                 <BlockStack gap="300">
-                  <Text variant="headingSm">Standards</Text>
+                  <Text as="h3" variant="headingSm">Standards</Text>
                   <BlockStack gap="200">
                     <InlineStack gap="200">
-                      <Text variant="bodySm" tone="subdued">AA Normal:</Text>
-                      <Text variant="bodySm">4.5:1 minimum</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">AA Normal:</Text>
+                      <Text as="p" variant="bodySm">4.5:1 minimum</Text>
                     </InlineStack>
                     <InlineStack gap="200">
-                      <Text variant="bodySm" tone="subdued">AA Large:</Text>
-                      <Text variant="bodySm">3:1 minimum</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">AA Large:</Text>
+                      <Text as="p" variant="bodySm">3:1 minimum</Text>
                     </InlineStack>
                     <InlineStack gap="200">
-                      <Text variant="bodySm" tone="subdued">AAA Normal:</Text>
-                      <Text variant="bodySm">7:1 minimum</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">AAA Normal:</Text>
+                      <Text as="p" variant="bodySm">7:1 minimum</Text>
                     </InlineStack>
                     <InlineStack gap="200">
-                      <Text variant="bodySm" tone="subdued">AAA Large:</Text>
-                      <Text variant="bodySm">4.5:1 minimum</Text>
+                      <Text as="p" variant="bodySm" tone="subdued">AAA Large:</Text>
+                      <Text as="p" variant="bodySm">4.5:1 minimum</Text>
                     </InlineStack>
                   </BlockStack>
                 </BlockStack>
@@ -293,12 +293,12 @@ export function ContrastValidator({
               {getSuggestions().length > 0 && (
                 <Card>
                   <BlockStack gap="300">
-                    <Text variant="headingSm">Suggestions</Text>
+                    <Text as="h3" variant="headingSm">Suggestions</Text>
                     <BlockStack gap="100">
                       {getSuggestions().map((suggestion, index) => (
                         <InlineStack key={index} gap="200">
-                          <Text variant="bodySm">•</Text>
-                          <Text variant="bodySm">{suggestion}</Text>
+                          <Text as="p" variant="bodySm">•</Text>
+                          <Text as="p" variant="bodySm">{suggestion}</Text>
                         </InlineStack>
                       ))}
                     </BlockStack>
@@ -354,18 +354,18 @@ export function BulkContrastValidator({ colorCombinations, onValidationResults }
   return (
     <Card>
       <BlockStack gap="300">
-        <Text variant="headingSm">Accessibility Validation Results</Text>
+        <Text as="h3" variant="headingSm">Accessibility Validation Results</Text>
         
         <InlineStack gap="400">
           <Box>
-            <Text variant="bodySm" tone="subdued">Passed</Text>
-            <Text variant="bodyMd" fontWeight="medium">
+            <Text as="p" variant="bodySm" tone="subdued">Passed</Text>
+            <Text as="p" variant="bodyMd" fontWeight="medium">
               {passCount} / {totalCount}
             </Text>
           </Box>
           <Box>
-            <Text variant="bodySm" tone="subdued">Pass Rate</Text>
-            <Text variant="bodyMd" fontWeight="medium">
+            <Text as="p" variant="bodySm" tone="subdued">Pass Rate</Text>
+            <Text as="p" variant="bodyMd" fontWeight="medium">
               {passPercentage.toFixed(1)}%
             </Text>
           </Box>
@@ -386,7 +386,7 @@ export function BulkContrastValidator({ colorCombinations, onValidationResults }
             return (
               <Box key={combo.id}>
                 <InlineStack gap="200" align="space-between">
-                  <Text variant="bodySm">{combo.name}</Text>
+                  <Text as="p" variant="bodySm">{combo.name}</Text>
                   <ContrastValidator
                     foregroundColor={combo.foreground}
                     backgroundColor={combo.background}
@@ -406,25 +406,25 @@ export function BulkContrastValidator({ colorCombinations, onValidationResults }
  * Hook for automated contrast validation
  */
 export function useContrastValidation() {
-  const validateContrast = useCallback((foreground: string, background: string, isLargeText: boolean = false) => {
+  const validateContrast = (foreground: string, background: string, isLargeText: boolean = false) => {
     return calculateContrast(foreground, background, isLargeText);
-  }, []);
+  };
   
-  const validateColorPalette = useCallback((colors: Array<{ name: string; foreground: string; background: string; textSize?: 'normal' | 'large' }>) => {
+  const validateColorPalette = (colors: Array<{ name: string; foreground: string; background: string; textSize?: 'normal' | 'large' }>) => {
     return colors.map(color => ({
       ...color,
       result: calculateContrast(color.foreground, color.background, color.textSize === 'large')
     }));
-  }, []);
+  };
   
-  const generateAccessiblePalette = useCallback((baseColor: string) => {
+  const generateAccessiblePalette = (baseColor: string) => {
     // Generate accessible color variations
     const base = hexToRgb(baseColor);
     if (!base) return [];
     
     const variations = [];
-    const white = [255, 255, 255] as [number, number, number];
-    const black = [0, 0, 0] as [number, number, number];
+    // const white = [255, 255, 255] as [number, number, number];
+    // const black = [0, 0, 0] as [number, number, number];
     
     // Test with white background
     const whiteResult = calculateContrast(baseColor, '#FFFFFF');
@@ -449,7 +449,7 @@ export function useContrastValidation() {
     }
     
     return variations;
-  }, []);
+  };
   
   return {
     validateContrast,

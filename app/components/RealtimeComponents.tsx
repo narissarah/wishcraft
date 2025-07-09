@@ -47,7 +47,7 @@ export function LiveViewers({ registryId, currentUserId, showDetails = false }: 
       <Card>
         <InlineStack gap="200" blockAlign="center">
           <Icon source={ViewIcon} tone="subdued" />
-          <Text variant="bodySm" tone="subdued">Connecting...</Text>
+          <Text variant="bodySm" tone="subdued" as="span">Connecting...</Text>
         </InlineStack>
       </Card>
     );
@@ -81,7 +81,7 @@ export function LiveViewers({ registryId, currentUserId, showDetails = false }: 
           </div>
           
           <BlockStack gap="100">
-            <Text variant="bodySm" fontWeight="medium">
+            <Text variant="bodySm" fontWeight="medium" as="span">
               {viewerCount === 0 ? 'No one else viewing' : 
                viewerCount === 1 ? '1 person viewing' : 
                `${viewerCount} people viewing`}
@@ -95,7 +95,7 @@ export function LiveViewers({ registryId, currentUserId, showDetails = false }: 
                   backgroundColor: '#00a047',
                   borderRadius: '50%'
                 }} />
-                <Text variant="bodySm" tone="subdued">Live</Text>
+                <Text variant="bodySm" tone="subdued" as="span">Live</Text>
               </InlineStack>
             )}
           </BlockStack>
@@ -120,13 +120,13 @@ export function LiveViewers({ registryId, currentUserId, showDetails = false }: 
                   content={viewer.userId || `Anonymous viewer`}
                 >
                   <Avatar 
-                    size="extraSmall" 
+                    size="sm" 
                     name={viewer.userId || 'Anonymous'} 
                   />
                 </Tooltip>
               ))}
               {viewerCount > 3 && (
-                <Text variant="bodySm" tone="subdued">
+                <Text variant="bodySm" tone="subdued" as="span">
                   +{viewerCount - 3} more
                 </Text>
               )}
@@ -147,23 +147,23 @@ export function LiveViewers({ registryId, currentUserId, showDetails = false }: 
               {otherViewers.map(viewer => (
                 <InlineStack key={viewer.connectionId} gap="300" blockAlign="center">
                   <Avatar 
-                    size="small" 
+                    size="md" 
                     name={viewer.userId || 'Anonymous'} 
                   />
                   
                   <BlockStack gap="100">
-                    <Text variant="bodyMd" fontWeight="medium">
+                    <Text variant="bodyMd" fontWeight="medium" as="span">
                       {viewer.userId || 'Anonymous Viewer'}
                     </Text>
                     
                     {viewer.metadata?.currentPage && (
-                      <Text variant="bodySm" tone="subdued">
+                      <Text variant="bodySm" tone="subdued" as="span">
                         Viewing: {viewer.metadata.currentPage.split('/').pop() || 'Registry'}
                       </Text>
                     )}
                     
                     {viewer.metadata?.isActive !== undefined && (
-                      <Badge tone={viewer.metadata.isActive ? "success" : "subdued"}>
+                      <Badge tone={viewer.metadata.isActive ? "success" : "info"}>
                         {viewer.metadata.isActive ? 'Active' : 'Away'}
                       </Badge>
                     )}
@@ -172,7 +172,7 @@ export function LiveViewers({ registryId, currentUserId, showDetails = false }: 
               ))}
               
               {otherViewers.length === 0 && (
-                <Text variant="bodyMd" tone="subdued" alignment="center">
+                <Text variant="bodyMd" tone="subdued" alignment="center" as="p">
                   No other viewers at the moment
                 </Text>
               )}
@@ -261,9 +261,7 @@ export function RealtimeNotifications({ registryId, position = 'bottom-right' }:
           variant="primary"
           size="large"
         >
-          {unreadCount > 0 && (
-            <Badge tone="critical">{unreadCount}</Badge>
-          )}
+          {unreadCount > 0 ? unreadCount.toString() : 'Notifications'}
         </Button>
       </div>
 
@@ -272,7 +270,7 @@ export function RealtimeNotifications({ registryId, position = 'bottom-right' }:
         open={showNotifications}
         onClose={() => setShowNotifications(false)}
         title="Live Updates"
-        size="medium"
+        size="large"
       >
         <Modal.Section>
           <BlockStack gap="300">
@@ -286,11 +284,11 @@ export function RealtimeNotifications({ registryId, position = 'bottom-right' }:
                     />
                     
                     <BlockStack gap="100">
-                      <Text variant="bodyMd" fontWeight="medium">
+                      <Text variant="bodyMd" fontWeight="medium" as="p">
                         {getNotificationMessage(notification)}
                       </Text>
                       
-                      <Text variant="bodySm" tone="subdued">
+                      <Text variant="bodySm" tone="subdued" as="span">
                         {new Date(notification.timestamp).toLocaleTimeString()}
                       </Text>
                     </BlockStack>
@@ -298,7 +296,7 @@ export function RealtimeNotifications({ registryId, position = 'bottom-right' }:
                 </Card>
               ))
             ) : (
-              <Text variant="bodyMd" tone="subdued" alignment="center">
+              <Text variant="bodyMd" tone="subdued" alignment="center" as="p">
                 No recent updates
               </Text>
             )}
@@ -421,11 +419,11 @@ export function PurchaseNotificationsBanner({
               setVisibleNotifications(prev => prev.filter(n => n.id !== notification.id));
             }}
           >
-            <Text variant="bodyMd" fontWeight="medium">
+            <Text variant="bodyMd" fontWeight="medium" as="p">
               🎉 {notification.productTitle} was just purchased!
             </Text>
             {notification.buyerName && (
-              <Text variant="bodySm" tone="subdued">
+              <Text variant="bodySm" tone="subdued" as="p">
                 by {notification.buyerName}
               </Text>
             )}
@@ -478,7 +476,7 @@ export function ActivityFeed({ registryId, maxItems = 10, showTimestamps = true 
   if (!isConnected) {
     return (
       <Card>
-        <Text variant="bodyMd" tone="subdued">Connecting to live updates...</Text>
+        <Text variant="bodyMd" tone="subdued" as="p">Connecting to live updates...</Text>
       </Card>
     );
   }
@@ -499,15 +497,15 @@ export function ActivityFeed({ registryId, maxItems = 10, showTimestamps = true 
             displayedActivity.map((activity, index) => (
               <div key={`${activity.timestamp}-${index}`}>
                 <InlineStack gap="200" blockAlign="start">
-                  <Avatar size="extraSmall" name={activity.actorName || 'User'} />
+                  <Avatar size="sm" name={activity.actorName || 'User'} />
                   
                   <BlockStack gap="100">
-                    <Text variant="bodyMd">
+                    <Text variant="bodyMd" as="p">
                       {activity.description}
                     </Text>
                     
                     {showTimestamps && (
-                      <Text variant="bodySm" tone="subdued">
+                      <Text variant="bodySm" tone="subdued" as="span">
                         {new Date(activity.timestamp).toLocaleTimeString()}
                       </Text>
                     )}
@@ -516,7 +514,7 @@ export function ActivityFeed({ registryId, maxItems = 10, showTimestamps = true 
               </div>
             ))
           ) : (
-            <Text variant="bodyMd" tone="subdued" alignment="center">
+            <Text variant="bodyMd" tone="subdued" alignment="center" as="p">
               No recent activity
             </Text>
           )}

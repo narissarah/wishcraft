@@ -860,3 +860,221 @@ export async function getRegistryBySlugWithItems(slug: string) {
     }
   });
 }
+
+// ============================================================================
+// STANDALONE FUNCTION EXPORTS (for test compatibility)
+// ============================================================================
+
+/**
+ * Create a new registry (standalone function)
+ */
+export async function createRegistry(input: CreateRegistryInput): Promise<any> {
+  // Validate input data
+  validateRegistryData(input);
+  
+  // Use default shopId if not provided (for backwards compatibility)
+  const shopId = input.shopId || 'default-shop';
+  const service = new RegistryService(shopId);
+  
+  return service.createRegistry(input);
+}
+
+/**
+ * Get registry by ID or slug (standalone function)
+ */
+export async function getRegistry(idOrSlug: string): Promise<any> {
+  // Determine if input is an ID or slug
+  const isId = idOrSlug.startsWith('reg_') || idOrSlug.includes('-');
+  
+  if (isId) {
+    // Try to find by ID first
+    const service = new RegistryService('default-shop');
+    return service.getRegistryById(idOrSlug);
+  } else {
+    // Try to find by slug
+    const service = new RegistryService('default-shop');
+    return service.getRegistryBySlug(idOrSlug);
+  }
+}
+
+/**
+ * Update registry (standalone function)
+ */
+export async function updateRegistry(registryId: string, updates: Partial<CreateRegistryInput>): Promise<any> {
+  const service = new RegistryService('default-shop');
+  return service.updateRegistry({ id: registryId, ...updates });
+}
+
+/**
+ * Delete registry (standalone function)
+ */
+export async function deleteRegistry(registryId: string): Promise<boolean> {
+  const service = new RegistryService('default-shop');
+  return service.deleteRegistry(registryId);
+}
+
+/**
+ * Add item to registry (standalone function)
+ */
+export async function addItemToRegistry(registryId: string, itemData: any): Promise<any> {
+  // Validate item data
+  if (!itemData.productId || itemData.quantity <= 0) {
+    throw new Error('Invalid item data');
+  }
+  
+  // Check for duplicate items
+  const existingItem = await db.registryItem.findFirst({
+    where: {
+      registryId,
+      productId: itemData.productId,
+      productVariantId: itemData.productVariantId
+    }
+  });
+  
+  if (existingItem) {
+    throw new Error('Item already exists in registry');
+  }
+  
+  // Create new item
+  const newItem = await db.registryItem.create({
+    data: {
+      registryId,
+      productId: itemData.productId,
+      productVariantId: itemData.productVariantId,
+      productTitle: itemData.productTitle,
+      quantity: itemData.quantity,
+      price: itemData.price,
+      status: 'available'
+    }
+  });
+  
+  // Log activity
+  await db.registryActivity.create({
+    data: {
+      registryId,
+      type: 'item_added',
+      description: `Item added to registry: ${itemData.productTitle}`,
+      actorType: 'owner',
+      actorId: 'system',
+      actorEmail: null,
+      actorName: null,
+    }
+  });
+  
+  return newItem;
+}
+
+/**
+ * Remove item from registry (standalone function)
+ */
+export async function removeItemFromRegistry(itemId: string): Promise<boolean> {
+  const item = await db.registryItem.findUnique({
+    where: { id: itemId },
+    include: { registry: true }
+  });
+  
+  if (!item) {
+    throw new Error('Item not found');
+  }
+  
+  await db.registryItem.delete({
+    where: { id: itemId }
+  });
+  
+  // Log activity
+  await db.registryActivity.create({
+    data: {
+      registryId: item.registryId,
+      type: 'item_removed',
+      description: `Item removed from registry`,
+      actorType: 'owner',
+      actorId: 'system',
+      actorEmail: null,
+      actorName: null,
+    }
+  });
+  
+  return true;
+}
+
+/**
+ * Update registry item (standalone function)
+ */
+export async function updateRegistryItem(itemId: string, updates: any): Promise<any> {
+  if (updates.quantity !== undefined && updates.quantity <= 0) {
+    throw new Error('Invalid quantity');
+  }
+  
+  const updatedItem = await db.registryItem.update({
+    where: { id: itemId },
+    data: {
+      ...updates,
+      updatedAt: new Date()
+    }
+  });
+  
+  return updatedItem;
+}
+
+/**
+ * Validate registry data (standalone function)
+ */
+export function validateRegistryData(data: any): void {
+  // Validate required fields
+  if (!data.title || data.title.trim() === '') {
+    throw new Error('Title is required');
+  }
+  
+  if (!data.customerId) {
+    throw new Error('Customer ID is required');
+  }
+  
+  if (!data.shopId) {
+    throw new Error('Shop ID is required');
+  }
+  
+  // Validate email format
+  if (data.customerEmail && !isValidEmail(data.customerEmail)) {
+    throw new Error('Invalid email address');
+  }
+  
+  // Validate visibility options
+  if (data.visibility && !['public', 'private', 'password', 'friends_only'].includes(data.visibility)) {
+    throw new Error('Invalid visibility option');
+  }
+  
+  // Validate event date is in the future
+  if (data.eventDate && new Date(data.eventDate) < new Date()) {
+    throw new Error('Event date must be in the future');
+  }
+}
+
+/**
+ * Generate unique slug (standalone function)
+ */
+export function generateUniqueSlug(title: string): string {
+  // Convert title to slug format
+  const slug = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .trim()
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+  
+  // Add timestamp for uniqueness
+  const timestamp = Date.now();
+  return `${slug}-${timestamp}`;
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Validate email format
+ */
+function isValidEmail(email: string): boolean {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}

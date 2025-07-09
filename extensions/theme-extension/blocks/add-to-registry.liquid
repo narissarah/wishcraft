@@ -20,20 +20,17 @@
         <p class="wishcraft-description">{{ block.settings.description }}</p>
       {% endif %}
 
-      {% comment %} Registry Selection Dropdown {% endcomment %}
+      {% comment %} Registry Selection Dropdown - Using Polaris Web Components {% endcomment %}
       <div class="wishcraft-registry-selector" id="registry-selector-{{ block.id }}">
-        <select class="wishcraft-select" id="registry-select-{{ block.id }}" aria-label="Select a registry">
+        <shopify-select id="registry-select-{{ block.id }}" label="Select a registry" placeholder="Loading your registries...">
           <option value="" disabled selected>Loading your registries...</option>
-        </select>
+        </shopify-select>
       </div>
 
       {% comment %} Variant Selection for Products with Multiple Variants {% endcomment %}
       {% if product.variants.size > 1 %}
         <div class="wishcraft-variant-selector">
-          <label for="variant-select-{{ block.id }}" class="wishcraft-label">
-            Choose variant:
-          </label>
-          <select class="wishcraft-select" id="variant-select-{{ block.id }}" aria-label="Select product variant">
+          <shopify-select id="variant-select-{{ block.id }}" label="Choose variant:">
             {% for variant in product.variants %}
               <option 
                 value="{{ variant.id }}" 
@@ -45,7 +42,7 @@
                 ({{ variant.price | money }})
               </option>
             {% endfor %}
-          </select>
+          </shopify-select>
         </div>
       {% endif %}
 
@@ -103,10 +100,10 @@
         </div>
       {% endif %}
 
-      {% comment %} Add to Registry Button {% endcomment %}
-      <button 
-        type="button" 
-        class="wishcraft-add-button" 
+      {% comment %} Add to Registry Button - Using Polaris Web Components {% endcomment %}
+      <shopify-button 
+        variant="primary" 
+        size="large"
         id="add-to-registry-btn-{{ block.id }}"
         data-product-id="{{ product.id }}"
         data-product-title="{{ product.title | escape }}"
@@ -116,15 +113,8 @@
         aria-label="Add {{ product.title }} to registry">
         
         <span class="wishcraft-button-text">{{ block.settings.button_text }}</span>
-        <span class="wishcraft-button-loader" aria-hidden="true">
-          <svg class="wishcraft-spinner" viewBox="0 0 24 24">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
-              <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
-              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
-            </circle>
-          </svg>
-        </span>
-      </button>
+        <shopify-spinner class="wishcraft-button-loader" size="small" aria-hidden="true"></shopify-spinner>
+      </shopify-button>
 
       {% comment %} Success/Error Messages {% endcomment %}
       <div class="wishcraft-message" id="message-{{ block.id }}" role="alert" aria-live="polite"></div>

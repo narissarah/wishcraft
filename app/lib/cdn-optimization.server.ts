@@ -299,7 +299,7 @@ export class EdgeCacheManager {
     // Vary on Accept for images and API responses
     return pathname.includes('/api/') || 
            pathname.includes('/images/') ||
-           pathname.match(/\.(jpg|jpeg|png|webp|avif)$/);
+           Boolean(pathname.match(/\.(jpg|jpeg|png|webp|avif)$/));
   }
 
   private shouldCompress(pathname: string): boolean {

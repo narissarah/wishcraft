@@ -1,7 +1,10 @@
 /**
- * WishCraft Registry - Storefront JavaScript
- * Handles all registry interactions on the storefront
+ * WishCraft Registry - Storefront JavaScript (2025-10RC Compatible)
+ * Handles all registry interactions on the storefront using Polaris Web Components
  */
+
+// Import Polaris Web Components for 2025 compliance
+import '@shopify/polaris-web-components';
 
 (function() {
   'use strict';
@@ -517,41 +520,40 @@
       const remaining = Math.max(0, item.quantity - item.quantityPurchased);
 
       return `
-        <div class="registry-item" data-item-id="${item.id}">
+        <shopify-card class="registry-item" data-item-id="${item.id}">
           <div class="registry-item__image">
             <img src="${item.productImage || '/assets/placeholder.png'}" 
                  alt="${item.productTitle}" 
                  loading="lazy">
           </div>
           <div class="registry-item__content">
-            <h4 class="registry-item__title">${item.productTitle}</h4>
-            ${item.notes ? `<p class="registry-item__notes">${item.notes}</p>` : ''}
-            <div class="registry-item__price">
+            <shopify-text variant="headingMd" as="h4">${item.productTitle}</shopify-text>
+            ${item.notes ? `<shopify-text variant="bodyMd" color="subdued">${item.notes}</shopify-text>` : ''}
+            <shopify-text variant="bodyLg" weight="semibold">
               ${utils.formatMoney(item.price * 100)}
               ${item.quantity > 1 ? ` × ${item.quantity}` : ''}
-            </div>
+            </shopify-text>
             <div class="registry-item__progress">
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: ${progress}%"></div>
-              </div>
-              <span class="progress-text">
+              <shopify-progress-bar progress="${progress}" size="medium"></shopify-progress-bar>
+              <shopify-text variant="bodySm" color="subdued">
                 ${item.quantityPurchased} of ${item.quantity} purchased
-              </span>
+              </shopify-text>
             </div>
             ${!isCompleted ? `
-              <button class="registry-item__purchase-btn" 
-                      data-item-id="${item.id}"
-                      data-product-handle="${item.productHandle}"
-                      data-variant-id="${item.variantId}">
+              <shopify-button variant="primary" 
+                             data-item-id="${item.id}"
+                             data-product-handle="${item.productHandle}"
+                             data-variant-id="${item.variantId}"
+                             class="registry-item__purchase-btn">
                 ${remaining === 1 ? 'Purchase This Gift' : `Purchase (${remaining} remaining)`}
-              </button>
+              </shopify-button>
             ` : `
-              <div class="registry-item__completed">
-                ✓ Fully purchased
-              </div>
+              <shopify-badge tone="success">
+                <span>✓ Fully purchased</span>
+              </shopify-badge>
             `}
           </div>
-        </div>
+        </shopify-card>
       `;
     }
 

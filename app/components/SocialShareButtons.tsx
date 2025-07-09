@@ -123,12 +123,8 @@ export function SocialShareButtons({
   }, [registryUrl, onCopy]);
 
   const shareActionItems = socialPlatforms.map(platform => ({
-    content: (
-      <InlineStack gap="200" align="start">
-        <Icon source={platform.icon} />
-        <Text variant="bodyMd">{platform.name}</Text>
-      </InlineStack>
-    ),
+    content: platform.name,
+    prefix: <Icon source={platform.icon} />,
     onAction: () => handleSocialShare(platform)
   }));
 
@@ -196,21 +192,13 @@ export function SocialShareButtons({
         >
           <ActionList items={[
             ...socialPlatforms.slice(4).map(platform => ({
-              content: (
-                <InlineStack gap="200" align="start">
-                  <Icon source={platform.icon} />
-                  <Text variant="bodyMd">{platform.name}</Text>
-                </InlineStack>
-              ),
+              content: platform.name,
+              prefix: <Icon source={platform.icon} />,
               onAction: () => handleSocialShare(platform)
             })),
             {
-              content: (
-                <InlineStack gap="200" align="start">
-                  <Icon source={copied ? LinkIcon : DuplicateIcon} />
-                  <Text variant="bodyMd">{copied ? 'Copied!' : 'Copy Link'}</Text>
-                </InlineStack>
-              ),
+              content: copied ? 'Copied!' : 'Copy Link',
+              prefix: <Icon source={copied ? LinkIcon : DuplicateIcon} />,
               onAction: handleCopyLink
             }
           ]} />

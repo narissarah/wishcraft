@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "WishCraft - Shopify Gift Registry App",
   "scripts": {
-    "build": "remix build",
+    "build": "npx prisma generate && remix build",
     "dev": "shopify app dev",
     "prestart": "node scripts/check-env.js || true",
     "start": "node server.js",
+    "start:debug": "node start-debug.js",
     "dev:setup": "./scripts/dev-setup.sh",
     "config:link": "shopify app config link",
     "config:use": "shopify app config use",
@@ -29,7 +30,6 @@
     "lint": "eslint app",
     "lint:fix": "eslint app --fix",
     "analyze": "ANALYZE=true npm run build",
-    "bundle:analyze": "npm run build && npx bundle-analyzer build/client",
     "size": "size-limit",
     "performance:audit": "lighthouse http://localhost:3000 --only-categories=performance --output=json --output-path=./lighthouse-report.json",
     "performance:report": "node scripts/performance-report.js",
@@ -54,7 +54,9 @@
     "debug:db": "node scripts/test-db-connection.js",
     "debug:server": "node deploy/debug-server.js",
     "debug:deploy": "./deploy/railway-debug.sh",
-    "debug:all": "npm run debug:railway && npm run debug:db"
+    "debug:all": "npm run debug:railway && npm run debug:db",
+    "bundle:analyze": "npm run build && npx bundle-analyzer build/client",
+    "bundle:size": "bundlesize"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -70,15 +72,21 @@
     "@shopify/shopify-app-remix": "^3.3.0",
     "@shopify/shopify-app-session-storage-prisma": "^4.0.5",
     "@types/dompurify": "^3.0.5",
+    "compression": "^1.8.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
+    "express-rate-limit": "^7.5.1",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.3.2",
     "isomorphic-dompurify": "^2.26.0",
     "lru-cache": "^10.2.0",
+    "morgan": "^1.10.0",
     "node-cron": "^4.2.0",
     "node-statsd": "^0.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "redis": "^4.6.13",
     "swagger-ui-dist": "^4.15.5",
     "web-vitals": "^3.5.2",
     "zod": "^3.25.76"
@@ -119,6 +127,24 @@
   "prisma": {
     "seed": "tsx prisma/seed.ts"
   },
+  "bundlesize": [
+    {
+      "path": "./public/build/entry.client-*.js",
+      "maxSize": "200kb"
+    },
+    {
+      "path": "./public/build/root-*.js",
+      "maxSize": "150kb"
+    },
+    {
+      "path": "./public/build/_shared/chunk-*.js",
+      "maxSize": "100kb"
+    },
+    {
+      "path": "./public/build/routes/**/*.js",
+      "maxSize": "50kb"
+    }
+  ],
   "engines": {
     "node": ">=18.20.0"
   },

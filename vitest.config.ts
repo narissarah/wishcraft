@@ -43,10 +43,7 @@ export default defineConfig({
           lines: 95,
           statements: 95
         }
-      },
-      // Fail the build if coverage falls below thresholds
-      thresholdAutoUpdate: false,
-      skipFull: false
+      }
     },
     // Performance settings
     testTimeout: 10000,

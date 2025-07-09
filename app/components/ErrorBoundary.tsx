@@ -1,7 +1,7 @@
 import React from 'react';
 import { useRouteError, isRouteErrorResponse, Link } from "@remix-run/react";
 import { Card, Page, Button, Text, BlockStack, InlineStack, Banner, Icon } from "@shopify/polaris";
-import { RefreshMajor, BugMajor, AlertMinor } from "@shopify/polaris-icons";
+import { RefreshIcon, BugIcon, AlertTriangleIcon } from "@shopify/polaris-icons";
 import { handleCustomerAuthError } from "~/lib/customer-auth.server";
 import { captureException } from '~/lib/monitoring.server';
 
@@ -209,13 +209,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           <Card>
             <BlockStack gap="400">
               <BlockStack gap="200">
-                <Icon source={BugMajor} color="critical" />
+                <Icon source={BugIcon} tone="critical" />
                 <Text variant="headingMd" as="h2">
                   Application Error
                 </Text>
               </BlockStack>
               
-              <Banner status="critical">
+              <Banner tone="critical">
                 <p>
                   We're sorry, but something went wrong. Our team has been notified and is working on a fix.
                 </p>
@@ -229,7 +229,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <InlineStack gap="300">
                 <Button
                   variant="primary"
-                  icon={RefreshMajor}
+                  icon={RefreshIcon}
                   onClick={this.handleManualRetry}
                   disabled={retryCount >= this.maxRetries}
                 >
@@ -268,7 +268,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
     if (level === 'route') {
       return (
         <div style={{ padding: '16px' }}>
-          <Banner status="warning">
+          <Banner tone="warning">
             <BlockStack gap="200">
               <Text as="p">This page encountered an error while loading.</Text>
               
@@ -300,8 +300,8 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       <div style={{ padding: '8px', border: '1px solid #e1e1e1', borderRadius: '4px', backgroundColor: '#fafafa' }}>
         <BlockStack gap="200">
           <InlineStack gap="200" align="center">
-            <Icon source={AlertMinor} color="subdued" />
-            <Text variant="bodySm" tone="subdued">
+            <Icon source={AlertTriangleIcon} tone="subdued" />
+            <Text variant="bodySm" tone="subdued" as="span">
               Component failed to load
             </Text>
           </InlineStack>

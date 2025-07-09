@@ -56,7 +56,23 @@ describe('Registry CRUD Operations', () => {
         visibility: 'public',
         eventDate: new Date('2024-12-25'),
         eventType: 'wedding',
-        isActive: true,
+        status: 'active',
+        eventLocation: null,
+        eventDetails: null,
+        accessCode: null,
+        allowAnonymousGifts: true,
+        requiresApproval: false,
+        customerEmail: 'test@example.com',
+        customerFirstName: 'John',
+        customerLastName: 'Doe',
+        customerPhone: null,
+        views: 0,
+        uniqueViews: 0,
+        totalValue: 0,
+        purchasedValue: 0,
+        completionRate: 0,
+        metadata: null,
+        tags: null,
         createdAt: new Date(),
         updatedAt: new Date()
       };
@@ -120,7 +136,9 @@ describe('Registry CRUD Operations', () => {
         customerEmail: 'test@example.com',
         customerFirstName: 'John',
         customerLastName: 'Doe',
-        shopId: 'shop_123'
+        shopId: 'shop_123',
+        eventType: 'wedding',
+        visibility: 'public' as const
       };
 
       const result = await createRegistry(registryData);
@@ -149,7 +167,9 @@ describe('Registry CRUD Operations', () => {
         customerEmail: 'test@example.com',
         customerFirstName: 'John',
         customerLastName: 'Doe',
-        shopId: 'shop_123'
+        shopId: 'shop_123',
+        eventType: 'general',
+        visibility: 'public' as const
       };
 
       await expect(createRegistry(registryData)).rejects.toThrow('Failed to create registry');
@@ -412,7 +432,9 @@ describe('Registry CRUD Operations', () => {
         title: 'Valid Title',
         customerId: 'cust_123',
         customerEmail: 'valid@email.com',
-        shopId: 'shop_123'
+        shopId: 'shop_123',
+        eventType: 'general',
+        visibility: 'public'
       };
 
       expect(() => validateRegistryData(validData)).not.toThrow();
@@ -423,7 +445,9 @@ describe('Registry CRUD Operations', () => {
         title: '',
         customerId: 'cust_123',
         customerEmail: 'valid@email.com',
-        shopId: 'shop_123'
+        shopId: 'shop_123',
+        eventType: 'general',
+        visibility: 'public'
       };
 
       expect(() => validateRegistryData(invalidData)).toThrow('Title is required');
@@ -434,7 +458,9 @@ describe('Registry CRUD Operations', () => {
         title: 'Title',
         customerId: 'cust_123',
         customerEmail: 'not-an-email',
-        shopId: 'shop_123'
+        shopId: 'shop_123',
+        eventType: 'general',
+        visibility: 'public'
       };
 
       expect(() => validateRegistryData(invalidData)).toThrow('Invalid email address');
@@ -449,6 +475,7 @@ describe('Registry CRUD Operations', () => {
           customerId: 'cust_123',
           customerEmail: 'test@example.com',
           shopId: 'shop_123',
+          eventType: 'general',
           visibility
         };
 
@@ -460,6 +487,7 @@ describe('Registry CRUD Operations', () => {
         customerId: 'cust_123',
         customerEmail: 'test@example.com',
         shopId: 'shop_123',
+        eventType: 'general',
         visibility: 'invalid_option'
       };
 
@@ -475,6 +503,8 @@ describe('Registry CRUD Operations', () => {
         customerId: 'cust_123',
         customerEmail: 'test@example.com',
         shopId: 'shop_123',
+        eventType: 'general',
+        visibility: 'public',
         eventDate: pastDate
       };
 

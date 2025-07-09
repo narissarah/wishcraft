@@ -207,8 +207,10 @@ export async function makeCustomerAPIRequest(
   query: string,
   variables?: any
 ) {
+  // Use stable API version for Customer Account API
+  const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-07';
   const response = await fetch(
-    `https://shopify.com/${session.shop}/account/customer/api/2025-07/graphql`,
+    `https://shopify.com/${session.shop}/account/customer/api/${apiVersion}/graphql`,
     {
       method: "POST",
       headers: {
@@ -413,4 +415,110 @@ export function createAuthMiddleware(options: {
     
     return { adminAuth, customerAuth };
   };
+}
+
+// ============================================================================
+// WEBSOCKET AUTHENTICATION
+// ============================================================================
+
+export interface WebSocketAuthResult {
+  shopId: string;
+  customerId?: string;
+  isAdmin: boolean;
+  scopes: string[];
+}
+
+export async function authenticateWebSocket(
+  token: string,
+  shop: string
+): Promise<WebSocketAuthResult | null> {
+  try {
+    // Try admin authentication first
+    const adminSession = await verifyAdminToken(token, shop);
+    if (adminSession) {
+      return {
+        shopId: shop,
+        isAdmin: true,
+        scopes: adminSession.scope?.split(',') || [],
+      };
+    }
+    
+    // Try customer authentication
+    const customerSession = await verifyCustomerToken(token, shop);
+    if (customerSession) {
+      return {
+        shopId: shop,
+        customerId: customerSession.customerId,
+        isAdmin: false,
+        scopes: customerSession.scope,
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('WebSocket authentication failed:', error);
+    return null;
+  }
+}
+
+async function verifyAdminToken(token: string, shop: string): Promise<any> {
+  try {
+    // Use GraphQL Admin API instead of deprecated REST
+    const response = await fetch(`https://${shop}.myshopify.com/admin/api/2025-07/graphql.json`, {
+      method: 'POST',
+      headers: {
+        'X-Shopify-Access-Token': token,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query: `#graphql
+          query VerifyShop {
+            shop {
+              id
+              name
+              email
+            }
+          }
+        `
+      })
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      if (result.data?.shop) {
+        return { 
+          scope: 'read_customers,write_orders,read_products',
+          shop: result.data.shop
+        };
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Admin token verification failed:', error);
+    return null;
+  }
+}
+
+async function verifyCustomerToken(token: string, shop: string): Promise<CustomerSession | null> {
+  try {
+    // Decrypt customer token
+    const decryptedToken = decryptSession(token);
+    const session = JSON.parse(decryptedToken) as CustomerSession;
+    
+    // Verify token is not expired
+    if (Date.now() > session.expiresAt) {
+      return null;
+    }
+    
+    // Verify shop matches
+    if (session.shop !== shop) {
+      return null;
+    }
+    
+    return session;
+  } catch (error) {
+    console.error('Customer token verification failed:', error);
+    return null;
+  }
 }

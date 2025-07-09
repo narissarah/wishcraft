@@ -50,8 +50,8 @@ export function GroupGiftProgress({
 
   // Update data when fetcher returns
   useEffect(() => {
-    if (fetcher.data && !fetcher.data.error) {
-      const newData = fetcher.data.progress;
+    if (fetcher.data && typeof fetcher.data === 'object' && 'progress' in fetcher.data && !('error' in fetcher.data)) {
+      const newData = (fetcher.data as any).progress;
       
       // Check if data has changed
       const hasChanged = 
@@ -98,7 +98,7 @@ export function GroupGiftProgress({
                     animation: 'pulse 2s infinite'
                   }} 
                 />
-                <Text variant="bodySm" tone="subdued">Live</Text>
+                <Text variant="bodySm" tone="subdued" as="span">Live</Text>
               </InlineStack>
             )}
             
@@ -111,10 +111,10 @@ export function GroupGiftProgress({
         {/* Progress visualization */}
         <BlockStack gap="200">
           <InlineStack align="space-between">
-            <Text variant="bodyMd" fontWeight="medium">
+            <Text variant="bodyMd" fontWeight="medium" as="span">
               ${data.currentAmount.toFixed(2)} raised
             </Text>
-            <Text variant="bodyMd" tone="subdued">
+            <Text variant="bodyMd" tone="subdued" as="span">
               ${data.targetAmount.toFixed(2)} goal
             </Text>
           </InlineStack>
@@ -126,11 +126,11 @@ export function GroupGiftProgress({
           />
           
           <InlineStack align="space-between">
-            <Text variant="bodySm" tone="subdued">
+            <Text variant="bodySm" tone="subdued" as="span">
               {data.contributorCount} contributor{data.contributorCount !== 1 ? 's' : ''}
             </Text>
             
-            <Text variant="bodySm" tone="subdued">
+            <Text variant="bodySm" tone="subdued" as="span">
               {progressPercentage.toFixed(1)}% complete
             </Text>
           </InlineStack>
@@ -139,23 +139,23 @@ export function GroupGiftProgress({
         {/* Status banners */}
         {isCompleted && (
           <Banner tone="success">
-            <Text>🎉 Goal reached! Order will be placed automatically.</Text>
+            <Text as="p">🎉 Goal reached! Order will be placed automatically.</Text>
           </Banner>
         )}
 
         {isExpired && !isCompleted && (
           <Banner tone="critical">
-            <Text>This group gift has expired. Refunds will be processed automatically.</Text>
+            <Text as="p">This group gift has expired. Refunds will be processed automatically.</Text>
           </Banner>
         )}
 
         {!isCompleted && !isExpired && remainingAmount > 0 && (
           <Banner tone="info">
             <InlineStack gap="200">
-              <Text>${remainingAmount.toFixed(2)} remaining</Text>
+              <Text as="span">${remainingAmount.toFixed(2)} remaining</Text>
               {daysRemaining !== null && daysRemaining > 0 && (
-                <Badge tone="attention">
-                  {daysRemaining} day{daysRemaining !== 1 ? 's' : ''} left
+                <Badge tone="warning">
+                  {`${daysRemaining} day${daysRemaining !== 1 ? 's' : ''} left`}
                 </Badge>
               )}
             </InlineStack>
@@ -168,14 +168,14 @@ export function GroupGiftProgress({
             <Text variant="headingSm" as="h4">
               ${(data.contributorCount > 0 ? data.currentAmount / data.contributorCount : 0).toFixed(2)}
             </Text>
-            <Text variant="bodySm" tone="subdued">Avg. contribution</Text>
+            <Text variant="bodySm" tone="subdued" as="span">Avg. contribution</Text>
           </div>
           
           <div>
             <Text variant="headingSm" as="h4">
               {progressPercentage.toFixed(0)}%
             </Text>
-            <Text variant="bodySm" tone="subdued">of goal</Text>
+            <Text variant="bodySm" tone="subdued" as="span">of goal</Text>
           </div>
 
           {daysRemaining !== null && (
@@ -183,18 +183,18 @@ export function GroupGiftProgress({
               <Text variant="headingSm" as="h4">
                 {Math.max(daysRemaining, 0)}
               </Text>
-              <Text variant="bodySm" tone="subdued">days left</Text>
+              <Text variant="bodySm" tone="subdued" as="span">days left</Text>
             </div>
           )}
         </InlineStack>
 
         {/* Last update timestamp */}
-        <Text variant="bodySm" tone="subdued" alignment="center">
+        <Text variant="bodySm" tone="subdued" alignment="center" as="p">
           Last updated: {lastUpdate.toLocaleTimeString()}
         </Text>
       </BlockStack>
 
-      <style jsx>{`
+      <style dangerouslySetInnerHTML={{__html: `
         @keyframes pulse {
           0% {
             opacity: 1;
@@ -206,7 +206,7 @@ export function GroupGiftProgress({
             opacity: 1;
           }
         }
-      `}</style>
+      `}} />
     </Card>
   );
 }
@@ -236,10 +236,10 @@ export function GroupGiftMiniProgress({
       
       {showText && (
         <InlineStack align="space-between">
-          <Text variant="bodySm" tone="subdued">
+          <Text variant="bodySm" tone="subdued" as="span">
             ${currentAmount.toFixed(2)} of ${targetAmount.toFixed(2)}
           </Text>
-          <Text variant="bodySm" tone="subdued">
+          <Text variant="bodySm" tone="subdued" as="span">
             {contributorCount} contributor{contributorCount !== 1 ? 's' : ''}
           </Text>
         </InlineStack>

@@ -1,19 +1,23 @@
 import { onCLS, onFID, onLCP, onFCP, onTTFB, onINP, Metric } from "web-vitals";
 
 /**
- * Core Web Vitals Monitoring
+ * Core Web Vitals Monitoring (2025 Updated)
  * Tracks performance metrics required for Built for Shopify certification
+ * INP has replaced FID as the core interaction metric for 2025
  */
 
-// Performance thresholds for Built for Shopify
+// Performance thresholds for Built for Shopify (2025 Requirements)
 const PERFORMANCE_THRESHOLDS = {
   LCP: { good: 2500, poor: 4000 }, // Largest Contentful Paint
-  FID: { good: 100, poor: 300 }, // First Input Delay
+  FID: { good: 100, poor: 300 }, // First Input Delay (deprecated but still tracked)
   CLS: { good: 0.1, poor: 0.25 }, // Cumulative Layout Shift
   FCP: { good: 1800, poor: 3000 }, // First Contentful Paint
   TTFB: { good: 800, poor: 1800 }, // Time to First Byte
-  INP: { good: 200, poor: 500 }, // Interaction to Next Paint
+  INP: { good: 200, poor: 500 }, // Interaction to Next Paint (PRIMARY 2025 METRIC)
 };
+
+// Built for Shopify 2025 Core Metrics (INP replaces FID)
+const CORE_METRICS_2025 = ['LCP', 'CLS', 'INP'] as const;
 
 // Types
 export interface PerformanceData {

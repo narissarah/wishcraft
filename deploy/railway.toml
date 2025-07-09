@@ -28,8 +28,8 @@ cpu = 2000
 
 # Scaling configuration
 [scaling]
-minReplicas = 2
-maxReplicas = 10
+minReplicas = 1
+maxReplicas = 3
 targetCPU = 80
 targetMemory = 85
 
