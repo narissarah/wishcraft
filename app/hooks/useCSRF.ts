@@ -88,5 +88,5 @@ export function useCSRF(csrfData: CSRFData) {
  * CSRF token input component
  */
 export function CSRFTokenInput({ token }: { token: string }) {
-  return <input type="hidden" name="_csrf" value={token} />;
+  return `<input type="hidden" name="_csrf" value="${token}" />`;
 }

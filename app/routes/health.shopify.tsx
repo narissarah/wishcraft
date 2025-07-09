@@ -34,7 +34,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     
     // Check if response is successful or expected auth failure
     const isHealthy = response.status === 200 || response.status === 401 || response.status === 403;
-    let apiVersion = '2025-07';
+    const apiVersion = '2025-07';
     let rateLimitStatus = null;
     
     // Extract rate limit headers

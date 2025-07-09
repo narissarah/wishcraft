@@ -476,7 +476,16 @@ async function clearOfflineAnalytics() {
   // Implementation would clear analytics data from IndexedDB
 }
 
-// Performance monitoring
+// Performance monitoring with enhanced metrics
+const PERFORMANCE_METRICS = {
+  cacheHits: 0,
+  cacheMisses: 0,
+  networkRequests: 0,
+  backgroundSyncs: 0,
+  pushNotifications: 0,
+  offlineInteractions: 0
+};
+
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
@@ -484,6 +493,15 @@ self.addEventListener('message', event => {
     getCacheStats().then(stats => {
       event.ports[0].postMessage(stats);
     });
+  } else if (event.data && event.data.type === 'GET_PERFORMANCE_METRICS') {
+    event.ports[0].postMessage({
+      type: 'PERFORMANCE_METRICS',
+      data: PERFORMANCE_METRICS
+    });
+  } else if (event.data && event.data.type === 'TRACK_OFFLINE_INTERACTION') {
+    PERFORMANCE_METRICS.offlineInteractions++;
+    // Store offline interaction for later sync
+    storeOfflineInteraction(event.data.payload);
   }
 });
 

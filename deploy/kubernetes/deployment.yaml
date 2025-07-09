@@ -1,0 +1,168 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wishcraft-app
+  namespace: wishcraft
+  labels:
+    app: wishcraft
+    version: v1.0.0
+    tier: production
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: wishcraft
+  template:
+    metadata:
+      labels:
+        app: wishcraft
+        version: v1.0.0
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: wishcraft-service-account
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 2000
+      containers:
+      - name: wishcraft-app
+        image: wishcraft:latest
+        ports:
+        - containerPort: 3000
+          name: http
+          protocol: TCP
+        env:
+        - name: NODE_ENV
+          value: "production"
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: database-url
+        - name: SHOPIFY_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: shopify-api-key
+        - name: SHOPIFY_API_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: shopify-api-secret
+        - name: SESSION_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: session-secret
+        - name: ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: encryption-key
+        - name: WEBHOOK_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: webhook-secret
+        - name: REDIS_URL
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: redis-url
+        - name: SENTRY_DSN
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: sentry-dsn
+        - name: DATADOG_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wishcraft-secrets
+              key: datadog-api-key
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+          successThreshold: 1
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+          successThreshold: 1
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 3000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 30
+          successThreshold: 1
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: tmp-volume
+          mountPath: /tmp
+        - name: app-logs
+          mountPath: /app/logs
+      volumes:
+      - name: tmp-volume
+        emptyDir: {}
+      - name: app-logs
+        emptyDir: {}
+      imagePullSecrets:
+      - name: registry-credentials
+      nodeSelector:
+        node-type: application
+      tolerations:
+      - key: "application-tier"
+        operator: "Equal"
+        value: "true"
+        effect: "NoSchedule"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - wishcraft
+              topologyKey: kubernetes.io/hostname
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: node-type
+                operator: In
+                values:
+                - application

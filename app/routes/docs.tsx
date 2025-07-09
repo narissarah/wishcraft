@@ -19,8 +19,16 @@ interface LoaderData {
 }
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  // Load OpenAPI specification
-  const apiSpec = await import('/Users/narissaranamkhan/projects/wishcraft/docs/api/openapi.yaml');
+  // Load OpenAPI specification (placeholder for build compatibility)
+  const apiSpec = {
+    openapi: "3.0.0",
+    info: {
+      title: "WishCraft API",
+      version: "1.0.0",
+      description: "Gift Registry API for Shopify"
+    },
+    paths: {}
+  };
 
   // Code examples for different languages
   const examples = {
