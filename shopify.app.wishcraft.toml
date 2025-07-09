@@ -3,7 +3,7 @@
 client_id = "ac161e228a6b078fcdd3fa14586ded14"
 name = "wishcraft"
 handle = "wishcraft"
-application_url = "https://wishcraft.app"
+application_url = "https://wishcraft-production.up.railway.app"
 embedded = true
 
 [build]
@@ -18,9 +18,9 @@ scopes = "read_customers,read_orders,write_orders,read_products,read_inventory,w
 
 [auth]
 redirect_urls = [ 
-  "https://wishcraft.app/auth/callback",
-  "https://wishcraft.app/api/auth",
-  "https://wishcraft.app/api/auth/callback"
+  "https://wishcraft-production.up.railway.app/auth/callback",
+  "https://wishcraft-production.up.railway.app/api/auth",
+  "https://wishcraft-production.up.railway.app/api/auth/callback"
 ]
 
 [pos]
