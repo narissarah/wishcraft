@@ -1,0 +1,487 @@
+openapi: 3.0.3
+info:
+  title: WishCraft API
+  description: |
+    Comprehensive API documentation for WishCraft - The premium Shopify gift registry application.
+    
+    Built for Shopify 2025 compliant with GraphQL Admin API, OAuth 2.0, and modern security practices.
+  version: 1.0.0
+  contact:
+    name: WishCraft Support
+    url: https://wishcraft.app/support
+    email: support@wishcraft.app
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://wishcraft.app/api
+    description: Production API
+  - url: https://staging.wishcraft.app/api
+    description: Staging API
+  - url: http://localhost:3000/api
+    description: Development API
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+  - OAuth2: [read_registries, write_registries]
+
+paths:
+  /graphql:
+    post:
+      summary: GraphQL Endpoint
+      description: |
+        Primary GraphQL endpoint for all WishCraft operations.
+        Uses Shopify Admin API 2025-07 for seamless integration.
+      tags:
+        - GraphQL
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: GraphQL query string
+                  example: |
+                    query GetRegistry($id: ID!) {
+                      registry(id: $id) {
+                        id
+                        title
+                        description
+                        items {
+                          id
+                          title
+                          price
+                          status
+                        }
+                      }
+                    }
+                variables:
+                  type: object
+                  description: GraphQL query variables
+                  example:
+                    id: "gid://shopify/Registry/123"
+                operationName:
+                  type: string
+                  description: GraphQL operation name
+                  example: "GetRegistry"
+      responses:
+        '200':
+          description: GraphQL response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    description: GraphQL response data
+                  errors:
+                    type: array
+                    description: GraphQL errors
+                    items:
+                      $ref: '#/components/schemas/GraphQLError'
+                  extensions:
+                    type: object
+                    description: GraphQL extensions
+
+  /webhooks/app/uninstalled:
+    post:
+      summary: App Uninstalled Webhook
+      description: |
+        Handles app uninstallation webhook from Shopify.
+        Triggered when merchants uninstall the WishCraft app.
+      tags:
+        - Webhooks
+      security:
+        - WebhookAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShopifyWebhookPayload'
+      responses:
+        '200':
+          description: Webhook processed successfully
+        '401':
+          description: Invalid webhook signature
+
+  /webhooks/gdpr/customers/data_request:
+    post:
+      summary: GDPR Data Request Webhook
+      description: |
+        Handles GDPR data requests for customer data.
+        Exports all customer data in compliance with GDPR requirements.
+      tags:
+        - Webhooks
+        - GDPR
+      security:
+        - WebhookAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GDPRDataRequestPayload'
+      responses:
+        '200':
+          description: Data request processed successfully
+
+  /webhooks/gdpr/customers/redact:
+    post:
+      summary: GDPR Customer Redaction Webhook
+      description: |
+        Handles GDPR customer data redaction requests.
+        Anonymizes or deletes customer data as required by GDPR.
+      tags:
+        - Webhooks
+        - GDPR
+      security:
+        - WebhookAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GDPRRedactionPayload'
+      responses:
+        '200':
+          description: Redaction processed successfully
+
+  /webhooks/gdpr/shop/redact:
+    post:
+      summary: GDPR Shop Redaction Webhook
+      description: |
+        Handles GDPR shop data redaction requests.
+        Removes all shop data when requested by Shopify.
+      tags:
+        - Webhooks
+        - GDPR
+      security:
+        - WebhookAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GDPRShopRedactionPayload'
+      responses:
+        '200':
+          description: Shop redaction processed successfully
+
+  /health:
+    get:
+      summary: Health Check
+      description: Returns the health status of the WishCraft application
+      tags:
+        - Health
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authenticated requests
+    
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for service-to-service communication
+    
+    OAuth2:
+      type: oauth2
+      flows:
+        authorizationCode:
+          authorizationUrl: https://myshopify.com/admin/oauth/authorize
+          tokenUrl: https://myshopify.com/admin/oauth/access_token
+          scopes:
+            read_registries: Read registry data
+            write_registries: Create and modify registries
+            read_customers: Read customer information
+            write_customers: Modify customer information
+            read_products: Read product information
+            read_orders: Read order information
+            write_orders: Create and modify orders
+    
+    WebhookAuth:
+      type: apiKey
+      in: header
+      name: X-Shopify-Hmac-Sha256
+      description: Shopify webhook HMAC signature
+
+  schemas:
+    GraphQLError:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+        locations:
+          type: array
+          description: Error locations in query
+          items:
+            type: object
+            properties:
+              line:
+                type: integer
+              column:
+                type: integer
+        path:
+          type: array
+          description: Error path in response
+          items:
+            type: string
+        extensions:
+          type: object
+          description: Error extensions
+
+    ShopifyWebhookPayload:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Shop ID
+        name:
+          type: string
+          description: Shop name
+        domain:
+          type: string
+          description: Shop domain
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Update timestamp
+
+    GDPRDataRequestPayload:
+      type: object
+      properties:
+        shop_id:
+          type: integer
+          description: Shop ID
+        shop_domain:
+          type: string
+          description: Shop domain
+        orders_requested:
+          type: array
+          description: Requested order IDs
+          items:
+            type: integer
+        customer:
+          type: object
+          properties:
+            id:
+              type: integer
+            email:
+              type: string
+            phone:
+              type: string
+        data_request:
+          type: object
+          properties:
+            id:
+              type: integer
+
+    GDPRRedactionPayload:
+      type: object
+      properties:
+        shop_id:
+          type: integer
+          description: Shop ID
+        shop_domain:
+          type: string
+          description: Shop domain
+        customer:
+          type: object
+          properties:
+            id:
+              type: integer
+            email:
+              type: string
+            phone:
+              type: string
+        orders_to_redact:
+          type: array
+          description: Order IDs to redact
+          items:
+            type: integer
+
+    GDPRShopRedactionPayload:
+      type: object
+      properties:
+        shop_id:
+          type: integer
+          description: Shop ID
+        shop_domain:
+          type: string
+          description: Shop domain
+
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy, degraded]
+          description: Overall service status
+        timestamp:
+          type: string
+          format: date-time
+          description: Health check timestamp
+        version:
+          type: string
+          description: Application version
+        checks:
+          type: object
+          properties:
+            database:
+              $ref: '#/components/schemas/ServiceCheck'
+            redis:
+              $ref: '#/components/schemas/ServiceCheck'
+            shopify_api:
+              $ref: '#/components/schemas/ServiceCheck'
+        performance:
+          type: object
+          properties:
+            uptime:
+              type: number
+              description: Uptime in seconds
+            memory_usage:
+              type: number
+              description: Memory usage in MB
+            cpu_usage:
+              type: number
+              description: CPU usage percentage
+
+    ServiceCheck:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy, degraded]
+        response_time:
+          type: number
+          description: Response time in milliseconds
+        last_checked:
+          type: string
+          format: date-time
+        error:
+          type: string
+          description: Error message if unhealthy
+
+    Registry:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Registry ID
+          example: "gid://shopify/Registry/123"
+        title:
+          type: string
+          description: Registry title
+          example: "Sarah's Wedding Registry"
+        description:
+          type: string
+          description: Registry description
+        slug:
+          type: string
+          description: URL-friendly slug
+        event_type:
+          type: string
+          enum: [wedding, baby_shower, birthday, anniversary, graduation, other]
+        event_date:
+          type: string
+          format: date
+        privacy:
+          type: string
+          enum: [public, private, unlisted]
+        status:
+          type: string
+          enum: [active, paused, archived]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RegistryItem'
+
+    RegistryItem:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Registry item ID
+        title:
+          type: string
+          description: Item title
+        description:
+          type: string
+          description: Item description
+        price:
+          type: number
+          description: Item price
+        currency:
+          type: string
+          description: Price currency
+        quantity_requested:
+          type: integer
+          description: Requested quantity
+        quantity_purchased:
+          type: integer
+          description: Purchased quantity
+        status:
+          type: string
+          enum: [available, partially_fulfilled, fulfilled, unavailable]
+        priority:
+          type: string
+          enum: [low, medium, high]
+        product_id:
+          type: string
+          description: Shopify product ID
+        variant_id:
+          type: string
+          description: Shopify variant ID
+        image_url:
+          type: string
+          description: Product image URL
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+tags:
+  - name: GraphQL
+    description: GraphQL API operations
+  - name: Webhooks
+    description: Shopify webhook handlers
+  - name: GDPR
+    description: GDPR compliance endpoints
+  - name: Health
+    description: Application health monitoring
+
+externalDocs:
+  description: WishCraft Developer Documentation
+  url: https://docs.wishcraft.app

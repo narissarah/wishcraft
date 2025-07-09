@@ -1,0 +1,634 @@
+// WishCraft Database Schema - Following 2025 Shopify Best Practices
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING") // For migrations with connection pooling
+}
+
+// ============================================================================
+// CORE SHOPIFY INTEGRATION
+// ============================================================================
+
+model Session {
+  id          String    @id
+  shop        String
+  state       String
+  isOnline    Boolean   @default(false)
+  scope       String?
+  expires     DateTime?
+  accessToken String
+  userId      String?   // Changed from BigInt to String for Global IDs
+  firstName   String?
+  lastName    String?
+  email       String?
+  accountOwner Boolean  @default(false)
+  locale      String?
+  collaborator Boolean? @default(false)
+  emailVerified Boolean? @default(false)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model Shop {
+  id              String   @id // Shopify Global ID
+  domain          String   @unique
+  name            String
+  email           String?
+  phone           String?
+  address1        String?
+  address2        String?
+  city            String?
+  province        String?
+  country         String?
+  zip             String?
+  currencyCode    String   @default("USD")
+  timezone        String?
+  
+  // App-specific settings
+  settings        ShopSettings?
+  registries      Registry[]
+  analytics       AnalyticsEvent[]
+  
+  // Metafield tracking
+  metafieldSyncs  MetafieldSync[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("shops")
+}
+
+model ShopSettings {
+  id                    String   @id @default(cuid())
+  shopId                String   @unique
+  shop                  Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  // Feature toggles
+  enablePasswordProtection    Boolean @default(true)
+  enableGiftMessages         Boolean @default(true)
+  enableSocialSharing        Boolean @default(true)
+  enableGroupGifting         Boolean @default(true)
+  enableAnalytics           Boolean @default(true)
+  
+  // Email settings
+  enableEmailNotifications   Boolean @default(true)
+  fromEmail                 String?
+  emailTemplateId           String?
+  
+  // Theme customization
+  primaryColor              String  @default("#007ace")
+  accentColor               String  @default("#f3f3f3")
+  fontFamily                String  @default("Inter")
+  
+  // Registry settings
+  defaultRegistryVisibility String  @default("public") // public, private, friends
+  maxItemsPerRegistry       Int     @default(100)
+  enableInventoryTracking   Boolean @default(true)
+  
+  // Shipping settings
+  enableMultipleAddresses   Boolean @default(true)
+  defaultShippingZone       String?
+  
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  @@map("shop_settings")
+}
+
+// ============================================================================
+// REGISTRY CORE MODELS
+// ============================================================================
+
+model Registry {
+  id                String   @id @default(cuid())
+  
+  // Basic Information
+  title             String
+  description       String?
+  slug              String   @unique
+  status            String   @default("active") // active, paused, completed, archived
+  
+  // Event Details
+  eventType         String   @default("general") // wedding, birthday, baby, graduation, anniversary, holiday, housewarming, general
+  eventDate         DateTime?
+  eventLocation     String?
+  eventDetails      String?  // Flexible event metadata (JSON string)
+  
+  // Privacy & Access Control
+  visibility        String   @default("public") // public, private, friends, password
+  accessCode        String?  // For password-protected registries
+  allowAnonymousGifts Boolean @default(true)
+  requiresApproval  Boolean @default(false) // For gift additions
+  
+  // Shopify Integration
+  shopId            String
+  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  customerId        String   // Shopify Global ID
+  customerEmail     String
+  customerFirstName String?
+  customerLastName  String?
+  customerPhone     String?
+  
+  // Registry Items & Relationships
+  items             RegistryItem[]
+  collaborators     RegistryCollaborator[]
+  addresses         RegistryAddress[]
+  invitations       RegistryInvitation[]
+  activities        RegistryActivity[]
+  
+  // Analytics
+  views             Int      @default(0)
+  uniqueViews       Int      @default(0)
+  totalValue        Float    @default(0)
+  purchasedValue    Float    @default(0)
+  completionRate    Float    @default(0)
+  
+  // Metadata
+  metadata          String?  // For storing additional custom data (JSON string)
+  tags              String?  // Comma-separated tags for categorization
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([shopId])
+  @@index([customerId])
+  @@index([eventType])
+  @@index([visibility])
+  @@index([status])
+  @@map("registries")
+}
+
+model RegistryItem {
+  id                String   @id @default(cuid())
+  
+  // Registry relationship
+  registryId        String
+  registry          Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  
+  // Shopify Product Integration
+  productId         String   // Shopify Global ID
+  variantId         String?  // Shopify Global ID
+  productHandle     String
+  productTitle      String
+  variantTitle      String?
+  productType       String?
+  vendor            String?
+  
+  // Product Details (cached for performance)
+  productImage      String?
+  productImages     String?  // Array of image URLs (JSON string)
+  productUrl        String?
+  description       String?
+  
+  // Registry Item Configuration
+  quantity          Int      @default(1)
+  quantityPurchased Int      @default(0)
+  priority          String   @default("medium") // high, medium, low
+  notes             String?
+  personalNote      String?  // Private note from registry owner
+  
+  // Pricing (cached from Shopify)
+  price             Float
+  compareAtPrice    Float?
+  currencyCode      String   @default("USD")
+  
+  // Gifting Features
+  allowGroupGifting Boolean  @default(true)
+  allowPartialGifting Boolean @default(true)
+  minGiftAmount     Float?   // For partial gifting
+  
+  // Inventory Tracking
+  inventoryTracked  Boolean  @default(true)
+  inventoryQuantity Int?
+  lastInventorySync DateTime?
+  
+  // Status
+  status            String   @default("active") // active, out_of_stock, discontinued, hidden
+  
+  // Relationships
+  purchases         RegistryPurchase[]
+  
+  // Metadata
+  metadata          String?  // JSON string
+  displayOrder      Int?     // For custom ordering
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([registryId])
+  @@index([productId])
+  @@index([variantId])
+  @@index([status])
+  @@index([priority])
+  @@map("registry_items")
+}
+
+// ============================================================================
+// GROUP GIFTING & PURCHASES
+// ============================================================================
+
+model RegistryPurchase {
+  id                String   @id @default(cuid())
+  
+  // Registry Item relationship
+  registryItemId    String
+  registryItem      RegistryItem @relation(fields: [registryItemId], references: [id], onDelete: Cascade)
+  
+  // Shopify Order Integration
+  orderId           String?  // Shopify Global ID (nullable for partial/group gifts)
+  lineItemId        String?  // Shopify Global ID
+  orderName         String?  // Human-readable order name
+  
+  // Purchase Details
+  quantity          Int
+  unitPrice         Float
+  totalAmount       Float
+  currencyCode      String   @default("USD")
+  
+  // Purchaser Information (can be anonymous)
+  purchaserType     String   @default("customer") // customer, guest, anonymous
+  purchaserId       String?  // Shopify Customer ID if available
+  purchaserEmail    String?
+  purchaserName     String?
+  purchaserPhone    String?
+  
+  // Gift Details
+  isGift            Boolean  @default(true)
+  giftMessage       String?
+  giftWrapRequested Boolean  @default(false)
+  isGroupGift       Boolean  @default(false)
+  groupGiftId       String?  // Reference to group gift session
+  
+  // Shipping Information
+  shippingAddressId String?
+  shippingAddress   RegistryAddress? @relation(fields: [shippingAddressId], references: [id])
+  
+  // Purchase Status
+  status            String   @default("pending") // pending, confirmed, shipped, delivered, cancelled, refunded
+  paymentStatus     String   @default("pending") // pending, paid, failed, refunded
+  fulfillmentStatus String   @default("unfulfilled") // unfulfilled, partial, fulfilled
+  
+  // Group Gifting
+  groupContributions GroupGiftContribution[]
+  
+  // Tracking
+  trackingNumber    String?
+  trackingUrl       String?
+  estimatedDelivery DateTime?
+  
+  // Metadata
+  metadata          String?  // JSON string
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([registryItemId])
+  @@index([orderId])
+  @@index([purchaserEmail])
+  @@index([status])
+  @@index([groupGiftId])
+  @@map("registry_purchases")
+}
+
+model GroupGiftContribution {
+  id                String   @id @default(cuid())
+  
+  // Purchase relationship
+  purchaseId        String
+  purchase          RegistryPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  
+  // Contributor Information
+  contributorEmail  String
+  contributorName   String?
+  contributorMessage String?
+  
+  // Contribution Details
+  amount            Float
+  currencyCode      String   @default("USD")
+  
+  // Payment tracking
+  paymentIntentId   String?  // Stripe/payment provider ID
+  paymentStatus     String   @default("pending") // pending, paid, failed, refunded
+  
+  // Privacy
+  isAnonymous       Boolean  @default(false)
+  showAmount        Boolean  @default(true)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([purchaseId])
+  @@index([contributorEmail])
+  @@index([paymentStatus])
+  @@map("group_gift_contributions")
+}
+
+// ============================================================================
+// COLLABORATION & SHARING
+// ============================================================================
+
+model RegistryCollaborator {
+  id                String   @id @default(cuid())
+  
+  // Registry relationship
+  registryId        String
+  registry          Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  
+  // Collaborator details
+  email             String
+  name              String?
+  role              String   @default("viewer") // owner, editor, viewer
+  permissions       String?  // Detailed permissions object (JSON string)
+  
+  // Status
+  status            String   @default("pending") // pending, active, inactive
+  invitedAt         DateTime @default(now())
+  acceptedAt        DateTime?
+  lastAccessAt      DateTime?
+  
+  // Invitation details
+  inviteToken       String?  @unique
+  inviteExpiresAt   DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([registryId, email])
+  @@index([email])
+  @@index([status])
+  @@map("registry_collaborators")
+}
+
+model RegistryInvitation {
+  id                String   @id @default(cuid())
+  
+  // Registry relationship
+  registryId        String
+  registry          Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  
+  // Invitation details
+  email             String
+  name              String?
+  message           String?
+  inviteType        String   @default("view") // view, collaborate, purchase
+  
+  // Delivery
+  sentAt            DateTime?
+  deliveryMethod    String   @default("email") // email, sms, link
+  deliveryStatus    String   @default("pending") // pending, sent, delivered, failed
+  
+  // Tracking
+  openedAt          DateTime?
+  clickedAt         DateTime?
+  respondedAt       DateTime?
+  response          String?  // accepted, declined, no_response
+  
+  // Settings
+  reminderSent      Boolean  @default(false)
+  reminderAt        DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([registryId])
+  @@index([email])
+  @@index([deliveryStatus])
+  @@map("registry_invitations")
+}
+
+// ============================================================================
+// SHIPPING & ADDRESSES
+// ============================================================================
+
+model RegistryAddress {
+  id                String   @id @default(cuid())
+  
+  // Registry relationship
+  registryId        String
+  registry          Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  
+  // Address details
+  type              String   @default("shipping") // shipping, billing, event
+  isDefault         Boolean  @default(false)
+  label             String?  // "Home", "Parents' House", "Wedding Venue"
+  
+  // Address fields
+  firstName         String?
+  lastName          String?
+  company           String?
+  address1          String
+  address2          String?
+  city              String
+  province          String?
+  country           String
+  zip               String
+  phone             String?
+  
+  // Validation & verification
+  isVerified        Boolean  @default(false)
+  verificationData  String?  // Address validation response (JSON string)
+  
+  // Relationships
+  purchases         RegistryPurchase[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([registryId])
+  @@index([type])
+  @@map("registry_addresses")
+}
+
+// ============================================================================
+// ACTIVITY TRACKING & ANALYTICS
+// ============================================================================
+
+model RegistryActivity {
+  id                String   @id @default(cuid())
+  
+  // Registry relationship
+  registryId        String
+  registry          Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  
+  // Activity details
+  type              String   // item_added, item_removed, item_purchased, registry_viewed, etc.
+  description       String?
+  
+  // Actor information
+  actorType         String   @default("guest") // owner, collaborator, guest, system
+  actorId           String?  // User/customer ID if available
+  actorEmail        String?
+  actorName         String?
+  actorIp           String?
+  
+  // Activity metadata
+  metadata          String?  // Additional context data (JSON string)
+  itemId            String?  // Registry item ID if applicable
+  
+  // Tracking
+  userAgent         String?
+  referrer          String?
+  sessionId         String?
+  
+  createdAt         DateTime @default(now())
+
+  @@index([registryId])
+  @@index([type])
+  @@index([actorEmail])
+  @@index([createdAt])
+  @@map("registry_activities")
+}
+
+model AnalyticsEvent {
+  id                String   @id @default(cuid())
+  
+  // Shop relationship
+  shopId            String
+  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  // Event details
+  event             String   // registry_created, item_purchased, registry_shared, etc.
+  category          String   // engagement, conversion, performance
+  
+  // Event data
+  properties        String?  // Event-specific properties (JSON string)
+  value             Float?   // Numeric value for conversion tracking
+  currency          String?
+  
+  // Context
+  registryId        String?
+  itemId            String?
+  userId            String?
+  sessionId         String?
+  
+  // Tracking
+  timestamp         DateTime @default(now())
+  source            String?  // web, mobile, api
+  medium            String?  // organic, referral, direct
+  campaign          String?
+  
+  @@index([shopId])
+  @@index([event])
+  @@index([category])
+  @@index([timestamp])
+  @@index([registryId])
+  @@map("analytics_events")
+}
+
+// ============================================================================
+// METAFIELD SYNCHRONIZATION
+// ============================================================================
+
+model MetafieldSync {
+  id                String   @id @default(cuid())
+  
+  // Shop relationship
+  shopId            String
+  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  
+  // Metafield details
+  namespace         String   // wishcraft.registry, wishcraft.item
+  key               String
+  ownerId           String   // Shopify resource ID
+  ownerType         String   // Customer, Product, ProductVariant, Order
+  
+  // Sync tracking
+  localId           String?  // Local database record ID
+  metafieldId       String?  // Shopify metafield ID
+  
+  // Sync status
+  status            String   @default("pending") // pending, synced, error, deleted
+  lastSyncAt        DateTime?
+  lastErrorAt       DateTime?
+  errorMessage      String?
+  syncAttempts      Int      @default(0)
+  
+  // Data
+  value             String?
+  valueType         String?  // single_line_text, multi_line_text, number_integer, json
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([shopId, namespace, key, ownerId])
+  @@index([status])
+  @@index([lastSyncAt])
+  @@map("metafield_syncs")
+}
+
+// ============================================================================
+// SYSTEM & MAINTENANCE
+// ============================================================================
+
+model SystemJob {
+  id                String   @id @default(cuid())
+  
+  // Job details
+  type              String   // inventory_sync, analytics_aggregate, email_send
+  status            String   @default("pending") // pending, running, completed, failed
+  priority          Int      @default(5) // 1-10, lower is higher priority
+  
+  // Job data
+  payload           String?  // JSON string
+  result            String?  // JSON string
+  errorMessage      String?
+  
+  // Execution tracking
+  attempts          Int      @default(0)
+  maxAttempts       Int      @default(3)
+  runAt             DateTime @default(now())
+  startedAt         DateTime?
+  completedAt       DateTime?
+  
+  // Context
+  shopId            String?
+  registryId        String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([priority])
+  @@index([runAt])
+  @@map("system_jobs")
+}
+
+model AuditLog {
+  id                String   @id @default(cuid())
+  
+  // Context
+  shopId            String?
+  userId            String?
+  userEmail         String?
+  
+  // Action details
+  action            String   // create, update, delete
+  resource          String   // registry, item, purchase
+  resourceId        String
+  
+  // Changes
+  oldValues         String?  // JSON string
+  newValues         String?  // JSON string
+  changes           String?  // Diff of changes (JSON string)
+  
+  // Request context
+  ipAddress         String?
+  userAgent         String?
+  requestId         String?
+  
+  timestamp         DateTime @default(now())
+
+  @@index([shopId])
+  @@index([action])
+  @@index([resource])
+  @@index([timestamp])
+  @@map("audit_logs")
+}

@@ -1,0 +1,27 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "ac161e228a6b078fcdd3fa14586ded14"
+name = "wishcraft"
+handle = "wishcraft"
+application_url = "https://wishcraft.app"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+
+[webhooks]
+api_version = "2025-07"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_customers,read_orders,write_orders,read_products,read_inventory,write_metaobjects"
+
+[auth]
+redirect_urls = [ 
+  "https://wishcraft.app/auth/callback",
+  "https://wishcraft.app/api/auth",
+  "https://wishcraft.app/api/auth/callback"
+]
+
+[pos]
+embedded = false

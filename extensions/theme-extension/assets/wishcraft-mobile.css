@@ -1,0 +1,606 @@
+/* WishCraft Mobile-First Responsive Styles */
+/* Ensures optimal experience across all device sizes */
+
+/* =============================================================================
+   MOBILE-FIRST BASE STYLES
+   ============================================================================= */
+
+/* Base responsive container */
+.wishcraft-container {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+/* Mobile-first grid system */
+.wishcraft-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr;
+}
+
+.wishcraft-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.wishcraft-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* =============================================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================================= */
+
+/* Small mobile devices */
+@media (max-width: 374px) {
+  .wishcraft-container {
+    padding: 0 0.75rem;
+  }
+  
+  .wishcraft-add-to-registry,
+  .wishcraft-registry-list {
+    padding: 0.75rem;
+  }
+  
+  .wishcraft-title {
+    font-size: 1.125rem !important;
+  }
+  
+  .wishcraft-registry-title {
+    font-size: 1.5rem !important;
+  }
+  
+  /* Smaller buttons on very small screens */
+  .wishcraft-add-button,
+  .wishcraft-login-button {
+    min-height: 2.5rem;
+    font-size: 0.875rem;
+  }
+  
+  /* Stack form elements vertically */
+  .wishcraft-quantity-controls {
+    max-width: 100px;
+  }
+  
+  .wishcraft-qty-btn {
+    width: 2rem;
+    height: 2rem;
+  }
+  
+  .wishcraft-quantity-input {
+    width: 2.5rem;
+    height: 2rem;
+  }
+}
+
+/* Mobile devices (375px - 640px) */
+@media (min-width: 375px) and (max-width: 640px) {
+  .wishcraft-container {
+    padding: 0 1rem;
+  }
+  
+  /* Improved touch targets */
+  .wishcraft-select,
+  .wishcraft-textarea,
+  .wishcraft-quantity-input {
+    min-height: 44px;
+    padding: 0.75rem;
+  }
+  
+  .wishcraft-add-button,
+  .wishcraft-btn {
+    min-height: 48px;
+    padding: 0.75rem 1rem;
+  }
+  
+  /* Better spacing for mobile */
+  .wishcraft-registry-section > * + * {
+    margin-top: 1rem;
+  }
+  
+  /* Mobile-optimized share buttons */
+  .wishcraft-share-buttons {
+    flex-direction: column;
+  }
+  
+  .wishcraft-share-btn {
+    justify-content: center;
+    min-height: 44px;
+  }
+  
+  /* Registry items in single column */
+  .registry-items-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  /* Mobile modal adjustments */
+  .modal-content {
+    margin: 1rem;
+    max-height: calc(100vh - 2rem);
+  }
+  
+  .modal-footer {
+    flex-direction: column;
+  }
+  
+  .modal-footer .wishcraft-btn {
+    width: 100%;
+  }
+}
+
+/* Tablet portrait (641px - 768px) */
+@media (min-width: 641px) and (max-width: 768px) {
+  .wishcraft-container {
+    padding: 0 1.5rem;
+  }
+  
+  .wishcraft-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+  
+  .registry-items-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .wishcraft-filters {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .summary-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  /* Two-column layout for certain elements */
+  .wishcraft-priority-options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+}
+
+/* Tablet landscape (769px - 1024px) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .wishcraft-container {
+    max-width: 1024px;
+    padding: 0 2rem;
+  }
+  
+  .wishcraft-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+  
+  .registry-items-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .wishcraft-filters {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .summary-stats {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  /* Side-by-side layout for add to registry */
+  .wishcraft-add-to-registry {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    align-items: start;
+  }
+  
+  .wishcraft-registry-section {
+    grid-column: span 2;
+  }
+}
+
+/* Desktop (1025px+) */
+@media (min-width: 1025px) {
+  .wishcraft-container {
+    max-width: 1200px;
+    padding: 0 2rem;
+  }
+  
+  .wishcraft-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+  }
+  
+  .registry-items-grid {
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+  
+  .wishcraft-filters {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  
+  /* Full desktop layout */
+  .wishcraft-add-to-registry {
+    max-width: 600px;
+  }
+  
+  /* Enhanced hover states for desktop */
+  .registry-item:hover {
+    transform: translateY(-4px);
+  }
+  
+  .wishcraft-add-button:hover,
+  .wishcraft-btn:hover {
+    transform: translateY(-2px);
+  }
+}
+
+/* Large desktop (1441px+) */
+@media (min-width: 1441px) {
+  .wishcraft-container {
+    max-width: 1440px;
+  }
+  
+  .registry-items-grid {
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+}
+
+/* =============================================================================
+   MOBILE-SPECIFIC OPTIMIZATIONS
+   ============================================================================= */
+
+/* Touch-friendly interactions */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch devices */
+  .wishcraft-add-button:hover,
+  .wishcraft-btn:hover,
+  .registry-item:hover,
+  .wishcraft-share-btn:hover {
+    transform: none;
+    box-shadow: var(--shadow);
+  }
+  
+  /* Larger touch targets */
+  .wishcraft-qty-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  
+  .wishcraft-radio {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  .wishcraft-checkbox {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+  
+  /* Better visual feedback for touches */
+  .wishcraft-add-button:active,
+  .wishcraft-btn:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+  
+  .registry-item__purchase-btn:active {
+    background: color-mix(in srgb, var(--primary-color) 80%, black);
+  }
+}
+
+/* =============================================================================
+   MOBILE FORM OPTIMIZATIONS
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  /* Stack form elements vertically on mobile */
+  .wishcraft-registry-selector,
+  .wishcraft-variant-selector,
+  .wishcraft-quantity-selector,
+  .wishcraft-priority-selector,
+  .wishcraft-notes-field {
+    margin-bottom: 1rem;
+  }
+  
+  /* Full-width selects on mobile */
+  .wishcraft-select {
+    width: 100%;
+    min-height: 44px;
+  }
+  
+  /* Mobile-optimized quantity controls */
+  .wishcraft-quantity-controls {
+    justify-content: center;
+    margin: 0 auto;
+  }
+  
+  /* Priority options in single column on small screens */
+  .wishcraft-priority-options {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .wishcraft-radio-label {
+    min-height: 44px;
+    align-items: center;
+    padding: 0.5rem;
+    border: 1px solid var(--border-color);
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  /* Mobile textarea optimization */
+  .wishcraft-textarea {
+    min-height: 100px;
+    resize: none;
+  }
+}
+
+/* =============================================================================
+   MOBILE MODAL OPTIMIZATIONS
+   ============================================================================= */
+
+@media (max-width: 768px) {
+  .wishcraft-purchase-modal,
+  .wishcraft-contribution-modal {
+    padding: 0.5rem;
+    align-items: flex-end;
+  }
+  
+  .modal-content {
+    width: 100%;
+    max-height: 90vh;
+    border-radius: 1rem 1rem 0 0;
+    margin: 0;
+  }
+  
+  .modal-header {
+    padding: 1rem 1rem 0.5rem 1rem;
+    text-align: center;
+  }
+  
+  .modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+    max-height: calc(90vh - 140px);
+    overflow-y: auto;
+  }
+  
+  .modal-footer {
+    padding: 1rem;
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+  
+  .modal-footer .wishcraft-btn {
+    width: 100%;
+    order: 2;
+  }
+  
+  .modal-footer .wishcraft-btn-primary {
+    order: 1;
+  }
+}
+
+/* =============================================================================
+   MOBILE TYPOGRAPHY SCALING
+   ============================================================================= */
+
+@media (max-width: 480px) {
+  .wishcraft-registry-title {
+    font-size: 1.75rem;
+    line-height: 1.2;
+  }
+  
+  .wishcraft-registry-description {
+    font-size: 1rem;
+  }
+  
+  .wishcraft-title {
+    font-size: 1.125rem;
+  }
+  
+  .registry-item__title {
+    font-size: 1rem;
+  }
+  
+  .stat-value {
+    font-size: 1.5rem;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+  }
+}
+
+/* =============================================================================
+   LANDSCAPE MOBILE OPTIMIZATIONS
+   ============================================================================= */
+
+@media (max-height: 500px) and (orientation: landscape) {
+  /* Compact layout for landscape mobile */
+  .wishcraft-registry-header {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .wishcraft-registry-title {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .wishcraft-registry-description {
+    font-size: 0.875rem;
+    margin-bottom: 1rem;
+  }
+  
+  /* Reduce modal height */
+  .modal-content {
+    max-height: 85vh;
+  }
+  
+  .modal-body {
+    max-height: calc(85vh - 120px);
+  }
+  
+  /* Compact registry items */
+  .registry-item {
+    padding: 0.75rem;
+  }
+  
+  .registry-item__content {
+    gap: 0.5rem;
+  }
+}
+
+/* =============================================================================
+   ACCESSIBILITY ENHANCEMENTS
+   ============================================================================= */
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .wishcraft-add-to-registry,
+  .wishcraft-registry-list,
+  .registry-item,
+  .modal-content {
+    border: 2px solid;
+  }
+  
+  .wishcraft-add-button,
+  .wishcraft-btn-primary {
+    border: 2px solid currentColor;
+  }
+  
+  .progress-fill {
+    background: currentColor;
+  }
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .wishcraft-add-to-registry *,
+  .wishcraft-registry-list *,
+  .modal-content * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  
+  .loading-spinner {
+    animation: none;
+    border-top-color: transparent;
+  }
+  
+  .progress-fill::after {
+    animation: none;
+  }
+}
+
+/* Focus management for keyboard navigation */
+.wishcraft-add-to-registry :focus-visible,
+.wishcraft-registry-list :focus-visible,
+.modal-content :focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+/* Skip to content link */
+.wishcraft-skip-link {
+  position: absolute;
+  top: -40px;
+  left: 6px;
+  background: var(--primary-color);
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+  border-radius: 0.25rem;
+  z-index: 10000;
+}
+
+.wishcraft-skip-link:focus {
+  top: 6px;
+}
+
+/* =============================================================================
+   DARK MODE MOBILE OPTIMIZATIONS
+   ============================================================================= */
+
+@media (prefers-color-scheme: dark) {
+  @media (max-width: 768px) {
+    /* Adjust contrast for mobile dark mode */
+    .wishcraft-add-to-registry,
+    .wishcraft-registry-list {
+      background: #111827;
+      border-color: #374151;
+    }
+    
+    .registry-item {
+      background: #1f2937;
+      border: 1px solid #374151;
+    }
+    
+    .modal-content {
+      background: #111827;
+      border: 1px solid #374151;
+    }
+    
+    /* Better text contrast on mobile */
+    .wishcraft-description,
+    .registry-item__notes {
+      color: #d1d5db;
+    }
+    
+    .progress-bar {
+      background: #374151;
+    }
+  }
+}
+
+/* =============================================================================
+   PRINT STYLES
+   ============================================================================= */
+
+@media print {
+  .wishcraft-add-to-registry,
+  .wishcraft-registry-list {
+    box-shadow: none;
+    border: 1px solid #000;
+  }
+  
+  .wishcraft-share-section,
+  .wishcraft-filters,
+  .modal-overlay,
+  .modal-content {
+    display: none !important;
+  }
+  
+  .registry-item__purchase-btn,
+  .wishcraft-add-button {
+    display: none;
+  }
+  
+  .registry-item {
+    break-inside: avoid;
+    margin-bottom: 1rem;
+  }
+  
+  .wishcraft-registry-title,
+  .registry-item__title {
+    color: #000 !important;
+  }
+  
+  /* Print-friendly URLs */
+  .registry-item::after {
+    content: " (Product: " attr(data-product-handle) ")";
+    font-size: 0.75rem;
+    color: #666;
+  }
+}

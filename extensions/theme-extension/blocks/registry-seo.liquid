@@ -1,0 +1,505 @@
+{% comment %}
+  WishCraft SEO & Analytics App Embed Block
+  Adds SEO meta tags, structured data, and analytics tracking for registry pages
+{% endcomment %}
+
+{% liquid
+  # Get registry data from URL parameters or settings
+  assign registry_id = block.settings.registry_id
+  assign registry_title = block.settings.registry_title
+  assign registry_description = block.settings.registry_description
+  assign registry_url = request.origin | append: request.path
+  
+  # Get current page info
+  assign page_title = page_title | default: registry_title
+  assign page_description = page_description | default: registry_description
+  
+  # Check if this is a registry page
+  assign is_registry_page = false
+  if request.path contains '/registry/' or registry_id != blank
+    assign is_registry_page = true
+  endif
+%}
+
+{% if is_registry_page and block.settings.enable_seo %}
+  
+  {% comment %} Basic Meta Tags {% endcomment %}
+  <meta name="description" content="{{ page_description | escape }}">
+  <meta name="keywords" content="gift registry, wishlist, {{ shop.name }}, gifts, wedding registry, baby registry">
+  <meta name="author" content="{{ shop.name }}">
+  
+  {% comment %} Open Graph Meta Tags {% endcomment %}
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="{{ shop.name }}">
+  <meta property="og:title" content="{{ page_title | escape }}">
+  <meta property="og:description" content="{{ page_description | escape }}">
+  <meta property="og:url" content="{{ registry_url }}">
+  <meta property="og:locale" content="{{ shop.locale }}">
+  
+  {% if block.settings.registry_image != blank %}
+    <meta property="og:image" content="{{ block.settings.registry_image | img_url: '1200x630' }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ page_title | escape }}">
+  {% elsif shop.brand.logo %}
+    <meta property="og:image" content="{{ shop.brand.logo | img_url: '1200x630' }}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="{{ shop.name }} Logo">
+  {% endif %}
+  
+  {% comment %} Twitter Card Meta Tags {% endcomment %}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@{{ shop.name | handle }}">
+  <meta name="twitter:title" content="{{ page_title | escape }}">
+  <meta name="twitter:description" content="{{ page_description | escape }}">
+  
+  {% if block.settings.registry_image != blank %}
+    <meta name="twitter:image" content="{{ block.settings.registry_image | img_url: '1200x630' }}">
+  {% elsif shop.brand.logo %}
+    <meta name="twitter:image" content="{{ shop.brand.logo | img_url: '1200x630' }}">
+  {% endif %}
+  
+  {% comment %} Additional Meta Tags {% endcomment %}
+  <meta name="robots" content="{% if block.settings.allow_indexing %}index, follow{% else %}noindex, nofollow{% endif %}">
+  <meta name="googlebot" content="{% if block.settings.allow_indexing %}index, follow{% else %}noindex, nofollow{% endif %}">
+  
+  {% if block.settings.canonical_url != blank %}
+    <link rel="canonical" href="{{ block.settings.canonical_url }}">
+  {% else %}
+    <link rel="canonical" href="{{ registry_url }}">
+  {% endif %}
+  
+  {% comment %} Structured Data - ItemList Schema {% endcomment %}
+  {% if block.settings.enable_structured_data %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "name": {{ page_title | json }},
+      "description": {{ page_description | json }},
+      "url": {{ registry_url | json }},
+      "creator": {
+        "@type": "Person",
+        "name": {{ block.settings.registry_owner_name | default: "Registry Owner" | json }}
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": {{ shop.name | json }},
+        "url": {{ shop.url | json }}
+        {% if shop.brand.logo %},
+        "logo": {
+          "@type": "ImageObject",
+          "url": {{ shop.brand.logo | img_url: '600x600' | json }}
+        }
+        {% endif %}
+      }{% if block.settings.event_date != blank %},
+      "event": {
+        "@type": "Event",
+        "name": {{ page_title | json }},
+        "startDate": {{ block.settings.event_date | json }},
+        "location": {
+          "@type": "Place",
+          "name": {{ block.settings.event_location | default: "To be announced" | json }}
+        }
+      }{% endif %}
+    }
+    </script>
+  {% endif %}
+  
+  {% comment %} Additional Schema for Gift Registry {% endcomment %}
+  {% if block.settings.enable_structured_data %}
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "name": {{ page_title | json }},
+      "description": {{ page_description | json }},
+      "url": {{ registry_url | json }},
+      "breadcrumb": {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {
+            "@type": "ListItem",
+            "position": 1,
+            "name": "Home",
+            "item": {{ shop.url | json }}
+          },
+          {
+            "@type": "ListItem",
+            "position": 2,
+            "name": "Gift Registries",
+            "item": {{ shop.url | append: '/pages/registries' | json }}
+          },
+          {
+            "@type": "ListItem",
+            "position": 3,
+            "name": {{ page_title | json }},
+            "item": {{ registry_url | json }}
+          }
+        ]
+      },
+      "mainEntity": {
+        "@type": "ItemList",
+        "name": {{ page_title | json }},
+        "description": {{ page_description | json }}
+      }
+    }
+    </script>
+  {% endif %}
+
+{% endif %}
+
+{% comment %} Analytics Tracking {% endcomment %}
+{% if block.settings.enable_analytics %}
+  
+  {% comment %} WishCraft Registry Analytics {% endcomment %}
+  <script>
+    (function() {
+      // Initialize WishCraft analytics
+      window.WishCraftAnalytics = window.WishCraftAnalytics || {
+        events: [],
+        track: function(event, data) {
+          this.events.push({ event: event, data: data, timestamp: Date.now() });
+          
+          // Send to analytics service
+          if (typeof fetch !== 'undefined') {
+            fetch('/apps/wishcraft/api/analytics/track', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+              },
+              body: JSON.stringify({
+                event_type: event,
+                registry_id: '{{ registry_id }}',
+                data: data
+              })
+            }).catch(function(error) {
+              console.debug('Analytics tracking failed:', error);
+            });
+          }
+          
+          // Also send to Google Analytics if available
+          if (typeof gtag === 'function') {
+            gtag('event', event, {
+              'event_category': 'registry',
+              'event_label': '{{ registry_id }}',
+              'custom_map': data
+            });
+          }
+          
+          // Send to Shopify Analytics if available
+          if (window.ShopifyAnalytics && window.ShopifyAnalytics.track) {
+            window.ShopifyAnalytics.track(event, data);
+          }
+        }
+      };
+      
+      {% if is_registry_page %}
+        // Track page view
+        window.WishCraftAnalytics.track('registry_page_view', {
+          registry_id: '{{ registry_id }}',
+          page_url: window.location.href,
+          page_title: document.title,
+          referrer: document.referrer
+        });
+        
+        // Track scroll depth
+        var scrollDepth = 0;
+        var scrollTracked = {};
+        
+        function trackScrollDepth() {
+          var windowHeight = window.innerHeight;
+          var documentHeight = document.documentElement.scrollHeight;
+          var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          var scrollPercent = Math.round((scrollTop + windowHeight) / documentHeight * 100);
+          
+          if (scrollPercent > scrollDepth) {
+            scrollDepth = scrollPercent;
+            
+            // Track at 25%, 50%, 75%, 100%
+            [25, 50, 75, 100].forEach(function(milestone) {
+              if (scrollPercent >= milestone && !scrollTracked[milestone]) {
+                scrollTracked[milestone] = true;
+                window.WishCraftAnalytics.track('registry_scroll_depth', {
+                  registry_id: '{{ registry_id }}',
+                  depth_percent: milestone
+                });
+              }
+            });
+          }
+        }
+        
+        // Throttled scroll tracking
+        var scrollTimer;
+        window.addEventListener('scroll', function() {
+          clearTimeout(scrollTimer);
+          scrollTimer = setTimeout(trackScrollDepth, 100);
+        });
+        
+        // Track time on page
+        var startTime = Date.now();
+        window.addEventListener('beforeunload', function() {
+          var timeOnPage = Math.round((Date.now() - startTime) / 1000);
+          window.WishCraftAnalytics.track('registry_time_on_page', {
+            registry_id: '{{ registry_id }}',
+            time_seconds: timeOnPage
+          });
+        });
+        
+        // Track clicks on registry items
+        document.addEventListener('click', function(event) {
+          var registryItem = event.target.closest('.registry-item');
+          if (registryItem) {
+            var itemId = registryItem.dataset.itemId;
+            var productId = registryItem.dataset.productId;
+            
+            window.WishCraftAnalytics.track('registry_item_click', {
+              registry_id: '{{ registry_id }}',
+              item_id: itemId,
+              product_id: productId,
+              click_target: event.target.tagName.toLowerCase()
+            });
+          }
+          
+          // Track share button clicks
+          var shareBtn = event.target.closest('[data-platform]');
+          if (shareBtn) {
+            var platform = shareBtn.dataset.platform;
+            window.WishCraftAnalytics.track('registry_share_click', {
+              registry_id: '{{ registry_id }}',
+              platform: platform
+            });
+          }
+        });
+      {% endif %}
+      
+      // Track add to cart events from registry
+      if (typeof window.addEventListener === 'function') {
+        window.addEventListener('message', function(event) {
+          if (event.data && event.data.type === 'wishcraft_add_to_cart') {
+            window.WishCraftAnalytics.track('registry_add_to_cart', {
+              registry_id: event.data.registry_id,
+              product_id: event.data.product_id,
+              variant_id: event.data.variant_id,
+              quantity: event.data.quantity
+            });
+          }
+        });
+      }
+    })();
+  </script>
+  
+  {% comment %} Enhanced E-commerce Tracking {% endcomment %}
+  {% if block.settings.enable_ecommerce_tracking %}
+    <script>
+      // Enhanced e-commerce tracking for registry interactions
+      (function() {
+        function trackPurchaseIntent(itemData) {
+          // Google Analytics Enhanced E-commerce
+          if (typeof gtag === 'function') {
+            gtag('event', 'begin_checkout', {
+              'currency': '{{ shop.currency }}',
+              'value': itemData.price,
+              'items': [{
+                'item_id': itemData.product_id,
+                'item_name': itemData.product_title,
+                'category': 'Registry Gift',
+                'quantity': itemData.quantity,
+                'price': itemData.price
+              }]
+            });
+          }
+          
+          // Facebook Pixel
+          if (typeof fbq === 'function') {
+            fbq('track', 'InitiateCheckout', {
+              content_type: 'product',
+              content_ids: [itemData.product_id],
+              value: itemData.price,
+              currency: '{{ shop.currency }}'
+            });
+          }
+          
+          // Pinterest
+          if (typeof pintrk === 'function') {
+            pintrk('track', 'checkout', {
+              value: itemData.price,
+              currency: '{{ shop.currency }}',
+              product_id: itemData.product_id
+            });
+          }
+        }
+        
+        // Listen for purchase button clicks
+        document.addEventListener('click', function(event) {
+          var purchaseBtn = event.target.closest('.registry-item__purchase-btn');
+          if (purchaseBtn) {
+            var itemData = {
+              product_id: purchaseBtn.dataset.productId,
+              product_title: purchaseBtn.dataset.productTitle,
+              price: parseFloat(purchaseBtn.dataset.price || 0),
+              quantity: parseInt(purchaseBtn.dataset.quantity || 1)
+            };
+            
+            trackPurchaseIntent(itemData);
+          }
+        });
+      })();
+    </script>
+  {% endif %}
+
+{% endif %}
+
+{% comment %} Performance Monitoring {% endcomment %}
+{% if block.settings.enable_performance_monitoring %}
+  <script>
+    // Core Web Vitals and performance monitoring
+    (function() {
+      function reportWebVitals(metric) {
+        window.WishCraftAnalytics.track('web_vital', {
+          registry_id: '{{ registry_id }}',
+          metric_name: metric.name,
+          metric_value: metric.value,
+          metric_delta: metric.delta,
+          metric_id: metric.id
+        });
+      }
+      
+      // Load web vitals library if not already loaded
+      if (!window.webVitals) {
+        var script = document.createElement('script');
+        script.src = 'https://unpkg.com/web-vitals@3/dist/web-vitals.attribution.iife.js';
+        script.onload = function() {
+          if (window.webVitals) {
+            window.webVitals.onCLS(reportWebVitals);
+            window.webVitals.onFCP(reportWebVitals);
+            window.webVitals.onFID(reportWebVitals);
+            window.webVitals.onLCP(reportWebVitals);
+            window.webVitals.onTTFB(reportWebVitals);
+          }
+        };
+        document.head.appendChild(script);
+      }
+    })();
+  </script>
+{% endif %}
+
+{% schema %}
+{
+  "name": "Registry SEO & Analytics",
+  "target": "head",
+  "settings": [
+    {
+      "type": "header",
+      "content": "SEO Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_seo",
+      "label": "Enable SEO optimization",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "registry_id",
+      "label": "Registry ID",
+      "info": "The unique ID of the registry for this page"
+    },
+    {
+      "type": "text",
+      "id": "registry_title",
+      "label": "Registry title",
+      "info": "Override the default page title"
+    },
+    {
+      "type": "textarea",
+      "id": "registry_description",
+      "label": "Registry description",
+      "info": "Meta description for search engines and social sharing"
+    },
+    {
+      "type": "image_picker",
+      "id": "registry_image",
+      "label": "Registry image",
+      "info": "Image for social media sharing (1200x630px recommended)"
+    },
+    {
+      "type": "text",
+      "id": "registry_owner_name",
+      "label": "Registry owner name",
+      "info": "For structured data"
+    },
+    {
+      "type": "checkbox",
+      "id": "allow_indexing",
+      "label": "Allow search engine indexing",
+      "default": true
+    },
+    {
+      "type": "url",
+      "id": "canonical_url",
+      "label": "Canonical URL",
+      "info": "Override the canonical URL (optional)"
+    },
+    {
+      "type": "header",
+      "content": "Structured Data"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_structured_data",
+      "label": "Enable structured data markup",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "event_date",
+      "label": "Event date",
+      "info": "ISO date format (YYYY-MM-DD) for event-based registries"
+    },
+    {
+      "type": "text",
+      "id": "event_location",
+      "label": "Event location",
+      "info": "Location for event-based registries"
+    },
+    {
+      "type": "header",
+      "content": "Analytics"
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_analytics",
+      "label": "Enable registry analytics",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_ecommerce_tracking",
+      "label": "Enable enhanced e-commerce tracking",
+      "default": true,
+      "info": "Tracks purchase intents for Google Analytics, Facebook Pixel, etc."
+    },
+    {
+      "type": "checkbox",
+      "id": "enable_performance_monitoring",
+      "label": "Enable performance monitoring",
+      "default": false,
+      "info": "Track Core Web Vitals and performance metrics"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Registry SEO & Analytics",
+      "settings": {
+        "enable_seo": true,
+        "enable_analytics": true,
+        "enable_structured_data": true,
+        "allow_indexing": true
+      }
+    }
+  ]
+}
+{% endschema %}

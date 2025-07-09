@@ -1,0 +1,446 @@
+/* WishCraft Add to Registry Styles */
+/* Mobile-first responsive design with modern CSS */
+
+.wishcraft-add-to-registry {
+  --spacing-xs: 0.5rem;
+  --spacing-sm: 0.75rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  
+  --border-radius: 0.375rem;
+  --border-color: #e5e7eb;
+  --text-color: #374151;
+  --text-color-secondary: #6b7280;
+  --bg-color: #ffffff;
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  
+  /* Button variables - can be overridden by theme settings */
+  --button-bg: var(--button-bg, #000000);
+  --button-text: var(--button-text, #ffffff);
+  --button-bg-hover: color-mix(in srgb, var(--button-bg) 90%, black);
+  
+  display: block;
+  padding: var(--spacing-lg);
+  background: var(--bg-color);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+/* Typography */
+.wishcraft-title {
+  margin: 0 0 var(--spacing-sm) 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-color);
+  line-height: 1.4;
+}
+
+.wishcraft-description {
+  margin: 0 0 var(--spacing-md) 0;
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+  line-height: 1.5;
+}
+
+.wishcraft-label {
+  display: block;
+  margin-bottom: var(--spacing-xs);
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+/* Form Controls */
+.wishcraft-registry-section > * + * {
+  margin-top: var(--spacing-md);
+}
+
+.wishcraft-select {
+  width: 100%;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 0.5rem center;
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+.wishcraft-select:focus {
+  outline: none;
+  border-color: var(--button-bg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--button-bg) 20%, transparent);
+}
+
+.wishcraft-select:disabled {
+  background-color: #f9fafb;
+  color: var(--text-color-secondary);
+  cursor: not-allowed;
+}
+
+/* Quantity Controls */
+.wishcraft-quantity-controls {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  background: var(--bg-color);
+  max-width: 120px;
+}
+
+.wishcraft-qty-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: none;
+  background: #f9fafb;
+  color: var(--text-color);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  user-select: none;
+}
+
+.wishcraft-qty-btn:hover {
+  background: #f3f4f6;
+}
+
+.wishcraft-qty-btn:active {
+  background: #e5e7eb;
+}
+
+.wishcraft-quantity-input {
+  width: 3rem;
+  height: 2.5rem;
+  border: none;
+  text-align: center;
+  font-size: 0.875rem;
+  font-family: inherit;
+  background: transparent;
+  color: var(--text-color);
+}
+
+.wishcraft-quantity-input:focus {
+  outline: none;
+}
+
+/* Priority Selection */
+.wishcraft-priority-options {
+  display: flex;
+  gap: var(--spacing-sm);
+  flex-wrap: wrap;
+}
+
+.wishcraft-radio-label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  cursor: pointer;
+  font-size: 0.875rem;
+  color: var(--text-color);
+}
+
+.wishcraft-radio {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--button-bg);
+}
+
+.wishcraft-radio-text {
+  user-select: none;
+}
+
+/* Notes Field */
+.wishcraft-textarea {
+  width: 100%;
+  min-height: 4rem;
+  padding: var(--spacing-sm);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  background: var(--bg-color);
+  color: var(--text-color);
+  font-size: 0.875rem;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.wishcraft-textarea:focus {
+  outline: none;
+  border-color: var(--button-bg);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--button-bg) 20%, transparent);
+}
+
+.wishcraft-textarea::placeholder {
+  color: var(--text-color-secondary);
+}
+
+/* Add to Registry Button */
+.wishcraft-add-button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 3rem;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: none;
+  border-radius: var(--border-radius);
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.wishcraft-add-button:hover {
+  background: var(--button-bg-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.12);
+}
+
+.wishcraft-add-button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.12);
+}
+
+.wishcraft-add-button:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.wishcraft-button-text {
+  transition: opacity 0.2s ease;
+}
+
+.wishcraft-button-loader {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.wishcraft-add-button.loading .wishcraft-button-text {
+  opacity: 0;
+}
+
+.wishcraft-add-button.loading .wishcraft-button-loader {
+  opacity: 1;
+}
+
+.wishcraft-spinner {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: currentColor;
+}
+
+/* Messages */
+.wishcraft-message {
+  padding: var(--spacing-sm);
+  border-radius: var(--border-radius);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: center;
+  display: none;
+}
+
+.wishcraft-message.success {
+  display: block;
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.wishcraft-message.error {
+  display: block;
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.wishcraft-message.info {
+  display: block;
+  background: #eff6ff;
+  color: #2563eb;
+  border: 1px solid #bfdbfe;
+}
+
+/* Create Registry Link */
+.wishcraft-create-registry {
+  text-align: center;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--border-color);
+}
+
+.wishcraft-link-button {
+  background: none;
+  border: none;
+  color: var(--button-bg);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: color 0.2s ease;
+}
+
+.wishcraft-link-button:hover {
+  color: var(--button-bg-hover);
+}
+
+/* Login Prompt Styles */
+.wishcraft-login-prompt {
+  text-align: center;
+  padding: var(--spacing-xl) var(--spacing-md);
+}
+
+.wishcraft-login-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3rem;
+  padding: var(--spacing-sm) var(--spacing-xl);
+  margin: var(--spacing-md) 0;
+  border: none;
+  border-radius: var(--border-radius);
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.wishcraft-login-button:hover {
+  background: var(--button-bg-hover);
+  color: var(--button-text);
+  text-decoration: none;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.12);
+}
+
+.wishcraft-signup-link {
+  margin-top: var(--spacing-md);
+  font-size: 0.875rem;
+  color: var(--text-color-secondary);
+}
+
+.wishcraft-signup-link a {
+  color: var(--button-bg);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.wishcraft-signup-link a:hover {
+  color: var(--button-bg-hover);
+}
+
+/* Responsive Design */
+@media (min-width: 768px) {
+  .wishcraft-add-to-registry {
+    padding: var(--spacing-xl);
+  }
+  
+  .wishcraft-priority-options {
+    gap: var(--spacing-md);
+  }
+  
+  .wishcraft-quantity-controls {
+    max-width: 140px;
+  }
+  
+  .wishcraft-qty-btn {
+    width: 3rem;
+    height: 3rem;
+  }
+  
+  .wishcraft-quantity-input {
+    width: 3.5rem;
+    height: 3rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .wishcraft-title {
+    font-size: 1.5rem;
+  }
+  
+  .wishcraft-description {
+    font-size: 1rem;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .wishcraft-add-to-registry {
+    --bg-color: #1f2937;
+    --border-color: #374151;
+    --text-color: #f9fafb;
+    --text-color-secondary: #d1d5db;
+    --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  }
+  
+  .wishcraft-select,
+  .wishcraft-textarea {
+    background: #374151;
+    color: #f9fafb;
+  }
+  
+  .wishcraft-select:disabled {
+    background-color: #1f2937;
+    color: #9ca3af;
+  }
+  
+  .wishcraft-qty-btn {
+    background: #374151;
+    color: #f9fafb;
+  }
+  
+  .wishcraft-qty-btn:hover {
+    background: #4b5563;
+  }
+  
+  .wishcraft-qty-btn:active {
+    background: #6b7280;
+  }
+}
+
+/* Focus management for accessibility */
+.wishcraft-add-to-registry :focus {
+  outline: 2px solid var(--button-bg);
+  outline-offset: 2px;
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .wishcraft-add-to-registry *,
+  .wishcraft-add-to-registry *::before,
+  .wishcraft-add-to-registry *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

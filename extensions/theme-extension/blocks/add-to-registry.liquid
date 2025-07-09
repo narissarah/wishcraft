@@ -1,0 +1,274 @@
+{% comment %}
+  WishCraft Add to Registry Button
+  App Block for product pages to add items to gift registries
+{% endcomment %}
+
+<div class="wishcraft-add-to-registry" 
+     data-block-id="{{ block.id }}"
+     data-product-id="{{ product.id }}"
+     data-product-handle="{{ product.handle }}"
+     style="--button-bg: {{ block.settings.button_color }}; --button-text: {{ block.settings.button_text_color }};">
+  
+  {% comment %} Check if customer is logged in {% endcomment %}
+  {% if customer %}
+    <div class="wishcraft-registry-section">
+      {% if block.settings.show_title %}
+        <h3 class="wishcraft-title">{{ block.settings.title }}</h3>
+      {% endif %}
+      
+      {% if block.settings.show_description %}
+        <p class="wishcraft-description">{{ block.settings.description }}</p>
+      {% endif %}
+
+      {% comment %} Registry Selection Dropdown {% endcomment %}
+      <div class="wishcraft-registry-selector" id="registry-selector-{{ block.id }}">
+        <select class="wishcraft-select" id="registry-select-{{ block.id }}" aria-label="Select a registry">
+          <option value="" disabled selected>Loading your registries...</option>
+        </select>
+      </div>
+
+      {% comment %} Variant Selection for Products with Multiple Variants {% endcomment %}
+      {% if product.variants.size > 1 %}
+        <div class="wishcraft-variant-selector">
+          <label for="variant-select-{{ block.id }}" class="wishcraft-label">
+            Choose variant:
+          </label>
+          <select class="wishcraft-select" id="variant-select-{{ block.id }}" aria-label="Select product variant">
+            {% for variant in product.variants %}
+              <option 
+                value="{{ variant.id }}" 
+                data-price="{{ variant.price | money_without_currency }}"
+                data-available="{{ variant.available }}"
+                {% unless variant.available %}disabled{% endunless %}>
+                {{ variant.title }}
+                {% unless variant.available %} - Sold Out{% endunless %}
+                ({{ variant.price | money }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+      {% endif %}
+
+      {% comment %} Quantity Selector {% endcomment %}
+      <div class="wishcraft-quantity-selector">
+        <label for="quantity-input-{{ block.id }}" class="wishcraft-label">
+          Quantity:
+        </label>
+        <div class="wishcraft-quantity-controls">
+          <button type="button" class="wishcraft-qty-btn" data-action="decrease" aria-label="Decrease quantity">−</button>
+          <input 
+            type="number" 
+            id="quantity-input-{{ block.id }}" 
+            class="wishcraft-quantity-input" 
+            value="1" 
+            min="1" 
+            max="99"
+            aria-label="Quantity">
+          <button type="button" class="wishcraft-qty-btn" data-action="increase" aria-label="Increase quantity">+</button>
+        </div>
+      </div>
+
+      {% comment %} Priority Selection {% endcomment %}
+      {% if block.settings.show_priority %}
+        <div class="wishcraft-priority-selector">
+          <label class="wishcraft-label">Priority:</label>
+          <div class="wishcraft-priority-options">
+            <label class="wishcraft-radio-label">
+              <input type="radio" name="priority-{{ block.id }}" value="low" class="wishcraft-radio">
+              <span class="wishcraft-radio-text">Low</span>
+            </label>
+            <label class="wishcraft-radio-label">
+              <input type="radio" name="priority-{{ block.id }}" value="medium" class="wishcraft-radio" checked>
+              <span class="wishcraft-radio-text">Medium</span>
+            </label>
+            <label class="wishcraft-radio-label">
+              <input type="radio" name="priority-{{ block.id }}" value="high" class="wishcraft-radio">
+              <span class="wishcraft-radio-text">High</span>
+            </label>
+          </div>
+        </div>
+      {% endif %}
+
+      {% comment %} Notes Field {% endcomment %}
+      {% if block.settings.show_notes %}
+        <div class="wishcraft-notes-field">
+          <label for="notes-input-{{ block.id }}" class="wishcraft-label">
+            Notes (optional):
+          </label>
+          <textarea 
+            id="notes-input-{{ block.id }}" 
+            class="wishcraft-textarea" 
+            placeholder="Add a note about this item..."
+            maxlength="500"></textarea>
+        </div>
+      {% endif %}
+
+      {% comment %} Add to Registry Button {% endcomment %}
+      <button 
+        type="button" 
+        class="wishcraft-add-button" 
+        id="add-to-registry-btn-{{ block.id }}"
+        data-product-id="{{ product.id }}"
+        data-product-title="{{ product.title | escape }}"
+        data-product-handle="{{ product.handle }}"
+        data-product-image="{{ product.featured_image | img_url: 'medium' }}"
+        data-product-url="{{ product.url }}"
+        aria-label="Add {{ product.title }} to registry">
+        
+        <span class="wishcraft-button-text">{{ block.settings.button_text }}</span>
+        <span class="wishcraft-button-loader" aria-hidden="true">
+          <svg class="wishcraft-spinner" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="31.416" stroke-dashoffset="31.416">
+              <animate attributeName="stroke-dasharray" dur="2s" values="0 31.416;15.708 15.708;0 31.416" repeatCount="indefinite"/>
+              <animate attributeName="stroke-dashoffset" dur="2s" values="0;-15.708;-31.416" repeatCount="indefinite"/>
+            </circle>
+          </svg>
+        </span>
+      </button>
+
+      {% comment %} Success/Error Messages {% endcomment %}
+      <div class="wishcraft-message" id="message-{{ block.id }}" role="alert" aria-live="polite"></div>
+
+      {% comment %} Create New Registry Link {% endcomment %}
+      <div class="wishcraft-create-registry">
+        <button type="button" class="wishcraft-link-button" id="create-registry-btn-{{ block.id }}">
+          + Create a new registry
+        </button>
+      </div>
+    </div>
+
+  {% else %}
+    {% comment %} Not logged in - show login prompt {% endcomment %}
+    <div class="wishcraft-login-prompt">
+      {% if block.settings.show_title %}
+        <h3 class="wishcraft-title">{{ block.settings.title }}</h3>
+      {% endif %}
+      
+      <p class="wishcraft-description">
+        {{ block.settings.login_message | default: "Sign in to add items to your gift registry" }}
+      </p>
+      
+      <a href="{{ routes.account_login_url }}?return_url={{ request.path | url_encode }}" 
+         class="wishcraft-login-button">
+        {{ block.settings.login_button_text | default: "Sign In" }}
+      </a>
+      
+      <p class="wishcraft-signup-link">
+        Don't have an account? 
+        <a href="{{ routes.account_register_url }}?return_url={{ request.path | url_encode }}">
+          Create one here
+        </a>
+      </p>
+    </div>
+  {% endif %}
+</div>
+
+{% comment %} Initialize the component {% endcomment %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window.WishCraftRegistry === 'undefined') {
+      console.warn('WishCraft Registry script not loaded');
+      return;
+    }
+    
+    window.WishCraftRegistry.initAddToRegistry('{{ block.id }}');
+  });
+</script>
+
+{% schema %}
+{
+  "name": "Add to Registry",
+  "target": "section",
+  "stylesheet": "wishcraft-add-to-registry.css",
+  "javascript": "wishcraft-registry.js",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Display Settings"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_title",
+      "label": "Show title",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "label": "Title",
+      "default": "Add to Registry"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_description",
+      "label": "Show description",
+      "default": true
+    },
+    {
+      "type": "textarea",
+      "id": "description",
+      "label": "Description",
+      "default": "Save this item to your gift registry and share it with friends and family."
+    },
+    {
+      "type": "header",
+      "content": "Button Settings"
+    },
+    {
+      "type": "text",
+      "id": "button_text",
+      "label": "Button text",
+      "default": "Add to Registry"
+    },
+    {
+      "type": "color",
+      "id": "button_color",
+      "label": "Button background color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "button_text_color",
+      "label": "Button text color",
+      "default": "#ffffff"
+    },
+    {
+      "type": "header",
+      "content": "Feature Options"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_priority",
+      "label": "Show priority selection",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_notes",
+      "label": "Show notes field",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Login Settings"
+    },
+    {
+      "type": "textarea",
+      "id": "login_message",
+      "label": "Login message",
+      "default": "Sign in to add items to your gift registry"
+    },
+    {
+      "type": "text",
+      "id": "login_button_text",
+      "label": "Login button text",
+      "default": "Sign In"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Add to Registry"
+    }
+  ]
+}
+{% endschema %}

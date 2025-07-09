@@ -1,0 +1,38 @@
+{
+  "totalBuilds": 6,
+  "successfulBuilds": 1,
+  "failedBuilds": 5,
+  "averageBuildTime": 48042.386556,
+  "lastBuildTime": 1752017413609,
+  "lastSuccessfulBuild": "2025-07-08T23:30:13.608Z",
+  "lastFailure": {
+    "timestamp": "2025-07-08T23:28:01.320Z",
+    "error": "Command failed: npm run test:unit",
+    "buildTime": 43793.229979
+  },
+  "buildTimes": [
+    48042.386556
+  ],
+  "failureReasons": [
+    {
+      "timestamp": "2025-07-08T23:19:00.034Z",
+      "reason": "Build prerequisites failed"
+    },
+    {
+      "timestamp": "2025-07-08T23:19:23.567Z",
+      "reason": "Build prerequisites failed"
+    },
+    {
+      "timestamp": "2025-07-08T23:21:10.009Z",
+      "reason": "Command failed: npm run typecheck"
+    },
+    {
+      "timestamp": "2025-07-08T23:22:21.188Z",
+      "reason": "Command failed: npm run lint"
+    },
+    {
+      "timestamp": "2025-07-08T23:28:01.321Z",
+      "reason": "Command failed: npm run test:unit"
+    }
+  ]
+}

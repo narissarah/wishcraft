@@ -1,0 +1,67 @@
+name: Performance CI
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+
+      - name: Start server
+        run: npm run dev &
+        
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './lighthouserc.json'
+          uploadArtifacts: true
+
+      - name: Performance Budget Check
+        run: node scripts/performance-budget.js
+
+      - name: Bundle Size Check
+        run: npx bundlesize
+
+      - name: Core Web Vitals Check
+        run: |
+          node -e "
+            const fs = require('fs');
+            const results = JSON.parse(fs.readFileSync('.lighthouseci/lhci_reports/manifest.json'));
+            const lhr = JSON.parse(fs.readFileSync(results[0].jsonPath));
+            
+            const lcp = lhr.audits['largest-contentful-paint'].numericValue;
+            const fid = lhr.audits['max-potential-fid'].numericValue;
+            const cls = lhr.audits['cumulative-layout-shift'].numericValue;
+            
+            console.log('Core Web Vitals Results:');
+            console.log('LCP:', lcp, 'ms (target: <2500ms)');
+            console.log('FID:', fid, 'ms (target: <100ms)');
+            console.log('CLS:', cls, '(target: <0.1)');
+            
+            if (lcp > 2500 || fid > 100 || cls > 0.1) {
+              console.error('❌ Core Web Vitals thresholds exceeded');
+              process.exit(1);
+            }
+            
+            console.log('✅ All Core Web Vitals within Built for Shopify thresholds');
+          "

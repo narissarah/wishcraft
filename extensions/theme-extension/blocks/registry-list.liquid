@@ -1,0 +1,399 @@
+{% comment %}
+  WishCraft Registry List Block
+  Displays registry items for viewing and purchasing
+{% endcomment %}
+
+<div class="wishcraft-registry-list" 
+     data-block-id="{{ block.id }}"
+     data-registry-id="{{ block.settings.registry_id }}"
+     style="--primary-color: {{ block.settings.primary_color }}; --text-color: {{ block.settings.text_color }};">
+
+  {% comment %} Registry Header {% endcomment %}
+  {% if block.settings.show_header %}
+    <div class="wishcraft-registry-header">
+      {% if block.settings.registry_title != blank %}
+        <h2 class="wishcraft-registry-title">{{ block.settings.registry_title }}</h2>
+      {% endif %}
+      
+      {% if block.settings.registry_description != blank %}
+        <p class="wishcraft-registry-description">{{ block.settings.registry_description }}</p>
+      {% endif %}
+      
+      {% if block.settings.show_progress %}
+        <div class="wishcraft-registry-progress">
+          <div class="progress-container">
+            <div class="progress-bar" id="overall-progress-{{ block.id }}">
+              <div class="progress-fill" style="width: 0%"></div>
+            </div>
+            <span class="progress-text" id="progress-text-{{ block.id }}">
+              Loading progress...
+            </span>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% comment %} Share Registry Section {% endcomment %}
+  {% if block.settings.show_share_buttons %}
+    <div class="wishcraft-share-section">
+      <h3 class="wishcraft-share-title">{{ block.settings.share_title | default: "Share This Registry" }}</h3>
+      <div class="wishcraft-share-buttons">
+        <button class="wishcraft-share-btn" data-platform="facebook" aria-label="Share on Facebook">
+          <svg viewBox="0 0 24 24" class="share-icon">
+            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+          </svg>
+          Facebook
+        </button>
+        
+        <button class="wishcraft-share-btn" data-platform="twitter" aria-label="Share on Twitter">
+          <svg viewBox="0 0 24 24" class="share-icon">
+            <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z"/>
+          </svg>
+          Twitter
+        </button>
+        
+        <button class="wishcraft-share-btn" data-platform="email" aria-label="Share via Email">
+          <svg viewBox="0 0 24 24" class="share-icon">
+            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+          </svg>
+          Email
+        </button>
+        
+        <button class="wishcraft-share-btn" data-platform="copy" aria-label="Copy Link">
+          <svg viewBox="0 0 24 24" class="share-icon">
+            <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+          </svg>
+          Copy Link
+        </button>
+      </div>
+    </div>
+  {% endif %}
+
+  {% comment %} Filter and Sort Options {% endcomment %}
+  {% if block.settings.show_filters %}
+    <div class="wishcraft-filters">
+      <div class="filter-group">
+        <label for="category-filter-{{ block.id }}">Category:</label>
+        <select id="category-filter-{{ block.id }}" class="wishcraft-filter-select">
+          <option value="">All Categories</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="price-filter-{{ block.id }}">Price Range:</label>
+        <select id="price-filter-{{ block.id }}" class="wishcraft-filter-select">
+          <option value="">Any Price</option>
+          <option value="0-25">Under $25</option>
+          <option value="25-50">$25 - $50</option>
+          <option value="50-100">$50 - $100</option>
+          <option value="100-200">$100 - $200</option>
+          <option value="200+">Over $200</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="status-filter-{{ block.id }}">Status:</label>
+        <select id="status-filter-{{ block.id }}" class="wishcraft-filter-select">
+          <option value="">All Items</option>
+          <option value="available">Available</option>
+          <option value="partial">Partially Purchased</option>
+          <option value="completed">Fully Purchased</option>
+        </select>
+      </div>
+      
+      <div class="filter-group">
+        <label for="sort-select-{{ block.id }}">Sort By:</label>
+        <select id="sort-select-{{ block.id }}" class="wishcraft-filter-select">
+          <option value="priority">Priority</option>
+          <option value="price-low">Price: Low to High</option>
+          <option value="price-high">Price: High to Low</option>
+          <option value="name">Name: A to Z</option>
+          <option value="recent">Recently Added</option>
+        </select>
+      </div>
+    </div>
+  {% endif %}
+
+  {% comment %} Registry Items Container {% endcomment %}
+  <div class="wishcraft-registry-items" id="registry-items-{{ block.id }}">
+    <div class="wishcraft-loading">
+      <div class="loading-spinner"></div>
+      <p>Loading registry items...</p>
+    </div>
+  </div>
+
+  {% comment %} Registry Summary Footer {% endcomment %}
+  {% if block.settings.show_summary %}
+    <div class="wishcraft-registry-summary" id="registry-summary-{{ block.id }}">
+      <div class="summary-stats">
+        <div class="stat-item">
+          <span class="stat-value" id="total-items-{{ block.id }}">-</span>
+          <span class="stat-label">Total Items</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="total-value-{{ block.id }}">-</span>
+          <span class="stat-label">Total Value</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="purchased-value-{{ block.id }}">-</span>
+          <span class="stat-label">Purchased</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value" id="remaining-value-{{ block.id }}">-</span>
+          <span class="stat-label">Remaining</span>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% comment %} Purchase Modal {% endcomment %}
+  <div class="wishcraft-purchase-modal" id="purchase-modal-{{ block.id }}" style="display: none;">
+    <div class="modal-overlay" data-action="close-modal"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Purchase Gift</h3>
+        <button class="modal-close" data-action="close-modal" aria-label="Close modal">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="gift-item-preview" id="gift-preview-{{ block.id }}">
+          <!-- Item details will be populated here -->
+        </div>
+        
+        <div class="gift-options">
+          <div class="form-group">
+            <label for="gift-quantity-{{ block.id }}">Quantity to Purchase:</label>
+            <select id="gift-quantity-{{ block.id }}" class="wishcraft-select">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+          
+          <div class="form-group">
+            <label for="gift-message-{{ block.id }}">Gift Message (optional):</label>
+            <textarea 
+              id="gift-message-{{ block.id }}" 
+              class="wishcraft-textarea" 
+              placeholder="Add a personal message for the recipient..."
+              maxlength="500"></textarea>
+          </div>
+          
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="anonymous-gift-{{ block.id }}" class="wishcraft-checkbox">
+              <span class="checkbox-text">Give anonymously</span>
+            </label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="wishcraft-btn wishcraft-btn-secondary" data-action="close-modal">
+          Cancel
+        </button>
+        <button class="wishcraft-btn wishcraft-btn-primary" id="confirm-purchase-{{ block.id }}">
+          Add to Cart
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {% comment %} Gift Contribution Modal {% endcomment %}
+  {% if block.settings.allow_group_gifting %}
+    <div class="wishcraft-contribution-modal" id="contribution-modal-{{ block.id }}" style="display: none;">
+      <div class="modal-overlay" data-action="close-contribution-modal"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 class="modal-title">Contribute to Group Gift</h3>
+          <button class="modal-close" data-action="close-contribution-modal" aria-label="Close modal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="contribution-progress" id="contribution-progress-{{ block.id }}">
+            <!-- Contribution progress will be populated here -->
+          </div>
+          
+          <div class="contribution-options">
+            <div class="form-group">
+              <label>Contribution Amount:</label>
+              <div class="contribution-amounts">
+                <button class="amount-btn" data-amount="25">$25</button>
+                <button class="amount-btn" data-amount="50">$50</button>
+                <button class="amount-btn" data-amount="100">$100</button>
+                <input type="number" id="custom-amount-{{ block.id }}" placeholder="Custom amount" min="1" step="0.01">
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="wishcraft-btn wishcraft-btn-secondary" data-action="close-contribution-modal">
+            Cancel
+          </button>
+          <button class="wishcraft-btn wishcraft-btn-primary" id="confirm-contribution-{{ block.id }}">
+            Contribute
+          </button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+{% comment %} Initialize the component {% endcomment %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window.WishCraftRegistry === 'undefined') {
+      console.warn('WishCraft Registry script not loaded');
+      return;
+    }
+    
+    window.WishCraftRegistry.initRegistryList('{{ block.id }}');
+  });
+</script>
+
+{% schema %}
+{
+  "name": "Registry List",
+  "target": "section",
+  "stylesheet": "wishcraft-registry-list.css",
+  "javascript": "wishcraft-registry.js",
+  "settings": [
+    {
+      "type": "header",
+      "content": "Registry Settings"
+    },
+    {
+      "type": "text",
+      "id": "registry_id",
+      "label": "Registry ID",
+      "info": "The unique ID of the registry to display"
+    },
+    {
+      "type": "text",
+      "id": "registry_title",
+      "label": "Registry Title",
+      "default": "My Gift Registry"
+    },
+    {
+      "type": "textarea",
+      "id": "registry_description",
+      "label": "Registry Description",
+      "default": "These are the items I'd love to receive as gifts."
+    },
+    {
+      "type": "header",
+      "content": "Display Options"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_header",
+      "label": "Show registry header",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_progress",
+      "label": "Show overall progress",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_share_buttons",
+      "label": "Show share buttons",
+      "default": true
+    },
+    {
+      "type": "text",
+      "id": "share_title",
+      "label": "Share section title",
+      "default": "Share This Registry"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_filters",
+      "label": "Show filter options",
+      "default": true
+    },
+    {
+      "type": "checkbox",
+      "id": "show_summary",
+      "label": "Show registry summary",
+      "default": true
+    },
+    {
+      "type": "header",
+      "content": "Layout Options"
+    },
+    {
+      "type": "select",
+      "id": "items_per_row",
+      "label": "Items per row",
+      "options": [
+        { "value": "1", "label": "1 column" },
+        { "value": "2", "label": "2 columns" },
+        { "value": "3", "label": "3 columns" },
+        { "value": "4", "label": "4 columns" }
+      ],
+      "default": "3"
+    },
+    {
+      "type": "select",
+      "id": "image_aspect_ratio",
+      "label": "Image aspect ratio",
+      "options": [
+        { "value": "square", "label": "Square (1:1)" },
+        { "value": "landscape", "label": "Landscape (4:3)" },
+        { "value": "portrait", "label": "Portrait (3:4)" }
+      ],
+      "default": "square"
+    },
+    {
+      "type": "header",
+      "content": "Purchase Options"
+    },
+    {
+      "type": "checkbox",
+      "id": "allow_group_gifting",
+      "label": "Allow group gifting",
+      "default": true,
+      "info": "Multiple people can contribute to purchasing an item"
+    },
+    {
+      "type": "checkbox",
+      "id": "show_purchase_history",
+      "label": "Show purchase history",
+      "default": false,
+      "info": "Display who has purchased items"
+    },
+    {
+      "type": "header",
+      "content": "Style Settings"
+    },
+    {
+      "type": "color",
+      "id": "primary_color",
+      "label": "Primary color",
+      "default": "#000000"
+    },
+    {
+      "type": "color",
+      "id": "text_color",
+      "label": "Text color",
+      "default": "#333333"
+    },
+    {
+      "type": "color",
+      "id": "background_color",
+      "label": "Background color",
+      "default": "#ffffff"
+    }
+  ],
+  "presets": [
+    {
+      "name": "Registry List",
+      "settings": {
+        "show_header": true,
+        "show_progress": true,
+        "show_share_buttons": true,
+        "items_per_row": "3"
+      }
+    }
+  ]
+}
+{% endschema %}

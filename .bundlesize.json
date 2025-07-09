@@ -1,0 +1,18 @@
+{
+  "files": [
+    {
+      "path": "./public/build/assets/*.js",
+      "maxSize": "250 KB",
+      "compression": "gzip"
+    },
+    {
+      "path": "./public/build/assets/*.css",
+      "maxSize": "50 KB",
+      "compression": "gzip"
+    }
+  ],
+  "ci": {
+    "trackBranches": ["main", "master"],
+    "repoBranchBase": "master"
+  }
+}
