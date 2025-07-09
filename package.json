@@ -5,6 +5,7 @@
   "scripts": {
     "build": "remix build",
     "dev": "shopify app dev",
+    "prestart": "node scripts/check-env.js || true",
     "start": "node server.js",
     "dev:setup": "./scripts/dev-setup.sh",
     "config:link": "shopify app config link",

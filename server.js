@@ -3,6 +3,12 @@ const { createRequestHandler } = require("@remix-run/express");
 
 const app = express();
 
+// Log startup information
+console.log("🚀 WishCraft Server Starting...");
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`PORT: ${process.env.PORT || 3000}`);
+console.log(`DATABASE_URL: ${process.env.DATABASE_URL ? 'Set' : 'Not Set'}`);
+
 // Trust proxy for Railway deployments
 app.set('trust proxy', true);
 
@@ -37,6 +43,10 @@ app.all(
   createRequestHandler({
     build: require("./build/index.js"),
     mode: process.env.NODE_ENV,
+    getLoadContext() {
+      // Add any context needed by your loaders
+      return {};
+    }
   })
 );
 
@@ -44,17 +54,43 @@ app.all(
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || "0.0.0.0";
 
-app.listen(port, host, () => {
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server Error:', err);
+  res.status(500).json({ 
+    error: 'Internal Server Error',
+    message: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
+
+const server = app.listen(port, host, () => {
   console.log(`✅ WishCraft server is running on http://${host}:${port}`);
 });
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully');
-  process.exit(0);
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT received, shutting down gracefully');
-  process.exit(0);
+  server.close(() => {
+    console.log('HTTP server closed');
+    process.exit(0);
+  });
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
 });
