@@ -29,5 +29,5 @@ echo "🗄️ Setting up database..."
 npx prisma db push --accept-data-loss || echo "⚠️ Migration failed, but continuing..."
 
 # Start the application
-echo "✅ Starting WishCraft application..."
+echo "✅ Starting WishCraft application on port ${PORT:-3000}..."
 exec npm start
