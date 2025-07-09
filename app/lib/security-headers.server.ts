@@ -44,24 +44,11 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
                request.headers.get('x-shopify-shop-domain') ||
                'admin.shopify.com';
   
-  // Build CSP directives optimized for Shopify embedded apps
-  // Note: Removing nonces to allow Shopify's inline scripts to work
-  const cspDirectives = [
-    "default-src 'self' https://*.myshopify.com",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com https://cdn.jsdelivr.net https://www.googletagmanager.com",
-    "style-src 'self' 'unsafe-inline' https://cdn.shopify.com https://fonts.googleapis.com",
-    "img-src 'self' data: blob: https: http:",
-    "font-src 'self' data: https://cdn.shopify.com https://fonts.gstatic.com",
-    "connect-src 'self' https://*.myshopify.com wss://*.myshopify.com https://monorail-edge.shopifysvc.com https://api.sentry.io https://*.google-analytics.com",
-    isEmbedded ? `frame-ancestors https://${shop} https://admin.shopify.com` : "frame-ancestors 'none'",
-    "base-uri 'self'",
-    "form-action 'self' https://*.myshopify.com",
-    "media-src 'self' https://cdn.shopify.com",
-    "object-src 'none'",
-    "child-src 'self' https://*.myshopify.com blob:",
-    "worker-src 'self' blob:",
-    "manifest-src 'self'"
-  ];
+  // Minimal CSP for Shopify embedded apps - just the required frame-ancestors
+  // More restrictive CSP can break Shopify's admin functionality
+  const cspDirectives = isEmbedded 
+    ? [`frame-ancestors https://${shop} https://admin.shopify.com`]
+    : ["frame-ancestors 'none'"];
 
   const headers: HeadersInit = {
     // Security headers
@@ -154,7 +141,8 @@ export function securityHeadersMiddleware(handler: Function) {
  * Get CSP meta tag for HTML responses
  */
 export function getCSPMetaTag(nonce: string): string {
-  return `<meta http-equiv="Content-Security-Policy" content="script-src 'self' 'nonce-${nonce}' https://cdn.shopify.com;">`;
+  // Simplified CSP for Shopify embedded apps
+  return `<meta http-equiv="Content-Security-Policy" content="frame-ancestors https://*.myshopify.com https://admin.shopify.com;">`;
 }
 
 /**
