@@ -1,12 +1,12 @@
 // WishCraft Database Schema - Following 2025 Shopify Best Practices
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl"]
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING") // For migrations with connection pooling
 }
 
 // ============================================================================

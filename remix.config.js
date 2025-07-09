@@ -7,6 +7,7 @@ export default {
   serverBuildPath: "build/index.js",
   serverConditions: ["node"],
   serverModuleFormat: "esm",
+  serverDependenciesToBundle: [/.+/],
   future: {
     v2_errorBoundary: true,
     v2_headers: true,

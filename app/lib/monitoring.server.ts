@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { ProfilingIntegration } from "@sentry/profiling-node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import type { ErrorBoundaryComponent } from "@remix-run/node";
 
 /**
@@ -26,7 +26,7 @@ export function initSentry() {
       new Sentry.Integrations.Http({ tracing: true }),
       
       // Profiling
-      new ProfilingIntegration(),
+      nodeProfilingIntegration(),
       
       // Prisma integration
       new Sentry.Integrations.Prisma({ client: true }),

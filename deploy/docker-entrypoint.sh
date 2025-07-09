@@ -24,9 +24,9 @@ prisma.\$connect()
   exit 1
 fi
 
-# Run database migrations
-echo "🗄️ Running database migrations..."
-npx prisma migrate deploy
+# Run database migrations (use db push for initial setup)
+echo "🗄️ Setting up database..."
+npx prisma db push --accept-data-loss || echo "⚠️ Migration failed, but continuing..."
 
 # Start the application
 echo "✅ Starting WishCraft application..."

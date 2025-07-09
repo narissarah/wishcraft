@@ -2,6 +2,7 @@ import { vitePlugin as remix } from "@remix-run/dev";
 import { installGlobals } from "@remix-run/node";
 import { defineConfig } from "vite";
 import { visualizer } from "rollup-plugin-visualizer";
+import path from "path";
 
 installGlobals();
 
@@ -16,6 +17,12 @@ export default defineConfig({
       brotliSize: true,
     }),
   ].filter(Boolean),
+  
+  resolve: {
+    alias: {
+      "~": path.resolve(__dirname, "./app"),
+    },
+  },
   
   server: {
     port: 3000,

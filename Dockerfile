@@ -2,25 +2,28 @@
 # Multi-stage build for optimized production image
 
 # ===== Build Stage =====
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including OpenSSL for Prisma
 RUN apk add --no-cache \
     python3 \
     make \
     g++ \
     git \
+    openssl \
+    libc6-compat \
     && ln -sf python3 /usr/bin/python
 
 # Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies
-RUN npm ci --production=false
+# Clean install dependencies (including platform-specific binaries)
+RUN rm -rf node_modules && \
+    npm ci --production=false
 
 # Copy source code
 COPY . .
@@ -36,7 +39,7 @@ RUN npm run build
 RUN npm prune --production
 
 # ===== Production Stage =====
-FROM node:18-alpine AS production
+FROM node:20-alpine AS production
 
 # Create app user for security
 RUN addgroup -g 1001 -S nodejs && \
@@ -45,10 +48,12 @@ RUN addgroup -g 1001 -S nodejs && \
 # Set working directory
 WORKDIR /app
 
-# Install production system dependencies
+# Install production system dependencies including OpenSSL for Prisma
 RUN apk add --no-cache \
     dumb-init \
     curl \
+    openssl \
+    libc6-compat \
     && rm -rf /var/cache/apk/*
 
 # Copy built application from builder stage
