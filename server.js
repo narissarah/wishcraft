@@ -27,7 +27,7 @@ app.use(helmet({
       connectSrc: ["'self'", "https://*.shopify.com", "wss://*.shopify.com"],
       fontSrc: ["'self'", "https://cdn.shopify.com"],
       frameSrc: ["'self'", "https://*.shopify.com"],
-      frameAncestors: ["'none'", "https://*.myshopify.com", "https://admin.shopify.com"]
+      frameAncestors: ["https://*.myshopify.com", "https://admin.shopify.com"]
     }
   },
   crossOriginEmbedderPolicy: false // Required for Shopify embedded apps
