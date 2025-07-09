@@ -44,20 +44,21 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
                request.headers.get('x-shopify-shop-domain') ||
                'admin.shopify.com';
   
-  // Minimal CSP for Shopify embedded apps - just the required frame-ancestors
-  // More restrictive CSP can break Shopify's admin functionality
-  const cspDirectives = isEmbedded 
-    ? [`frame-ancestors https://${shop} https://admin.shopify.com`]
-    : ["frame-ancestors 'none'"];
-
+  // For Shopify embedded apps, we need minimal CSP to avoid conflicts
+  // Shopify's admin applies its own CSP, so we only set frame-ancestors
   const headers: HeadersInit = {
-    // Security headers
-    "X-Frame-Options": isEmbedded ? "ALLOWALL" : "DENY", // Required for embedded apps
+    // Security headers - adjusted for Shopify embedded apps
     "X-Content-Type-Options": "nosniff",
-    "X-XSS-Protection": "1; mode=block",
     "X-Permitted-Cross-Domain-Policies": "none",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Content-Security-Policy": cspDirectives.join("; "),
+    
+    // Only set CSP frame-ancestors for embedded apps
+    ...(isEmbedded ? {
+      "Content-Security-Policy": `frame-ancestors https://${shop} https://admin.shopify.com;`
+    } : {
+      "X-Frame-Options": "DENY",
+      "Content-Security-Policy": "frame-ancestors 'none';"
+    }),
     
     // Permissions Policy (Feature Policy)
     "Permissions-Policy": [
