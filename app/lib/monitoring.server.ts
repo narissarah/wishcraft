@@ -84,12 +84,10 @@ export function initSentry() {
   });
 
   // Set initial user/shop context
-  Sentry.configureScope((scope) => {
-    scope.setTag("app", "wishcraft");
-    scope.setContext("runtime", {
-      node: process.version,
-      platform: process.platform,
-    });
+  Sentry.setTag("app", "wishcraft");
+  Sentry.setContext("runtime", {
+    node: process.version,
+    platform: process.platform,
   });
 }
 
@@ -264,15 +262,13 @@ export const Performance = {
  * Shop context for multi-tenant monitoring
  */
 export function setShopContext(shopId: string, shopDomain?: string) {
-  Sentry.configureScope((scope) => {
-    scope.setTag("shop.id", shopId);
-    if (shopDomain) {
-      scope.setTag("shop.domain", shopDomain);
-    }
-    scope.setContext("shop", {
-      id: shopId,
-      domain: shopDomain,
-    });
+  Sentry.setTag("shop.id", shopId);
+  if (shopDomain) {
+    Sentry.setTag("shop.domain", shopDomain);
+  }
+  Sentry.setContext("shop", {
+    id: shopId,
+    domain: shopDomain,
   });
 }
 
@@ -280,9 +276,7 @@ export function setShopContext(shopId: string, shopDomain?: string) {
  * Clear sensitive context before handling new request
  */
 export function clearSensitiveContext() {
-  Sentry.configureScope((scope) => {
-    scope.setUser(null);
-    scope.setTag("shop.id", undefined);
-    scope.setTag("shop.domain", undefined);
-  });
+  Sentry.setUser(null);
+  Sentry.setTag("shop.id", undefined);
+  Sentry.setTag("shop.domain", undefined);
 }
