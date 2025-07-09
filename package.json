@@ -2,11 +2,10 @@
   "name": "wishcraft",
   "version": "1.0.0",
   "description": "WishCraft - Shopify Gift Registry App",
-  "type": "module",
   "scripts": {
     "build": "remix build",
     "dev": "shopify app dev",
-    "start": "remix-serve ./build/index.js",
+    "start": "remix-serve build",
     "dev:setup": "./scripts/dev-setup.sh",
     "config:link": "shopify app config link",
     "config:use": "shopify app config use",

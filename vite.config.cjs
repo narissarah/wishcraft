@@ -1,12 +1,12 @@
-import { vitePlugin as remix } from "@remix-run/dev";
-import { installGlobals } from "@remix-run/node";
-import { defineConfig } from "vite";
-import { visualizer } from "rollup-plugin-visualizer";
-import path from "path";
+const { vitePlugin: remix } = require("@remix-run/dev");
+const { installGlobals } = require("@remix-run/node");
+const { defineConfig } = require("vite");
+const { visualizer } = require("rollup-plugin-visualizer");
+const path = require("path");
 
 installGlobals();
 
-export default defineConfig({
+module.exports = defineConfig({
   plugins: [
     remix(),
     // Bundle analyzer for development

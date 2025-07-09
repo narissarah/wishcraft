@@ -1,28 +1,20 @@
 /** @type {import('@remix-run/dev').AppConfig} */
-export default {
+module.exports = {
   ignoredRouteFiles: ["**/.*"],
   appDirectory: "app",
   assetsBuildDirectory: "public/build",
   publicPath: "/build/",
   serverBuildPath: "build/index.js",
   serverConditions: ["node"],
-  serverModuleFormat: "esm",
-  serverDependenciesToBundle: [/.+/],
-  serverNodeBuiltinsPolyfill: {
-    modules: {
-      stream: true,
-      buffer: true,
-      util: true,
-      process: true,
-      path: true,
-      url: true,
-      fs: "empty",
-    },
-    globals: {
-      Buffer: true,
-      process: true,
-    },
-  },
+  serverModuleFormat: "cjs",
+  serverDependenciesToBundle: [
+    "@shopify/shopify-app-remix",
+    "@shopify/polaris",
+    "@shopify/app-bridge",
+    "@shopify/app-bridge-react",
+    "isomorphic-dompurify",
+    "date-fns",
+  ],
   future: {
     // v3 flags for React Router v7 compatibility
     v3_fetcherPersist: true,
