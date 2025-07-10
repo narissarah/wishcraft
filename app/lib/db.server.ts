@@ -343,11 +343,12 @@ export const dbHealth = {
       // Test basic connection
       await db.$queryRaw`SELECT 1`;
       
-      // Test table existence
+      // Test table existence (PostgreSQL compatible)
       const tableCount = await db.$queryRaw`
         SELECT COUNT(*) as count 
-        FROM sqlite_master 
-        WHERE type='table' AND name NOT LIKE 'sqlite_%'
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_type = 'BASE TABLE'
       `;
 
       return {
