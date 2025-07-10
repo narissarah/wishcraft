@@ -14,8 +14,8 @@ echo ""
 source .env
 
 echo "# Core Shopify Configuration"
-echo "SHOPIFY_API_KEY=$SHOPIFY_API_KEY"
-echo "SHOPIFY_API_SECRET=$SHOPIFY_API_SECRET"
+echo "SHOPIFY_API_KEY=ac161e228a6b078fcdd3fa14586ded14"
+echo "SHOPIFY_API_SECRET=f5e5f2bb3304ecacdf420e7b5ca68595"
 echo "SHOPIFY_APP_URL=https://wishcraft-production.up.railway.app"
 echo "SHOPIFY_WEBHOOK_SECRET=hfvoIrkf6LUJdvl//9VwjBGyHyjT74fPpCK4enK5Vfo="
 echo "SCOPES=$SHOPIFY_SCOPES"

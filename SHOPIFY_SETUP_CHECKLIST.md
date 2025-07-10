@@ -11,8 +11,8 @@
 ### 1️⃣ **Railway Environment Variables**
 Check if these are set in Railway dashboard:
 - [ ] `SHOPIFY_APP_URL=https://wishcraft-production.up.railway.app`
-- [ ] `SHOPIFY_API_KEY=3db6e18eb9c8f2a58a4db60b43795edc`
-- [ ] `SHOPIFY_API_SECRET=bfbd378b59e74cd0e23e5fdd4cbfcbf7`
+- [ ] `SHOPIFY_API_KEY=ac161e228a6b078fcdd3fa14586ded14`
+- [ ] `SHOPIFY_API_SECRET=f5e5f2bb3304ecacdf420e7b5ca68595`
 - [ ] `SHOPIFY_WEBHOOK_SECRET=hfvoIrkf6LUJdvl//9VwjBGyHyjT74fPpCK4enK5Vfo=`
 - [ ] `SESSION_SECRET=j6tJg/BOIjMH8+03ajJScM4E7t/SV95RQV2SrV0LUOw=`
 - [ ] `DATABASE_URL` (should end with `?sslmode=require`)
