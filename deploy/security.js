@@ -65,7 +65,7 @@ export const helmetConfig = {
   crossOriginOpenerPolicy: { policy: "unsafe-none" }, // Required for Shopify
   crossOriginResourcePolicy: false, // Disabled for Shopify embedded apps
   dnsPrefetchControl: true,
-  frameguard: { action: 'sameorigin' }, // Allow same origin frames for Shopify
+  frameguard: false, // Disabled for Shopify CSP compatibility
   hidePoweredBy: true,
   hsts: {
     maxAge: 31536000,

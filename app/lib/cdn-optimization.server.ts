@@ -152,9 +152,8 @@ export class EdgeCacheManager {
       headers.set(key, value);
     });
 
-    // Add security headers
+    // Add security headers (frame options handled by CSP in server.js)
     headers.set('X-Content-Type-Options', 'nosniff');
-    headers.set('X-Frame-Options', 'DENY');
     headers.set('X-XSS-Protection', '1; mode=block');
 
     // Add compression hints
