@@ -255,6 +255,9 @@ export class ShopifyAPIRateLimiter {
 // Global Shopify rate limiter instance
 export const shopifyRateLimiter = new ShopifyAPIRateLimiter();
 
+// Default rate limiter instance
+export const rateLimiter = new RateLimiter();
+
 /**
  * Rate limit by shop (for multi-tenant scenarios)
  */
