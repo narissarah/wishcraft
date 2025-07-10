@@ -35,7 +35,7 @@ import {
   Modal,
   SettingToggle
 } from "@shopify/polaris";
-import { useTheme, useTokens, ThemeToggle } from "~/components/ThemeProvider";
+// Simplified theme handling - removed ThemeProvider dependency
 import {
   SettingsIcon,
   ColorIcon,

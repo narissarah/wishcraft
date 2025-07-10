@@ -308,7 +308,25 @@ export function generateCodeChallenge(verifier: string): string {
   return crypto.createHash('sha256').update(verifier).digest('base64url');
 }
 
-export function validateHMAC(hmac: string, params: URLSearchParams): boolean {
+export function generateSessionSecret(): string {
+  return crypto.randomBytes(32).toString('base64');
+}
+
+export function isValidShopDomain(shop: string): boolean {
+  if (!shop || typeof shop !== 'string') {
+    return false;
+  }
+  
+  // Remove protocol if present
+  shop = shop.replace(/^https?:\/\//, '');
+  
+  // Check if it's a valid myshopify.com domain
+  const shopifyDomainRegex = /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/;
+  
+  return shopifyDomainRegex.test(shop);
+}
+
+export function validateWebhookSignature(hmac: string, params: URLSearchParams): boolean {
   const secret = process.env.SHOPIFY_API_SECRET!;
   const sortedParams = new URLSearchParams();
   
@@ -325,10 +343,15 @@ export function validateHMAC(hmac: string, params: URLSearchParams): boolean {
     .update(queryString)
     .digest('hex');
   
-  return crypto.timingSafeEqual(
-    Buffer.from(hmac, 'hex'),
-    Buffer.from(expectedHmac, 'hex')
-  );
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(hmac, 'hex'),
+      Buffer.from(expectedHmac, 'hex')
+    );
+  } catch (error) {
+    // Handle cases where HMAC lengths don't match
+    return false;
+  }
 }
 
 // ============================================================================
@@ -461,10 +484,11 @@ export async function authenticateWebSocket(
   }
 }
 
-async function verifyAdminToken(token: string, shop: string): Promise<any> {
+export async function verifyAdminToken(token: string, shop: string): Promise<any> {
   try {
     // Use GraphQL Admin API instead of deprecated REST
-    const response = await fetch(`https://${shop}.myshopify.com/admin/api/2025-07/graphql.json`, {
+    const shopDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
+    const response = await fetch(`https://${shopDomain}/admin/api/2025-07/graphql.json`, {
       method: 'POST',
       headers: {
         'X-Shopify-Access-Token': token,

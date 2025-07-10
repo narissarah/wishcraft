@@ -12,10 +12,8 @@ import {
 import { AppProvider } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { generateResourceHints, generateCriticalCSS } from "~/lib/performance.server";
-import { CriticalCSS, ResourceHints, PerformanceMonitor } from "~/components/PerformanceOptimized";
 import { getSecurityHeaders, generateNonce, getCSPMetaTag } from "~/lib/security-headers.server";
 import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/rate-limiter.server";
-import { ThemeProvider } from "~/components/ThemeProvider";
 import { useEffect } from "react";
 
 export const links: LinksFunction = () => {

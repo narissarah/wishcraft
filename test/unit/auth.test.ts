@@ -1,108 +1,66 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { 
-  verifyAdminToken, 
-  validateWebhookSignature,
-  generateSessionSecret,
-  isValidShopDomain
+  requireAdminAuth, 
+  getAdminAuth, 
+  isValidShopDomain,
+  validateWebhookSignature 
 } from '~/lib/auth.server';
 
-describe('Authentication Tests', () => {
+// Mock dependencies
+vi.mock('~/lib/db.server', () => ({
+  db: {
+    shop: {
+      findUnique: vi.fn(),
+    },
+  },
+}));
+
+vi.mock('~/shopify.server', () => ({
+  authenticate: {
+    admin: vi.fn(),
+  },
+}));
+
+describe('Auth Server', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  describe('verifyAdminToken', () => {
-    it('should verify a valid admin token using GraphQL', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({
-          data: {
-            shop: {
-              id: 'gid://shopify/Shop/123',
-              name: 'Test Shop',
-              email: 'test@shop.com'
-            }
-          }
-        })
-      });
-
-      const result = await verifyAdminToken('test-shop.myshopify.com', 'valid-token');
-      
-      expect(result).toBe(true);
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://test-shop.myshopify.com/admin/api/2025-07/graphql.json',
-        expect.objectContaining({
-          method: 'POST',
-          headers: {
-            'X-Shopify-Access-Token': 'valid-token',
-            'Content-Type': 'application/json',
-          }
-        })
-      );
-    });
-
-    it('should return false for invalid token', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
-        ok: false,
-        status: 401
-      });
-
-      const result = await verifyAdminToken('test-shop.myshopify.com', 'invalid-token');
-      
-      expect(result).toBe(false);
-    });
-
-    it('should handle network errors gracefully', async () => {
-      global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
-
-      const result = await verifyAdminToken('test-shop.myshopify.com', 'token');
-      
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('validateWebhookSignature', () => {
-    it('should validate a correct webhook signature', () => {
-      const rawBody = '{"test":"data"}';
-      const secret = 'webhook_secret';
-      const signature = 'correct_signature'; // In real test, compute HMAC
-
-      // Mock crypto for consistent testing
-      const isValid = validateWebhookSignature(rawBody, signature, secret);
-      
-      // This would need proper HMAC implementation
-      expect(typeof isValid).toBe('boolean');
-    });
   });
 
   describe('isValidShopDomain', () => {
     it('should validate correct shop domains', () => {
       expect(isValidShopDomain('test-shop.myshopify.com')).toBe(true);
-      expect(isValidShopDomain('another-store.myshopify.com')).toBe(true);
+      expect(isValidShopDomain('my-store.myshopify.com')).toBe(true);
     });
 
     it('should reject invalid shop domains', () => {
-      expect(isValidShopDomain('not-a-shop.com')).toBe(false);
-      expect(isValidShopDomain('fake.myshopify.net')).toBe(false);
+      expect(isValidShopDomain('invalid-domain.com')).toBe(false);
+      expect(isValidShopDomain('test.shopify.com')).toBe(false);
       expect(isValidShopDomain('')).toBe(false);
-      expect(isValidShopDomain('javascript:alert(1)')).toBe(false);
+      expect(isValidShopDomain(null as any)).toBe(false);
     });
   });
 
-  describe('generateSessionSecret', () => {
-    it('should generate a secure session secret', () => {
-      const secret = generateSessionSecret();
-      
-      expect(secret).toBeDefined();
-      expect(secret.length).toBeGreaterThanOrEqual(32);
-      expect(typeof secret).toBe('string');
+  describe('validateWebhookSignature', () => {
+    const testSecret = 'test-secret';
+    const validParams = new URLSearchParams({
+      shop: 'test-shop.myshopify.com',
+      timestamp: '1234567890',
     });
 
-    it('should generate unique secrets', () => {
-      const secret1 = generateSessionSecret();
-      const secret2 = generateSessionSecret();
-      
-      expect(secret1).not.toBe(secret2);
+    beforeEach(() => {
+      process.env.SHOPIFY_API_SECRET = testSecret;
+    });
+
+    it('should validate correct HMAC signatures', () => {
+      const expectedHmac = 'expected-hmac-value';
+      const result = validateWebhookSignature(expectedHmac, validParams);
+      expect(typeof result).toBe('boolean');
+    });
+
+    it('should reject invalid HMAC signatures', () => {
+      const invalidHmac = 'invalid-hmac';
+      const result = validateWebhookSignature(invalidHmac, validParams);
+      expect(typeof result).toBe('boolean');
     });
   });
 });

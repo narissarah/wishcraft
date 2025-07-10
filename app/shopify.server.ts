@@ -1,7 +1,6 @@
 import { LATEST_API_VERSION } from "@shopify/shopify-app-remix/server";
 import { shopifyApp } from "@shopify/shopify-app-remix/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-// import { restResources } from "@shopify/shopify-api/rest/admin/2024-10";
 import { db } from "~/lib/db.server";
 
 // Initialize Prisma session storage
@@ -23,17 +22,19 @@ export const shopify = shopifyApp({
   appUrl: process.env.SHOPIFY_APP_URL!,
   authPathPrefix: "/auth",
   sessionStorage,
-  // distribution: "app",
   apiVersion: LATEST_API_VERSION,
-  // restResources,
   
-  // 2025 security features
+  // 2025 mandatory security features
   future: {
-    unstable_newEmbeddedAuthStrategy: true, // Enable modern auth strategy
+    wip_graphqlAdminApi_unstable: true, // GraphQL-only API
+    unstable_newEmbeddedAuthStrategy: true, // Session tokens required
   },
   
-  // Enhanced session configuration
+  // 2025 session requirements
   useOnlineTokens: true,
+  billing: {
+    required: false,
+  },
   
   // Webhook configuration
   webhooks: {
@@ -98,8 +99,9 @@ export const shopify = shopifyApp({
     },
   },
   
-  // Error handling
+  // 2025 compliance requirements
   isEmbeddedApp: true,
+  sessionTokens: true, // Mandatory as of Jan 6, 2025
 });
 
 // Initialize shop data after authentication
