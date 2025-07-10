@@ -1,0 +1,17 @@
+{
+  "wishcraft": {
+    "registry": {
+      "title": "Gift Registry",
+      "add_to_registry": "Add to Registry",
+      "view_registry": "View Registry",
+      "share_registry": "Share Registry",
+      "purchase_gift": "Purchase Gift",
+      "gift_purchased": "Gift Purchased",
+      "out_of_stock": "Out of Stock",
+      "loading": "Loading...",
+      "error": "Something went wrong. Please try again.",
+      "empty_registry": "No items in this registry yet.",
+      "add_items": "Add some items to get started!"
+    }
+  }
+}

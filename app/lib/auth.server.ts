@@ -9,13 +9,35 @@ import { generateCSRFToken } from "~/lib/csrf.server";
 // SESSION MANAGEMENT (2025 SECURITY STANDARDS)
 // ============================================================================
 
+// Ensure SESSION_SECRET is set in production
+function getSessionSecret(): string {
+  const secret = process.env.SESSION_SECRET;
+  
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '🚨 CRITICAL: SESSION_SECRET is not set in production!\n' +
+      'Generate a secure secret with: node scripts/generate-secrets.js'
+    );
+  }
+  
+  // Only use dev secret in development
+  if (!secret && process.env.NODE_ENV !== 'production') {
+    console.warn('⚠️  Using development session secret. Set SESSION_SECRET for production.');
+    return 'dev-secret-for-local-development-only-change-in-production';
+  }
+  
+  return secret!;
+}
+
+const sessionSecret = getSessionSecret();
+
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__wishcraft_session",
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secrets: [process.env.SESSION_SECRET || "dev-secret-change-in-production"],
+    secrets: [sessionSecret],
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 30, // 30 days
   },
@@ -27,7 +49,7 @@ export const customerSessionStorage = createCookieSessionStorage({
     httpOnly: true,
     path: "/",
     sameSite: "lax", 
-    secrets: [process.env.SESSION_SECRET || "dev-secret-change-in-production"],
+    secrets: [sessionSecret],
     secure: process.env.NODE_ENV === "production",
     maxAge: 60 * 60 * 24 * 7, // 7 days for customer sessions
   },
@@ -208,7 +230,7 @@ export async function makeCustomerAPIRequest(
   variables?: any
 ) {
   // Use stable API version for Customer Account API
-  const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-07';
+  const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-01';
   const response = await fetch(
     `https://shopify.com/${session.shop}/account/customer/api/${apiVersion}/graphql`,
     {
@@ -262,12 +284,28 @@ export async function getCustomerProfile(session: CustomerSession) {
 // SECURITY UTILITIES
 // ============================================================================
 
+// Get encryption key (separate from session secret for better security)
+function getEncryptionKey(): Buffer {
+  const encryptionKey = process.env.ENCRYPTION_KEY || process.env.SESSION_SECRET;
+  
+  if (!encryptionKey && process.env.NODE_ENV === 'production') {
+    throw new Error(
+      '🚨 CRITICAL: ENCRYPTION_KEY is not set in production!\n' +
+      'Generate a secure key with: node scripts/generate-secrets.js'
+    );
+  }
+  
+  const key = encryptionKey || sessionSecret;
+  return crypto.scryptSync(key, 'wishcraft-salt-v1', 32);
+}
+
+const encryptionKey = getEncryptionKey();
+
 function encryptSession(data: string): string {
   const algorithm = 'aes-256-gcm';
-  const key = crypto.scryptSync(process.env.SESSION_SECRET!, 'salt', 32);
   const iv = crypto.randomBytes(16);
   
-  const cipher = crypto.createCipheriv(algorithm, key, iv);
+  const cipher = crypto.createCipheriv(algorithm, encryptionKey, iv);
   cipher.setAAD(Buffer.from('wishcraft-session'));
   
   let encrypted = cipher.update(data, 'utf8', 'hex');
@@ -280,13 +318,12 @@ function encryptSession(data: string): string {
 
 function decryptSession(encryptedData: string): string {
   const algorithm = 'aes-256-gcm';
-  const key = crypto.scryptSync(process.env.SESSION_SECRET!, 'salt', 32);
   
   const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(authTagHex, 'hex');
   
-  const decipher = crypto.createDecipheriv(algorithm, key, iv);
+  const decipher = crypto.createDecipheriv(algorithm, encryptionKey, iv);
   decipher.setAAD(Buffer.from('wishcraft-session'));
   decipher.setAuthTag(authTag);
   
@@ -486,9 +523,10 @@ export async function authenticateWebSocket(
 
 export async function verifyAdminToken(token: string, shop: string): Promise<any> {
   try {
-    // Use GraphQL Admin API instead of deprecated REST
+    // Use GraphQL Admin API with latest stable version
     const shopDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
-    const response = await fetch(`https://${shopDomain}/admin/api/2025-07/graphql.json`, {
+    const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-01';
+    const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
       method: 'POST',
       headers: {
         'X-Shopify-Access-Token': token,

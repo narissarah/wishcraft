@@ -13,7 +13,7 @@ include_config_on_deploy = true
 api_version = "2025-07"
 
 [app_proxy]
-url = "/apps/wishcraft"
+url = "https://wishcraft-production.up.railway.app/proxy"
 subpath = "proxy"
 prefix = "apps"
 

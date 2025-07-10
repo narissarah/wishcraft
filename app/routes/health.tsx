@@ -1,6 +1,7 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 
 /**
  * Health Check Endpoint
@@ -68,7 +69,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
     
   } catch (error) {
-    console.error('Health check failed:', error);
+    log.error('Health check failed', error);
     
     return json({
       status: 'unhealthy',

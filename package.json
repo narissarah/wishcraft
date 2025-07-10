@@ -53,6 +53,7 @@
     "redis": "^4.6.13",
     "swagger-ui-dist": "^4.15.5",
     "web-vitals": "^3.5.2",
+    "winston": "^3.16.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
