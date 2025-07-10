@@ -67,7 +67,6 @@ COPY --from=builder --chown=nextjs:nodejs /app/server.js ./server.js
 # Copy additional production files
 COPY --chown=nextjs:nodejs deploy/docker-entrypoint.sh ./
 COPY --chown=nextjs:nodejs deploy/healthcheck.js ./
-COPY --chown=nextjs:nodejs start-debug.js ./
 
 # Make scripts executable
 RUN chmod +x ./docker-entrypoint.sh

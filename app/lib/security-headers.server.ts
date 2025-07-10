@@ -137,8 +137,9 @@ export function securityHeadersMiddleware(handler: Function) {
  * Get CSP meta tag for HTML responses
  */
 export function getCSPMetaTag(nonce: string): string {
-  // Simplified CSP for Shopify embedded apps
-  return `<meta http-equiv="Content-Security-Policy" content="frame-ancestors https://*.myshopify.com https://admin.shopify.com;">`;
+  // CSP is handled by helmet middleware in server.js
+  // Don't add duplicate CSP headers here
+  return '';
 }
 
 /**
