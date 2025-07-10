@@ -129,20 +129,8 @@ app.all(
 const port = process.env.PORT || 3000;
 const host = process.env.HOST || "0.0.0.0";
 
-// Security headers for Built for Shopify
-app.use((req, res, next) => {
-  // Additional security headers
-  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
-  
-  // Remove powered by header
-  res.removeHeader('X-Powered-By');
-  
-  next();
-});
+// Security headers are handled by helmet middleware above
+// Removed duplicate security headers middleware that was causing CSP conflicts
 
 // Error handling middleware
 app.use((err, req, res, next) => {
