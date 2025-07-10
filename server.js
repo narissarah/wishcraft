@@ -159,23 +159,48 @@ app.use((err, req, res, next) => {
 
 const server = app.listen(port, host, () => {
   console.log(`✅ WishCraft server is running on http://${host}:${port}`);
+  
+  // Initialize background job processor
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const { initializeJobProcessor } = require('./app/lib/jobs/job-processor.server');
+      initializeJobProcessor();
+      console.log('✅ Background job processor initialized');
+    } catch (error) {
+      console.error('Failed to initialize job processor:', error);
+    }
+  }
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+const gracefulShutdown = () => {
+  console.log('Shutting down gracefully...');
+  
+  // Stop background jobs
+  if (process.env.NODE_ENV === 'production') {
+    try {
+      const { stopAllJobs } = require('./app/lib/jobs/job-processor.server');
+      stopAllJobs();
+      console.log('✅ Background jobs stopped');
+    } catch (error) {
+      console.error('Error stopping jobs:', error);
+    }
+  }
+  
   server.close(() => {
     console.log('HTTP server closed');
     process.exit(0);
   });
+};
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received');
+  gracefulShutdown();
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
-  });
+  console.log('SIGINT received');
+  gracefulShutdown();
 });
 
 // Handle uncaught exceptions
