@@ -20,7 +20,7 @@ import {
   SettingsIcon,
   PlusIcon
 } from "@shopify/polaris-icons";
-import { requireAdminAuth } from "~/lib/auth.server";
+import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 
 interface LoaderData {
@@ -38,7 +38,18 @@ interface LoaderData {
 }
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session, shop } = await requireAdminAuth(request);
+  const { admin, session } = await authenticate.admin(request);
+  
+  // Get shop from session
+  const shopId = session.shop;
+  const shop = await db.shop.findUnique({
+    where: { id: shopId },
+    include: { settings: true }
+  });
+  
+  if (!shop) {
+    throw new Error(`Shop ${shopId} not found in database`);
+  }
 
   const [totalRegistries, activeRegistries] = await Promise.all([
     db.registry.count({ where: { shopId: shop.id } }),
