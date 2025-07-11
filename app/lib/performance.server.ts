@@ -103,7 +103,10 @@ export class PerformanceTracker {
     // First Input Delay
     new PerformanceObserver((entryList) => {
       const firstInput = entryList.getEntries()[0];
-      console.log('FID:', firstInput.processingStart - firstInput.startTime);
+      const processingStart = (firstInput as any).processingStart;
+      if (processingStart) {
+        console.log('FID:', processingStart - firstInput.startTime);
+      }
     }).observe({ entryTypes: ['first-input'] });
 
     // Cumulative Layout Shift

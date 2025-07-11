@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import * as cron from 'node-cron';
 import { db } from '~/lib/db.server';
 import { log } from '~/lib/logger.server';
 import { captureException } from '~/lib/monitoring.server';
@@ -95,7 +95,6 @@ function scheduleJob(config: JobConfig) {
     const task = cron.schedule(config.schedule, async () => {
       await runJob(config);
     }, {
-      scheduled: true,
       timezone: process.env.TZ || 'UTC',
     });
     
@@ -122,9 +121,8 @@ async function runJob(config: JobConfig) {
       data: {
         id: jobId,
         type: config.type,
-        status: 'RUNNING',
-        startedAt: new Date(),
-        metadata: {},
+        status: 'running',
+        startedAt: new Date()
       },
     });
     
@@ -139,9 +137,9 @@ async function runJob(config: JobConfig) {
     await db.systemJob.update({
       where: { id: jobId },
       data: {
-        status: 'COMPLETED',
+        status: 'completed',
         completedAt: new Date(),
-        duration,
+        result: JSON.stringify({ duration, timestamp: new Date() })
       },
     });
     
@@ -153,10 +151,10 @@ async function runJob(config: JobConfig) {
     await db.systemJob.update({
       where: { id: jobId },
       data: {
-        status: 'FAILED',
+        status: 'failed',
         completedAt: new Date(),
-        duration,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        result: JSON.stringify({ duration, error: error instanceof Error ? error.message : 'Unknown error' })
       },
     }).catch(() => {}); // Ignore update errors
     
@@ -210,7 +208,7 @@ async function warmCacheJob() {
       await apiCache.set(`registries:${shop.shopId}`, {
         registries: registries.map(r => ({
           id: r.id,
-          name: r.name,
+          title: r.title,
           customerId: r.customerId,
           status: r.status,
           itemCount: r.items.length,
@@ -237,7 +235,7 @@ async function cleanupOldLogsJob() {
   // Cleanup audit logs
   const deletedAuditLogs = await db.auditLog.deleteMany({
     where: {
-      createdAt: { lt: cutoffDate },
+      timestamp: { lt: cutoffDate },
     },
   });
   
@@ -412,8 +410,7 @@ export async function getAllJobStatuses() {
           status: lastRun.status,
           startedAt: lastRun.startedAt,
           completedAt: lastRun.completedAt,
-          duration: lastRun.duration,
-          error: lastRun.error,
+          errorMessage: lastRun.errorMessage,
         } : null,
       };
     })

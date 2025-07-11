@@ -45,7 +45,8 @@ import {
   StarFilledIcon,
   InfoIcon
 } from "@shopify/polaris-icons";
-import { withAdminAuth } from "~/lib/middleware.server";
+import { authenticate } from "~/shopify.server";
+import { db } from "~/lib/db.server";
 
 interface Product {
   id: string;
@@ -107,7 +108,16 @@ interface LoaderData {
  * Product Suggestion System
  * AI-powered product recommendations and manual curation tools
  */
-export const loader = withAdminAuth(async ({ request }, { admin, session, shop }) => {
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shop = await db.shop.findUnique({
+    where: { id: session.shop },
+    include: { settings: true }
+  });
+  
+  if (!shop) {
+    throw new Error(`Shop ${session.shop} not found`);
+  }
   // Mock data for demo - in production, fetch from Shopify GraphQL API
   const products: Product[] = [
     {
@@ -280,9 +290,17 @@ export const loader = withAdminAuth(async ({ request }, { admin, session, shop }
     tags,
     stats
   });
-});
+};
 
-export const action = withAdminAuth(async ({ request }, { admin, session, shop }) => {
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shop = await db.shop.findUnique({
+    where: { id: session.shop }
+  });
+  
+  if (!shop) {
+    throw new Error(`Shop ${session.shop} not found`);
+  }
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
 
@@ -306,7 +324,7 @@ export const action = withAdminAuth(async ({ request }, { admin, session, shop }
   }
 
   return redirect("/admin/products");
-});
+};
 
 export default function ProductSuggestions() {
   const { products, suggestionRules, productTypes, vendors, tags, stats } = useLoaderData<LoaderData>();

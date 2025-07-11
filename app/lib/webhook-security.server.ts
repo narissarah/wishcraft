@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { log } from "~/lib/logger.server";
 
 /**
  * Webhook Security Utilities
@@ -15,7 +16,7 @@ export function verifyWebhookHMAC(
   secret: string
 ): boolean {
   if (!signature) {
-    console.error("❌ Missing HMAC signature in webhook request");
+    log.error("Missing HMAC signature in webhook request");
     return false;
   }
 
@@ -30,21 +31,21 @@ export function verifyWebhookHMAC(
     const computedHmacBuffer = Buffer.from(computedHmac, "base64");
 
     if (providedHmac.length !== computedHmacBuffer.length) {
-      console.error("❌ HMAC signature length mismatch");
+      log.error("HMAC signature length mismatch");
       return false;
     }
 
     const isValid = crypto.timingSafeEqual(providedHmac, computedHmacBuffer);
     
     if (!isValid) {
-      console.error("❌ Invalid HMAC signature for webhook");
+      log.error("Invalid HMAC signature for webhook");
     } else {
-      console.log("✅ Webhook HMAC signature verified successfully");
+      log.debug("Webhook HMAC signature verified successfully");
     }
 
     return isValid;
   } catch (error) {
-    console.error("❌ Error verifying HMAC signature:", error);
+    log.error("Error verifying HMAC signature", error as Error);
     return false;
   }
 }
@@ -65,7 +66,7 @@ export async function verifyWebhookRequest(request: Request): Promise<{
   const payload = await request.text();
   
   if (!process.env.SHOPIFY_WEBHOOK_SECRET) {
-    console.error("❌ SHOPIFY_WEBHOOK_SECRET environment variable not set");
+    log.error("SHOPIFY_WEBHOOK_SECRET environment variable not set");
     return { isValid: false, payload };
   }
 
@@ -101,7 +102,7 @@ export function withWebhookHMACVerification<T extends (...args: any[]) => any>(
     const verification = await verifyWebhookRequest(clonedRequest);
 
     if (!verification.isValid) {
-      console.error(`❌ Webhook HMAC verification failed for ${request.url}`);
+      log.error(`Webhook HMAC verification failed for ${request.url}`);
       throw new Response("Unauthorized - Invalid HMAC signature", { 
         status: 401,
         headers: {
@@ -111,50 +112,26 @@ export function withWebhookHMACVerification<T extends (...args: any[]) => any>(
       });
     }
 
-    console.log(`✅ Webhook HMAC verified for topic: ${verification.topic}, shop: ${verification.shop}`);
+    log.debug(`Webhook HMAC verified for topic: ${verification.topic}, shop: ${verification.shop}`);
     
     // Call original handler with verified request
     return handler(...args);
   }) as T;
 }
 
-/**
- * Log webhook event for audit purposes
- */
-export async function logWebhookEvent(
-  topic: string,
-  shop: string,
-  payload: any,
-  success: boolean,
-  error?: string
-): Promise<void> {
-  const logEntry = {
-    timestamp: new Date().toISOString(),
-    topic,
-    shop,
-    success,
-    error,
-    payloadSize: JSON.stringify(payload).length,
-    environment: process.env.NODE_ENV
-  };
-
-  console.log(`📝 Webhook Event Log:`, logEntry);
-
-  // You can extend this to write to database or external logging service
-  // await db.auditLog.create({ data: logEntry });
-}
+// First logWebhookEvent function removed to avoid duplicate
 
 /**
  * Validate webhook topic
  */
 export function validateWebhookTopic(topic: string | null, expectedTopic: string): boolean {
   if (!topic) {
-    console.error(`❌ Missing webhook topic header, expected: ${expectedTopic}`);
+    log.error(`Missing webhook topic header, expected: ${expectedTopic}`);
     return false;
   }
 
   if (topic !== expectedTopic) {
-    console.error(`❌ Invalid webhook topic: ${topic}, expected: ${expectedTopic}`);
+    log.error(`Invalid webhook topic: ${topic}, expected: ${expectedTopic}`);
     return false;
   }
 
@@ -181,9 +158,38 @@ export function checkWebhookRateLimit(shop: string, maxRequests = 10, windowMs =
   webhookRateLimit.set(key, limit);
 
   if (limit.count > maxRequests) {
-    console.warn(`⚠️ Webhook rate limit exceeded for shop: ${shop}`);
+    log.warn(`Webhook rate limit exceeded for shop: ${shop}`);
     return false;
   }
 
   return true;
+}
+
+/**
+ * Log webhook events for debugging and monitoring
+ */
+export async function logWebhookEvent(
+  topic: string, 
+  shop: string, 
+  payload: any, 
+  success: boolean, 
+  error?: string | null
+): Promise<void> {
+  try {
+    const logData = {
+      topic,
+      shop,
+      success,
+      error,
+      timestamp: new Date().toISOString(),
+      payloadSize: typeof payload === 'string' ? payload.length : JSON.stringify(payload).length
+    };
+    
+    log.info(`Webhook Event: ${topic} for ${shop}`, logData);
+    
+    // In production, you might want to store this in a database
+    // await db.webhookLog.create({ data: logData });
+  } catch (logError) {
+    log.error('Failed to log webhook event', logError as Error);
+  }
 }

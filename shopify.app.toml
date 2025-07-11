@@ -3,7 +3,7 @@
 client_id = "ac161e228a6b078fcdd3fa14586ded14"
 name = "wishcraft"
 handle = "wishcraft"
-application_url = "https://wishcraft-production.up.railway.app"
+application_url = "http://localhost:3000"
 embedded = true
 
 [build]
@@ -13,19 +13,17 @@ include_config_on_deploy = true
 api_version = "2025-07"
 
 [app_proxy]
-url = "https://wishcraft-production.up.railway.app/proxy"
+url = "http://localhost:3000/proxy"
 subpath = "proxy"
 prefix = "apps"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_customers,read_orders,read_products"
+scopes = "read_customers,read_products,read_orders,write_orders,read_inventory,write_content"
 
 [auth]
 redirect_urls = [ 
-  "https://wishcraft-production.up.railway.app/auth/callback",
-  "https://wishcraft-production.up.railway.app/api/auth",
-  "https://wishcraft-production.up.railway.app/api/auth/callback"
+  "http://localhost:3000/auth/callback"
 ]
 
 [pos]

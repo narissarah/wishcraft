@@ -13,9 +13,7 @@ export function initSentry() {
  * Clear sensitive context between requests
  */
 export function clearSensitiveContext() {
-  Sentry.configureScope((scope) => {
-    scope.clear();
-  });
+  Sentry.getCurrentScope().clear();
 }
 
 // Re-export Sentry functions

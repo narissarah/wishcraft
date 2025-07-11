@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { ProfilingIntegration } from "@sentry/profiling-node";
+import { nodeProfilingIntegration } from "@sentry/profiling-node";
 import { log } from "~/lib/logger.server";
 
 /**
@@ -22,10 +22,9 @@ if (process.env.SENTRY_DSN) {
     
     // Integrations
     integrations: [
-      new ProfilingIntegration(),
-      new Sentry.Integrations.Http({ tracing: true }),
-      new Sentry.Integrations.Express({ app: true }),
-      new Sentry.Integrations.Prisma({ client: true }),
+      nodeProfilingIntegration(),
+      Sentry.httpIntegration({}),
+      Sentry.expressIntegration()
     ],
     
     // Release tracking
@@ -41,11 +40,12 @@ if (process.env.SENTRY_DSN) {
       // Redact sensitive data
       if (event.request) {
         if (event.request.cookies) {
-          event.request.cookies = "[REDACTED]";
+          (event.request as any).cookies = "[REDACTED]";
         }
         if (event.request.headers) {
-          delete event.request.headers["authorization"];
-          delete event.request.headers["x-shopify-access-token"];
+          const headers = event.request.headers as Record<string, string>;
+          delete headers["authorization"];
+          delete headers["x-shopify-access-token"];
         }
       }
       
@@ -71,7 +71,7 @@ if (process.env.SENTRY_DSN) {
     ],
     
     // Performance monitoring options
-    autoSessionTracking: true,
+    // autoSessionTracking: true, // Removed as it's not available in this version
     
     // Breadcrumbs configuration
     beforeBreadcrumb(breadcrumb) {
@@ -85,7 +85,7 @@ if (process.env.SENTRY_DSN) {
 
   log.info("Sentry initialized successfully", {
     environment: process.env.NODE_ENV,
-    release: Sentry.getCurrentHub().getClient()?.getOptions().release,
+    release: process.env.RAILWAY_DEPLOYMENT_ID || process.env.RENDER_GIT_COMMIT || "local",
   });
 } else if (isProduction) {
   log.warn("Sentry DSN not configured in production!");
@@ -164,10 +164,10 @@ export function captureMessage(
 export function startTransaction(name: string, op: string) {
   if (!process.env.SENTRY_DSN) return null;
   
-  return Sentry.startTransaction({
+  return Sentry.startSpan({
     name,
     op,
-  });
+  }, (span) => span);
 }
 
 /**
@@ -200,19 +200,19 @@ export async function profileFunction<T>(
   
   try {
     const result = await fn();
-    transaction?.setStatus("ok");
+    transaction?.setStatus("ok" as any);
     return result;
   } catch (error) {
-    transaction?.setStatus("internal_error");
+    transaction?.setStatus("internal_error" as any);
     throw error;
   } finally {
-    transaction?.finish();
+    // transaction?.finish(); // Not available in this version
   }
 }
 
 /**
  * Sentry error boundary for React components
  */
-export const SentryErrorBoundary = Sentry.ErrorBoundary;
+export const SentryErrorBoundary = null; // Not available in server-side Sentry
 
 export default Sentry;

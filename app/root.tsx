@@ -41,14 +41,19 @@ export const links: LinksFunction = () => {
 };
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  // Apply rate limiting
-  const rateLimitResponse = await rateLimitMiddleware(RATE_LIMITS.public)(request);
-  if (rateLimitResponse && rateLimitResponse.status === 429) {
-    throw rateLimitResponse;
-  }
-  
   const url = new URL(request.url);
   const pathname = url.pathname;
+  
+  // Skip rate limiting for auth routes
+  const isAuthRoute = pathname.startsWith('/auth/');
+  
+  if (!isAuthRoute) {
+    // Apply rate limiting only to non-auth routes
+    const rateLimitResponse = await rateLimitMiddleware(RATE_LIMITS.public)(request);
+    if (rateLimitResponse && rateLimitResponse.status === 429) {
+      throw rateLimitResponse;
+    }
+  }
   
   // Generate CSP nonce for this request
   const nonce = generateNonce();
@@ -63,8 +68,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       GA_MEASUREMENT_ID: process.env.GA_MEASUREMENT_ID,
       SHOPIFY_APP_URL: process.env.SHOPIFY_APP_URL,
     }
-  }, {
-    headers: rateLimitResponse?.headers || {}
   });
 }
 
@@ -101,6 +104,10 @@ export default function App() {
     if (typeof window !== "undefined") {
       import("~/lib/web-vitals.client").then(({ initWebVitals }) => {
         initWebVitals();
+      });
+      
+      import("~/lib/global-error-handler.client").then(({ initializeGlobalErrorHandlers }) => {
+        initializeGlobalErrorHandlers();
       });
     }
   }, []);

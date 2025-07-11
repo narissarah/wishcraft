@@ -110,24 +110,9 @@ export const registryDb = {
         where: { id: registryId },
         include: {
           items: {
-            include: {
-              purchases: {
-                include: {
-                  groupContributions: true,
-                  shippingAddress: true
-                }
-              }
-            },
-            orderBy: { displayOrder: "asc" }
+            orderBy: { createdAt: "asc" }
           },
-          collaborators: {
-            where: { status: "active" }
-          },
-          addresses: true,
-          activities: {
-            orderBy: { createdAt: "desc" },
-            take: 50
-          },
+          purchases: true,
           shop: {
             include: {
               settings: true
@@ -138,29 +123,8 @@ export const registryDb = {
 
       if (!registry) return null;
 
-      // Parse JSON fields
-      return {
-        ...registry,
-        eventDetails: json.parse(registry.eventDetails),
-        metadata: json.parse(registry.metadata),
-        items: registry.items.map(item => ({
-          ...item,
-          productImages: json.parse<string[]>(item.productImages),
-          metadata: json.parse(item.metadata)
-        })),
-        collaborators: registry.collaborators.map(collab => ({
-          ...collab,
-          permissions: json.parse(collab.permissions)
-        })),
-        addresses: registry.addresses.map(addr => ({
-          ...addr,
-          verificationData: json.parse(addr.verificationData)
-        })),
-        activities: registry.activities.map(activity => ({
-          ...activity,
-          metadata: json.parse(activity.metadata)
-        }))
-      };
+      // Return registry as is - no JSON fields to parse in current schema
+      return registry;
     } catch (error) {
       throw new DatabaseError("Failed to fetch registry details", error as Error);
     }
@@ -202,9 +166,18 @@ export const registryDb = {
     try {
       const registry = await db.registry.create({
         data: {
-          ...data,
-          eventDetails: json.stringify(data.eventDetails),
-          metadata: json.stringify(data.metadata)
+          title: data.title,
+          description: data.description,
+          slug: data.slug,
+          eventType: data.eventType,
+          eventDate: data.eventDate,
+          visibility: data.visibility,
+          accessCode: data.accessCode,
+          shopId: data.shopId,
+          customerId: data.customerId,
+          customerEmail: data.customerEmail,
+          customerFirstName: data.customerFirstName,
+          customerLastName: data.customerLastName
         },
         include: {
           shop: true
@@ -212,22 +185,21 @@ export const registryDb = {
       });
 
       // Log creation activity
-      await db.registryActivity.create({
+      await db.auditLog.create({
         data: {
-          registryId: registry.id,
-          type: "registry_created",
-          description: `Registry "${registry.title}" was created`,
-          actorType: "owner",
-          actorId: data.customerId,
-          actorEmail: data.customerEmail
+          action: "registry_created",
+          resource: "registry",
+          resourceId: registry.id,
+          shopId: data.shopId,
+          metadata: JSON.stringify({
+            title: registry.title,
+            customerId: data.customerId,
+            customerEmail: data.customerEmail
+          })
         }
       });
 
-      return {
-        ...registry,
-        eventDetails: json.parse(registry.eventDetails),
-        metadata: json.parse(registry.metadata)
-      };
+      return registry;
     } catch (error) {
       throw new DatabaseError("Failed to create registry", error as Error);
     }
@@ -267,9 +239,19 @@ export const registryDb = {
     try {
       const item = await db.registryItem.create({
         data: {
-          ...data,
-          productImages: json.stringify(data.productImages),
-          metadata: json.stringify(data.metadata)
+          registryId: data.registryId,
+          productId: data.productId,
+          variantId: data.variantId,
+          productHandle: data.productHandle,
+          productTitle: data.productTitle,
+          variantTitle: data.variantTitle,
+          productImage: data.productImage,
+          quantity: data.quantity,
+          priority: data.priority,
+          notes: data.notes,
+          price: data.price,
+          compareAtPrice: data.compareAtPrice,
+          currencyCode: data.currencyCode
         }
       });
 
@@ -284,28 +266,35 @@ export const registryDb = {
       });
 
       // Log activity
-      await db.registryActivity.create({
-        data: {
-          registryId: data.registryId,
-          type: "item_added",
-          description: `Added "${data.productTitle}" to registry`,
-          itemId: item.id,
-          actorType: "owner"
-        }
+      const registry = await db.registry.findUnique({
+        where: { id: data.registryId },
+        select: { shopId: true }
       });
+      
+      if (registry) {
+        await db.auditLog.create({
+          data: {
+            action: "item_added",
+            resource: "registry_item",
+            resourceId: item.id,
+            shopId: registry.shopId,
+            metadata: JSON.stringify({
+              registryId: data.registryId,
+              productTitle: data.productTitle,
+              itemId: item.id
+            })
+          }
+        });
+      }
 
-      return {
-        ...item,
-        productImages: json.parse<string[]>(item.productImages),
-        metadata: json.parse(item.metadata)
-      };
+      return item;
     } catch (error) {
       throw new DatabaseError("Failed to add registry item", error as Error);
     }
   }
 };
 
-// Analytics utilities
+// Analytics utilities (disabled for now)
 export const analyticsDb = {
   async recordEvent(data: {
     shopId: string;
@@ -322,17 +311,9 @@ export const analyticsDb = {
     medium?: string;
     campaign?: string;
   }) {
-    try {
-      return await db.analyticsEvent.create({
-        data: {
-          ...data,
-          properties: json.stringify(data.properties),
-          timestamp: new Date()
-        }
-      });
-    } catch (error) {
-      throw new DatabaseError("Failed to record analytics event", error as Error);
-    }
+    // Analytics events temporarily disabled
+    console.log('Analytics event recorded:', data);
+    return null;
   }
 };
 

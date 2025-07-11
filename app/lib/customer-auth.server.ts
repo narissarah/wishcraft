@@ -276,15 +276,12 @@ export async function getCustomerRegistries(customerId: string, shop: string) {
         shopId: shop
       },
       include: {
-        items: {
-          include: {
-            purchases: true
-          }
-        },
+        items: true,
+        purchases: true,
         _count: {
           select: {
             items: true,
-            collaborators: true
+            purchases: true
           }
         }
       },
@@ -338,21 +335,22 @@ export async function linkCustomerToRegistry(
         customerId: customer.id,
         customerEmail: customer.email,
         customerFirstName: customer.firstName,
-        customerLastName: customer.lastName,
-        customerPhone: customer.phoneNumber?.phoneNumber
+        customerLastName: customer.lastName
       }
     });
     
-    // Log activity
-    await db.registryActivity.create({
+    // Log activity in audit log
+    await db.auditLog.create({
       data: {
-        registryId: registryId,
-        type: 'customer_linked',
-        description: 'Customer account linked to registry',
-        actorType: 'owner',
-        actorId: customer.id,
-        actorEmail: customer.email,
-        actorName: customer.displayName || `${customer.firstName} ${customer.lastName}`
+        action: 'customer_linked',
+        resource: 'registry',
+        resourceId: registryId,
+        shopId: updatedRegistry.shopId,
+        metadata: JSON.stringify({
+          customerId: customer.id,
+          customerEmail: customer.email,
+          customerName: customer.displayName || `${customer.firstName} ${customer.lastName}`
+        })
       }
     });
     
@@ -385,9 +383,6 @@ export async function validateCustomerAccess(
         id: registryId,
         // Ensure shop context is validated through customer session
         shopId: customerSession.shop
-      },
-      include: {
-        collaborators: true
       }
     });
     
@@ -397,15 +392,6 @@ export async function validateCustomerAccess(
     
     // Check if customer owns the registry
     if (registry.customerId === customerSession.customerId) {
-      return { hasAccess: true, customer: customerSession, registry };
-    }
-    
-    // Check if customer is a collaborator
-    const isCollaborator = registry.collaborators.some(
-      collab => collab.email === customerSession.customerId && collab.status === 'active'
-    );
-    
-    if (isCollaborator) {
       return { hasAccess: true, customer: customerSession, registry };
     }
     

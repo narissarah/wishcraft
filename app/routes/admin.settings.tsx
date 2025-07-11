@@ -49,7 +49,7 @@ import {
   EditIcon,
   ExternalIcon
 } from "@shopify/polaris-icons";
-import { withAdminAuth } from "~/lib/middleware.server";
+import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 
 interface ShopSettings {
@@ -122,7 +122,16 @@ interface ActionData {
  * WishCraft Settings Page
  * Comprehensive settings configuration following Polaris annotated layout pattern
  */
-export const loader = withAdminAuth(async ({ request }, { admin, session, shop }) => {
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shop = await db.shop.findUnique({
+    where: { id: session.shop },
+    include: { settings: true }
+  });
+  
+  if (!shop) {
+    throw new Error(`Shop ${session.shop} not found`);
+  }
   // Get shop settings from database
   const shopSettings = await db.shopSettings.findUnique({
     where: { shopId: shop.id }
@@ -203,9 +212,17 @@ export const loader = withAdminAuth(async ({ request }, { admin, session, shop }
     settings,
     plans
   });
-});
+};
 
-export const action = withAdminAuth(async ({ request }, { admin, session, shop }) => {
+export const action = async ({ request }: ActionFunctionArgs) => {
+  const { admin, session } = await authenticate.admin(request);
+  const shop = await db.shop.findUnique({
+    where: { id: session.shop }
+  });
+  
+  if (!shop) {
+    throw new Error(`Shop ${session.shop} not found`);
+  }
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
 
@@ -284,7 +301,7 @@ export const action = withAdminAuth(async ({ request }, { admin, session, shop }
       errors: { general: "Failed to update settings. Please try again." } 
     }, { status: 500 });
   }
-});
+};
 
 export default function Settings() {
   const { shop, settings, plans } = useLoaderData<LoaderData>();

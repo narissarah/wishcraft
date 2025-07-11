@@ -258,6 +258,9 @@ export const shopifyRateLimiter = new ShopifyAPIRateLimiter();
 // Default rate limiter instance
 export const rateLimiter = new RateLimiter();
 
+// Export the class for type usage
+export { RateLimiter };
+
 /**
  * Rate limit by shop (for multi-tenant scenarios)
  */

@@ -1,4 +1,4 @@
-import { onCLS, onFID, onLCP, onFCP, onTTFB, onINP, Metric } from "web-vitals";
+import { onCLS, onFID, onLCP, onFCP, onTTFB, onINP, type Metric } from "web-vitals";
 
 /**
  * Core Web Vitals Monitoring (2025 Updated)

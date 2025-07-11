@@ -124,7 +124,7 @@ class Logger {
     const formattedMessage = this.formatMessage(message, meta);
     const logMeta = isDevelopment ? {} : { ...this.context, ...meta };
     
-    logger[level](formattedMessage, logMeta);
+    (logger as any)[level](formattedMessage, logMeta);
 
     // Send errors to Sentry in production
     if (level === 'error' && !isDevelopment) {

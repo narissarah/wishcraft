@@ -3,19 +3,13 @@ import { redirect } from "@remix-run/node";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
+  const shop = url.searchParams.get("shop");
   
-  // Check if this is coming from Shopify admin (embedded context)
-  const isEmbedded = url.searchParams.get("embedded") === "1" || 
-                     url.searchParams.get("shop") ||
-                     request.headers.get("sec-fetch-dest") === "iframe";
-  
-  if (isEmbedded) {
-    // Redirect to the main app route for embedded context
-    return redirect("/app");
+  if (shop) {
+    return redirect(`/auth/login?shop=${shop}`);
   }
   
-  // For non-embedded access, could show a public landing page or redirect to app
-  return redirect("/app");
+  return redirect("/auth/login");
 };
 
 // This route should not render anything as it always redirects
