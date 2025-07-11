@@ -1,11 +1,20 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
 import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
-import { authenticate } from "~/shopify.server";
+import { getAdminAuth } from "~/lib/auth.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  // Use safe authentication that doesn't cause loops
+  const auth = await getAdminAuth(request);
+  
+  if (!auth) {
+    // If not authenticated, redirect to login with the current URL as return path
+    const url = new URL(request.url);
+    return redirect(`/auth/login?return=${encodeURIComponent(url.pathname + url.search)}`);
+  }
+  
+  const { admin, session } = auth;
 
   return json({
     shopOrigin: session.shop,

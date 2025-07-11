@@ -19,7 +19,7 @@ export default {
   future: {
     // v3 flags for React Router v7 compatibility
     v3_fetcherPersist: true,
-    v3_lazyRouteDiscovery: true,
+    v3_lazyRouteDiscovery: false, // Disabled to fix auth route discovery issues
     v3_relativeSplatPath: true,
     v3_singleFetch: true,
     v3_throwAbortReason: true,
