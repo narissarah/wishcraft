@@ -3,7 +3,7 @@
 client_id = "ac161e228a6b078fcdd3fa14586ded14"
 name = "wishcraft"
 handle = "wishcraft"
-application_url = "http://localhost:3000"
+application_url = "https://localhost:3000"
 embedded = true
 
 [build]
@@ -13,10 +13,10 @@ automatically_update_urls_on_dev = true
 [webhooks]
 api_version = "2025-01"
 
-[app_proxy]
-url = "http://localhost:3000/proxy"
-subpath = "proxy"
-prefix = "apps"
+# [app_proxy]
+# url = "http://localhost:3000/proxy"
+# subpath = "proxy"
+# prefix = "apps"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
@@ -28,7 +28,7 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [ 
-  "http://localhost:3000/auth/callback"
+  "https://localhost:3000/auth/callback"
 ]
 
 [pos]

@@ -9,11 +9,7 @@ import morgan from "morgan";
 async function startServer() {
   const app = express();
 
-// Log startup information
-console.log("🚀 WishCraft Server Starting...");
-console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-console.log(`PORT: ${process.env.PORT || 3000}`);
-console.log(`DATABASE_URL: ${process.env.DATABASE_URL ? 'Set' : 'Not Set'}`);
+// Startup information logged in production startup section below;
 
 // Trust proxy for Railway deployments
 app.set('trust proxy', true);
@@ -58,7 +54,7 @@ const generalLimiter = rateLimit({
   legacyHeaders: false,
   message: 'Too many requests, please try again later.',
   handler: (req, res) => {
-    console.warn(`Rate limit exceeded for IP: ${req.ip}`);
+    if (process.env.NODE_ENV !== 'production') console.warn(`Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
       error: 'Too many requests',
       retryAfter: Math.ceil(req.rateLimit.resetTime / 1000)
@@ -104,7 +100,7 @@ app.get('/health/db', async (req, res) => {
     await prisma.$disconnect();
     res.json({ status: 'healthy', database: 'connected' });
   } catch (error) {
-    console.error('Database health check failed:', error);
+    if (process.env.NODE_ENV !== 'production') console.error('Database health check failed:', error);
     res.status(500).json({ 
       status: 'unhealthy', 
       database: 'disconnected',
@@ -142,7 +138,7 @@ const host = process.env.HOST || "0.0.0.0";
 // Error handling middleware
 app.use((err, req, res, next) => {
   // Log error details for monitoring
-  console.error('Server Error:', {
+  if (process.env.NODE_ENV !== 'production') console.error('Server Error:', {
     error: err.message,
     stack: err.stack,
     url: req.url,
@@ -165,44 +161,47 @@ app.use((err, req, res, next) => {
 });
 
 const server = app.listen(port, host, async () => {
-  console.log(`✅ WishCraft server is running on http://${host}:${port}`);
+  console.log(`✅ WishCraft server running on port ${port} (${process.env.NODE_ENV})`);
   
   // Background job processor removed for production stability
 });
 
   // Graceful shutdown
   const gracefulShutdown = async () => {
-    console.log('Shutting down gracefully...');
+    if (process.env.NODE_ENV !== 'production') console.log('Shutting down gracefully...');
     
     // Background jobs removed for production stability
     
     server.close(() => {
-      console.log('HTTP server closed');
+      if (process.env.NODE_ENV !== 'production') console.log('HTTP server closed');
       process.exit(0);
     });
   };
 
   process.on('SIGTERM', () => {
-    console.log('SIGTERM received');
+    if (process.env.NODE_ENV !== 'production') console.log('SIGTERM received');
     gracefulShutdown();
   });
 
   process.on('SIGINT', () => {
-    console.log('SIGINT received');
+    if (process.env.NODE_ENV !== 'production') console.log('SIGINT received');
     gracefulShutdown();
   });
 
   // Handle uncaught exceptions
   process.on('uncaughtException', (err) => {
-    console.error('Uncaught Exception:', err);
+    console.error('CRITICAL - Uncaught Exception:', err.message);
     process.exit(1);
   });
 
   process.on('unhandledRejection', (reason, promise) => {
-    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    console.error('CRITICAL - Unhandled Rejection:', reason);
     process.exit(1);
   });
 }
 
 // Start the server
-startServer().catch(console.error);
+startServer().catch(err => {
+  console.error('CRITICAL - Server startup failed:', err.message);
+  process.exit(1);
+});
