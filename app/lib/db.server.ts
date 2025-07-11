@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { log } from "~/lib/logger.server";
 
 declare global {
   var __db__: PrismaClient;
@@ -14,7 +15,22 @@ if (process.env.NODE_ENV === "production") {
 } else {
   if (!global.__db__) {
     global.__db__ = new PrismaClient({
-      log: ["query", "error", "warn"],
+      log: [
+        { level: "query", emit: "event" },
+        { level: "error", emit: "event" },
+        { level: "warn", emit: "event" }
+      ],
+    });
+    
+    // Log Prisma events in development
+    global.__db__.$on("query" as never, (e: any) => {
+      log.debug(`Prisma Query: ${e.query}`, { duration: e.duration });
+    });
+    global.__db__.$on("error" as never, (e: any) => {
+      log.error("Prisma Error", e);
+    });
+    global.__db__.$on("warn" as never, (e: any) => {
+      log.warn("Prisma Warning", e);
     });
   }
   db = global.__db__;
@@ -312,7 +328,7 @@ export const analyticsDb = {
     campaign?: string;
   }) {
     // Analytics events temporarily disabled
-    console.log('Analytics event recorded:', data);
+    log.debug('Analytics event recorded', data);
     return null;
   }
 };

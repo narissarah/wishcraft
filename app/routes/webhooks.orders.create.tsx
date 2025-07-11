@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 import { 
   verifyWebhookRequest, 
   logWebhookEvent, 
@@ -38,7 +39,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Response("Unauthorized", { status: 401 });
   }
 
-  console.log(`💰 Received verified ORDERS_CREATE webhook for ${shop}`);
+  log.webhook("ORDERS_CREATE", shop, { verified: true });
 
   const order = typeof payload === 'string' ? JSON.parse(payload) : payload;
   
@@ -95,14 +96,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         });
 
-        console.log(`✅ Recorded registry purchase for registry ${registryId}`);
+        log.info(`Recorded registry purchase for registry ${registryId}`, {
+          registryId,
+          purchaseId: purchase.id,
+          orderId: order.id.toString(),
+          amount: itemPrice
+        });
       }
     }
 
     await logWebhookEvent("ORDERS_CREATE", shop, payload, true);
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error(`❌ Error processing order webhook for ${shop}:`, error);
+    log.error(`Error processing order webhook for ${shop}`, error as Error, { 
+      shop,
+      orderId: order.id?.toString() 
+    });
     await logWebhookEvent("ORDERS_CREATE", shop, payload, false, error instanceof Error ? error.message : "Unknown error");
     
     // Still return 200 to prevent webhook retry storms

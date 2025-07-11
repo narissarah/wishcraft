@@ -47,6 +47,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 
 interface Product {
   id: string;
@@ -307,19 +308,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   switch (intent) {
     case "create_rule":
       // Create new suggestion rule
-      console.log("Creating suggestion rule");
+      log.info("Creating suggestion rule", { shopId: shop.id, intent });
       break;
     case "update_rule":
       // Update existing rule
-      console.log("Updating suggestion rule");
+      log.info("Updating suggestion rule", { shopId: shop.id, intent });
       break;
     case "delete_rule":
       // Delete rule
-      console.log("Deleting suggestion rule");
+      log.info("Deleting suggestion rule", { shopId: shop.id, intent });
       break;
     case "toggle_rule":
       // Toggle rule active status
-      console.log("Toggling rule status");
+      log.info("Toggling rule status", { shopId: shop.id, intent });
       break;
   }
 

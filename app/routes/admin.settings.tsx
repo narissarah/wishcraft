@@ -51,6 +51,7 @@ import {
 } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 
 interface ShopSettings {
   // Appearance Settings
@@ -296,7 +297,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }, { status: 400 });
     }
   } catch (error) {
-    console.error("Settings update error:", error);
+    log.error("Settings update error", error as Error, { shopId: shop.id, intent });
     return json<ActionData>({ 
       errors: { general: "Failed to update settings. Please try again." } 
     }, { status: 500 });
@@ -488,7 +489,15 @@ export default function Settings() {
                     Choose between light and dark theme for the admin interface
                   </Text>
                 </BlockStack>
-                <ThemeToggle />
+                <Button
+                  size="slim"
+                  onClick={() => {
+                    // Theme toggle functionality - for now, just a placeholder
+                    log.info("Theme toggle clicked", { shopId: shop.id });
+                  }}
+                >
+                  Toggle Theme
+                </Button>
               </InlineStack>
             </Box>
           </FormLayout>

@@ -9,6 +9,7 @@ import {
   makeCustomerAPIRequest
 } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 
 // Re-export getCustomerSession for routes
 export { getCustomerSession } from "~/lib/auth.server";
@@ -151,7 +152,7 @@ export async function handleCustomerAuthCallback(
     return sessionCookie;
     
   } catch (error) {
-    console.error('Customer auth callback error:', error);
+    log.error('Customer auth callback error', error as Error, { shop, returnUrl });
     throw new Error('Authentication failed');
   }
 }

@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 import { 
   verifyWebhookRequest, 
   logWebhookEvent, 
@@ -38,7 +39,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Response("Unauthorized", { status: 401 });
   }
 
-  console.log(`✅ Received verified APP_UNINSTALLED webhook for ${shop}`);
+  log.webhook("APP_UNINSTALLED", shop, { verified: true });
 
   try {
     // Perform app uninstall cleanup
@@ -99,7 +100,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       });
 
-      console.log(`✅ App uninstall cleanup completed for ${shop}:`, {
+      log.info(`App uninstall cleanup completed for ${shop}`, {
         registriesArchived: registries.count,
         uninstalledAt: new Date().toISOString()
       });
@@ -116,13 +117,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           timestamp: new Date().toISOString(),
           environment: process.env.NODE_ENV
         })
-      }).catch(err => console.error("Failed to notify external service:", err));
+      }).catch(err => log.error("Failed to notify external service", err as Error, { shop }));
     }
 
     await logWebhookEvent("APP_UNINSTALLED", shop, payload, true);
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error(`❌ Error handling app uninstall for ${shop}:`, error);
+    log.error(`Error handling app uninstall for ${shop}`, error as Error, { shop });
     await logWebhookEvent("APP_UNINSTALLED", shop, payload, false, error instanceof Error ? error.message : "Unknown error");
     
     // Queue retry job for critical cleanup
@@ -141,7 +142,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       });
     } catch (jobError) {
-      console.error("Failed to queue retry job:", jobError);
+      log.error("Failed to queue retry job", jobError as Error, { shop });
     }
 
     // Still return 200 to prevent webhook retry storms

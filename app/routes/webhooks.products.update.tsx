@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { topic, shop, session, admin, payload } = await authenticate.webhook(
@@ -11,7 +12,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Response("Unauthorized", { status: 401 });
   }
 
-  console.log(`Received PRODUCTS_UPDATE webhook for ${shop}`);
+  log.webhook("PRODUCTS_UPDATE", shop, { verified: true });
 
   const product = typeof payload === 'string' ? JSON.parse(payload) : payload;
   
@@ -47,9 +48,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     });
     
-    console.log(`Successfully processed product update for ${product.id}`);
+    log.info(`Successfully processed product update for ${product.id}`, {
+      productId: product.id,
+      productTitle: product.title,
+      shop
+    });
   } catch (error) {
-    console.error(`Error processing product update webhook:`, error);
+    log.error("Error processing product update webhook", error as Error, {
+      productId: product.id,
+      shop
+    });
     // Don't fail the webhook - log and continue
   }
   

@@ -1,4 +1,5 @@
 import { LRUCache } from 'lru-cache';
+import { log } from '~/lib/logger.server';
 
 // Performance optimization utilities for Shopify best practices
 
@@ -97,7 +98,7 @@ export class PerformanceTracker {
     new PerformanceObserver((entryList) => {
       const entries = entryList.getEntries();
       const lastEntry = entries[entries.length - 1];
-      console.log('LCP:', lastEntry.startTime);
+      log.performance('LCP', lastEntry.startTime, { metric: 'LCP' });
     }).observe({ entryTypes: ['largest-contentful-paint'] });
 
     // First Input Delay
@@ -105,7 +106,7 @@ export class PerformanceTracker {
       const firstInput = entryList.getEntries()[0];
       const processingStart = (firstInput as any).processingStart;
       if (processingStart) {
-        console.log('FID:', processingStart - firstInput.startTime);
+        log.performance('FID', processingStart - firstInput.startTime, { metric: 'FID' });
       }
     }).observe({ entryTypes: ['first-input'] });
 
@@ -117,7 +118,7 @@ export class PerformanceTracker {
           clsValue += (entry as any).value;
         }
       }
-      console.log('CLS:', clsValue);
+      log.performance('CLS', clsValue, { metric: 'CLS' });
     }).observe({ entryTypes: ['layout-shift'] });
   }
 }

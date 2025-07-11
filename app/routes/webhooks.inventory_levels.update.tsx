@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { topic, shop, session, admin, payload } = await authenticate.webhook(
@@ -11,7 +12,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Response("Unauthorized", { status: 401 });
   }
 
-  console.log(`📦 Received INVENTORY_LEVELS_UPDATE webhook for ${shop}`);
+  log.webhook("INVENTORY_LEVELS_UPDATE", shop, { verified: true });
   const inventoryLevel = typeof payload === 'string' ? JSON.parse(payload) : payload;
   
   // Process inventory level updates for gift registry functionality
@@ -33,7 +34,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     });
 
-    console.log(`📊 Found ${affectedItems.length} registry items affected by inventory update`);
+    log.debug(`Found ${affectedItems.length} registry items affected by inventory update`, {
+      shop,
+      inventoryItemId: inventoryLevel.inventory_item_id,
+      affectedItemsCount: affectedItems.length
+    });
 
     // Update inventory quantities for affected items if we can match them
     if (inventoryLevel.inventory_item_id) {
@@ -67,9 +72,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
     });
 
-    console.log(`✅ Successfully processed inventory update for ${affectedItems.length} items`);
+    log.info(`Successfully processed inventory update for ${affectedItems.length} items`, {
+      shop,
+      inventoryItemId: inventoryLevel.inventory_item_id,
+      affectedItemsCount: affectedItems.length
+    });
   } catch (error) {
-    console.error(`❌ Error processing inventory level update webhook:`, error);
+    log.error("Error processing inventory level update webhook", error as Error, {
+      shop,
+      inventoryItemId: inventoryLevel.inventory_item_id
+    });
     // Don't fail the webhook - log and continue
   }
   
