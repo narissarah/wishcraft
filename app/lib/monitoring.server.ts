@@ -1,4 +1,4 @@
-import * as Sentry from "./monitoring/sentry.server";
+import Sentry from "./monitoring/sentry.server";
 import { log } from "./logger.server";
 
 /**
@@ -13,7 +13,7 @@ export function initSentry() {
  * Clear sensitive context between requests
  */
 export function clearSensitiveContext() {
-  Sentry.default.configureScope((scope) => {
+  Sentry.configureScope((scope) => {
     scope.clear();
   });
 }

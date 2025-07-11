@@ -1,11 +1,13 @@
-const express = require("express");
-const { createRequestHandler } = require("@remix-run/express");
-const compression = require("compression");
-const helmet = require("helmet");
-const rateLimit = require("express-rate-limit");
-const morgan = require("morgan");
+import express from "express";
+import { createRequestHandler } from "@remix-run/express";
+import compression from "compression";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import morgan from "morgan";
 
-const app = express();
+// Async function to handle top-level await
+async function startServer() {
+  const app = express();
 
 // Log startup information
 console.log("🚀 WishCraft Server Starting...");
@@ -66,13 +68,17 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 login attempts per 15 minutes
-  skipSuccessfulRequests: true
+  max: process.env.NODE_ENV === 'production' ? 10 : 100, // 10 in prod, 100 in dev
+  skipSuccessfulRequests: true,
+  message: 'Too many authentication attempts, please try again later.'
 });
 
 // Apply rate limiting
 app.use('/api/', generalLimiter);
-app.use('/auth/', authLimiter);
+// Only apply auth rate limiting in production to avoid development issues
+if (process.env.NODE_ENV === 'production') {
+  app.use('/auth/', authLimiter);
+}
 app.use('/webhooks/', rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 100 // Higher limit for webhooks
@@ -92,7 +98,7 @@ app.get('/health', (req, res) => {
 
 app.get('/health/db', async (req, res) => {
   try {
-    const { PrismaClient } = require('@prisma/client');
+    const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
     await prisma.$connect();
     await prisma.$disconnect();
@@ -113,10 +119,11 @@ app.get('/health/db', async (req, res) => {
 app.use(express.static("public"));
 
 // Remix handler for all other routes
+const build = await import("./build/index.js");
 app.all(
   "*",
   createRequestHandler({
-    build: require("./build/index.js"),
+    build: build.default,
     mode: process.env.NODE_ENV,
     getLoadContext() {
       // Add any context needed by your loaders
@@ -157,13 +164,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-const server = app.listen(port, host, () => {
+const server = app.listen(port, host, async () => {
   console.log(`✅ WishCraft server is running on http://${host}:${port}`);
   
   // Initialize background job processor
   if (process.env.NODE_ENV === 'production') {
     try {
-      const { initializeJobProcessor } = require('./app/lib/jobs/job-processor.server');
+      const { initializeJobProcessor } = await import('./app/lib/jobs/job-processor.server.js');
       initializeJobProcessor();
       console.log('✅ Background job processor initialized');
     } catch (error) {
@@ -172,44 +179,48 @@ const server = app.listen(port, host, () => {
   }
 });
 
-// Graceful shutdown
-const gracefulShutdown = () => {
-  console.log('Shutting down gracefully...');
-  
-  // Stop background jobs
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      const { stopAllJobs } = require('./app/lib/jobs/job-processor.server');
-      stopAllJobs();
-      console.log('✅ Background jobs stopped');
-    } catch (error) {
-      console.error('Error stopping jobs:', error);
+  // Graceful shutdown
+  const gracefulShutdown = async () => {
+    console.log('Shutting down gracefully...');
+    
+    // Stop background jobs
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        const { stopAllJobs } = await import('./app/lib/jobs/job-processor.server.js');
+        stopAllJobs();
+        console.log('✅ Background jobs stopped');
+      } catch (error) {
+        console.error('Error stopping jobs:', error);
+      }
     }
-  }
-  
-  server.close(() => {
-    console.log('HTTP server closed');
-    process.exit(0);
+    
+    server.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGTERM', () => {
+    console.log('SIGTERM received');
+    gracefulShutdown();
   });
-};
 
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received');
-  gracefulShutdown();
-});
+  process.on('SIGINT', () => {
+    console.log('SIGINT received');
+    gracefulShutdown();
+  });
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received');
-  gracefulShutdown();
-});
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (err) => {
+    console.error('Uncaught Exception:', err);
+    process.exit(1);
+  });
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
-  process.exit(1);
-});
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+    process.exit(1);
+  });
+}
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1);
-});
+// Start the server
+startServer().catch(console.error);

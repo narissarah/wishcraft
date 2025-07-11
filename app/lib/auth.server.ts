@@ -64,7 +64,9 @@ export async function requireAdminAuth(request: Request) {
     const { admin, session } = await authenticate.admin(request);
     
     if (!admin || !session) {
-      throw redirect("/auth/login");
+      // Don't redirect to /auth/login as that would cause a loop
+      // Instead, throw a proper authentication error
+      throw new Response("Unauthorized", { status: 401 });
     }
     
     // Verify shop exists in our database
@@ -75,7 +77,7 @@ export async function requireAdminAuth(request: Request) {
     
     if (!shop) {
       console.error(`Shop ${session.shop} not found in database`);
-      throw redirect("/auth/install");
+      throw new Response("Shop not found", { status: 404 });
     }
     
     return { admin, session, shop };
@@ -85,7 +87,7 @@ export async function requireAdminAuth(request: Request) {
     }
     
     console.error("Admin authentication failed:", error);
-    throw redirect("/auth/login");
+    throw new Response("Authentication failed", { status: 401 });
   }
 }
 

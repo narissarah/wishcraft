@@ -1,12 +1,12 @@
 /** @type {import('@remix-run/dev').AppConfig} */
-module.exports = {
+export default {
   ignoredRouteFiles: ["**/.*"],
   appDirectory: "app",
   assetsBuildDirectory: "public/build",
   publicPath: "/build/",
   serverBuildPath: "build/index.js",
   serverConditions: ["node"],
-  serverModuleFormat: "cjs",
+  serverModuleFormat: "esm",
   serverDependenciesToBundle: [
     "@shopify/shopify-app-remix",
     "@shopify/polaris",

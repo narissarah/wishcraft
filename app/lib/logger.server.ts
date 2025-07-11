@@ -1,5 +1,5 @@
 import winston from 'winston';
-import { Sentry } from '~/lib/monitoring/sentry.server';
+import Sentry from '~/lib/monitoring/sentry.server';
 
 // ============================================================================
 // WINSTON LOGGER CONFIGURATION FOR PRODUCTION

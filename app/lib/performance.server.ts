@@ -17,22 +17,11 @@ const performanceCache = new LRUCache<string, any>({
 });
 
 // Resource hints for critical resources
-export function generateResourceHints(): Array<{ rel: string; href: string; as?: string }> {
+export function generateResourceHints(): string[] {
   return [
-    // Preconnect to Shopify CDN
-    { rel: 'preconnect', href: 'https://cdn.shopify.com' },
-    { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
-    { rel: 'preconnect', href: 'https://fonts.gstatic.com' },
-    
-    // DNS prefetch for third-party domains
-    { rel: 'dns-prefetch', href: 'https://www.google-analytics.com' },
-    { rel: 'dns-prefetch', href: 'https://analytics.google.com' },
-    
-    // Preload critical CSS
-    { rel: 'preload', href: '/build/entry.client.css', as: 'style' },
-    
-    // Preload critical JavaScript
-    { rel: 'preload', href: '/build/entry.client.js', as: 'script' },
+    '/build/entry.client.js',
+    '/build/entry.client.css',
+    '/build/polaris.css',
   ];
 }
 

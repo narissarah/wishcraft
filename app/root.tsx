@@ -15,6 +15,11 @@ import { generateResourceHints, generateCriticalCSS } from "~/lib/performance.se
 import { getSecurityHeaders, generateNonce, getCSPMetaTag } from "~/lib/security-headers.server";
 import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/rate-limiter.server";
 import { useEffect } from "react";
+import { ResourceHints } from "~/components/ResourceHints";
+import { CriticalCSS } from "~/components/CriticalCSS";
+import { ThemeProvider } from "~/components/ThemeProvider";
+import { PerformanceMonitor } from "~/components/PerformanceMonitor";
+import { ErrorBoundary as ApplicationErrorBoundary } from "~/components/ErrorBoundary";
 
 export const links: LinksFunction = () => {
   return [
