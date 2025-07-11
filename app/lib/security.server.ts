@@ -78,7 +78,7 @@ export const securityHeaders: HeadersFunction = () => {
  * Apply security headers to a Response
  */
 export function applySecurityHeaders(response: Response): Response {
-  const headers = securityHeaders();
+  const headers = securityHeaders({} as any);
   
   Object.entries(headers).forEach(([key, value]) => {
     response.headers.set(key, value);
@@ -147,7 +147,7 @@ export function validateOrigin(request: Request): boolean {
     process.env.SHOPIFY_APP_URL,
     "https://admin.shopify.com",
     /^https:\/\/.*\.myshopify\.com$/,
-  ];
+  ].filter(Boolean) as (string | RegExp)[];
   
   const requestOrigin = origin || new URL(referer!).origin;
   
@@ -182,7 +182,7 @@ export function generateSecureToken(length: number = 32): string {
  * Validate Shopify domain
  */
 export function isValidShopDomain(shop: string): boolean {
-  const shopRegex = /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/;
+  const shopRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
   return shopRegex.test(shop);
 }
 

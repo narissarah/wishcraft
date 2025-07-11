@@ -18,13 +18,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const verification = await verifyWebhookRequest(request.clone());
   
   if (!verification.isValid) {
-    await logWebhookEvent("SHOP_REDACT", verification.shop ?? "unknown", null, false, "Invalid HMAC signature");
+    await logWebhookEvent("SHOP_REDACT", verification.shop, null, false, "Invalid HMAC signature");
     throw new Response("Unauthorized - Invalid HMAC signature", { status: 401 });
   }
 
   // Validate webhook topic
   if (!validateWebhookTopic(verification.topic, "SHOP_REDACT")) {
-    await logWebhookEvent("SHOP_REDACT", verification.shop ?? "unknown", null, false, "Invalid topic");
+    await logWebhookEvent("SHOP_REDACT", verification.shop, null, false, "Invalid topic");
     throw new Response("Bad Request - Invalid topic", { status: 400 });
   }
 

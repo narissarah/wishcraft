@@ -5,7 +5,6 @@ import {
   generateCodeChallenge,
   createCustomerSession,
   getCustomerSession,
-  destroyCustomerSession,
   makeCustomerAPIRequest
 } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
@@ -152,7 +151,7 @@ export async function handleCustomerAuthCallback(
     return sessionCookie;
     
   } catch (error) {
-    log.error('Customer auth callback error', error as Error, { shop, returnUrl });
+    log.error('Customer auth callback error', error as Error, { shop });
     throw new Error('Authentication failed');
   }
 }

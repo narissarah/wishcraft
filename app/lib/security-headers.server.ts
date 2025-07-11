@@ -35,8 +35,8 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
   const isDevelopment = process.env.NODE_ENV === "development";
   const isEmbedded = new URL(request.url).searchParams.has("embedded");
   
-  // Generate nonce if not provided
-  const cspNonce = nonce || generateNonce();
+  // Generate nonce if not provided (for future CSP implementation)
+  const _cspNonce = nonce || generateNonce();
   
   // Get shop domain from request
   const url = new URL(request.url);
@@ -44,9 +44,15 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
                request.headers.get('x-shopify-shop-domain') ||
                'admin.shopify.com';
   
-  // For Shopify embedded apps, we need minimal CSP to avoid conflicts
-  // Shopify's admin applies its own CSP, so we only set frame-ancestors
+  // For Shopify embedded apps, we need dynamic frame-ancestors
+  // CRITICAL: frame-ancestors must be set dynamically per shop (2025 requirement)
+  const frameAncestors = shop && shop !== 'admin.shopify.com' 
+    ? `frame-ancestors https://${shop} https://admin.shopify.com`
+    : `frame-ancestors https://admin.shopify.com`;
+  
   const headers: HeadersInit = {
+    // REQUIRED for Shopify embedded apps (2025)
+    "Content-Security-Policy": frameAncestors,
     // Security headers - adjusted for Shopify embedded apps
     "X-Content-Type-Options": "nosniff",
     "X-Permitted-Cross-Domain-Policies": "none",
@@ -158,7 +164,7 @@ export function validateOrigin(request: Request): boolean {
     process.env.SHOPIFY_APP_URL,
     "https://admin.shopify.com",
     /https:\/\/.*\.myshopify\.com/
-  ];
+  ].filter(Boolean) as (string | RegExp)[];
   
   const checkOrigin = origin || referer;
   if (!checkOrigin) return false;

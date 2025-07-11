@@ -1,5 +1,5 @@
 import { LRUCache } from 'lru-cache';
-import type { Registry, RegistryItem } from '@prisma/client';
+import type { Registry } from '@prisma/client';
 
 // Multi-level caching strategy for optimal performance
 
@@ -108,7 +108,7 @@ export class WishCraftCacheManager {
         updateAgeOnGet: config.updateAgeOnGet,
         allowStale: config.stale,
         // Callback for cache events
-        dispose: (value, key) => {
+        dispose: (_value, _key) => {
           this.updateStats(name, 'eviction');
         }
       });
@@ -198,9 +198,8 @@ export class WishCraftCacheManager {
 
     try {
       // Warm registry list cache
-      const registryListKey = CacheKeys.REGISTRY_LIST(shopId, 1);
       // This would typically call your optimized database query
-      // await this.get('registries', registryListKey, () => getRegistriesByShop(shopId));
+      // await this.get('registries', CacheKeys.REGISTRY_LIST(shopId, 1), () => getRegistriesByShop(shopId));
 
       // Warm popular product cache
       // const popularProducts = await getPopularProducts(shopId);
@@ -470,7 +469,7 @@ export class CacheWarmingScheduler {
   }
 
   clearAllWarming(): void {
-    this.intervals.forEach((interval, shopId) => {
+    this.intervals.forEach((interval, _shopId) => {
       clearInterval(interval);
     });
     this.intervals.clear();
@@ -486,7 +485,7 @@ export const cacheWarmer = new CacheWarmingScheduler(cacheManager);
 export function withCache<T>(
   cacheType: string,
   keyGenerator: (...args: any[]) => string,
-  ttl?: number
+  _ttl?: number
 ) {
   return function cacheDecorator(
     target: any,

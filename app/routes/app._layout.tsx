@@ -1,20 +1,13 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
-import { json, redirect } from "@remix-run/node";
+import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
-import { getAdminAuth } from "~/lib/auth.server";
+import { boundary } from "@shopify/shopify-app-remix/server";
+import { authenticate } from "~/shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  // Use safe authentication that doesn't cause loops
-  const auth = await getAdminAuth(request);
-  
-  if (!auth) {
-    // If not authenticated, redirect to login with the current URL as return path
-    const url = new URL(request.url);
-    return redirect(`/auth/login?return=${encodeURIComponent(url.pathname + url.search)}`);
-  }
-  
-  const { admin, session } = auth;
+  // Use 2025 authentication pattern - this handles redirects automatically
+  const { admin, session } = await authenticate.admin(request);
 
   return json({
     shopOrigin: session.shop,
@@ -39,13 +32,12 @@ export default function App() {
   );
 }
 
-// Shopify embedded app error boundary
+// 2025 Shopify Embedded App Error Boundary
 export function ErrorBoundary() {
-  const error = useRouteError();
-  return (
-    <div>
-      <h1>Something went wrong</h1>
-      <pre>{JSON.stringify(error, null, 2)}</pre>
-    </div>
-  );
+  return boundary.error(useRouteError());
 }
+
+// Required headers for embedded apps
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

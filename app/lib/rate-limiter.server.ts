@@ -22,6 +22,7 @@ export interface RateLimitInfo {
   remaining: number;
   reset: Date;
   retryAfter?: number;
+  allowed: boolean;
 }
 
 // Default rate limit configurations
@@ -83,8 +84,8 @@ export async function checkRateLimit(
   const {
     windowMs = 60 * 1000,
     max = 100,
-    skipSuccessfulRequests = false,
-    skipFailedRequests = false,
+    skipSuccessfulRequests: _skipSuccessfulRequests = false,
+    skipFailedRequests: _skipFailedRequests = false,
     keyGenerator
   } = options;
   
@@ -107,7 +108,8 @@ export async function checkRateLimit(
       limit: max,
       remaining: 0,
       reset: resetTime,
-      retryAfter: Math.ceil((resetTime.getTime() - now) / 1000)
+      retryAfter: Math.ceil((resetTime.getTime() - now) / 1000),
+      allowed: false
     };
   }
   
@@ -118,7 +120,8 @@ export async function checkRateLimit(
   return {
     limit: max,
     remaining: max - timestamps.length,
-    reset: new Date(now + windowMs)
+    reset: new Date(now + windowMs),
+    allowed: true
   };
 }
 
@@ -252,14 +255,28 @@ export class ShopifyAPIRateLimiter {
   }
 }
 
+// Simple RateLimiter class for compatibility
+export class RateLimiter {
+  private options: RateLimitOptions;
+  
+  constructor(options: RateLimitOptions = {}) {
+    this.options = {
+      windowMs: 60 * 1000,
+      max: 100,
+      ...options
+    };
+  }
+  
+  async check(request: Request): Promise<RateLimitInfo | null> {
+    return checkRateLimit(request, this.options);
+  }
+}
+
 // Global Shopify rate limiter instance
 export const shopifyRateLimiter = new ShopifyAPIRateLimiter();
 
 // Default rate limiter instance
 export const rateLimiter = new RateLimiter();
-
-// Export the class for type usage
-export { RateLimiter };
 
 /**
  * Rate limit by shop (for multi-tenant scenarios)
@@ -298,7 +315,8 @@ export function createRedisRateLimiter(/* redisClient */): DistributedRateLimite
       return {
         limit,
         remaining: limit,
-        reset: new Date(Date.now() + window)
+        reset: new Date(Date.now() + window),
+        allowed: true
       };
     },
     async reset(key: string): Promise<void> {

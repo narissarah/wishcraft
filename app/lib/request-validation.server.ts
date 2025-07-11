@@ -1,6 +1,6 @@
 import { json } from "@remix-run/node";
 import { z } from "zod";
-import { sanitizeHtml, sanitizeUserContent, sanitizeRichText } from "~/lib/utils";
+import { sanitizeUserContent, sanitizeRichText } from "~/lib/utils";
 
 // ============================================================================
 // REQUEST VALIDATION AND BODY SIZE LIMITS

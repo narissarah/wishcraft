@@ -12,7 +12,7 @@ import {
 import { AppProvider } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
 import { generateResourceHints, generateCriticalCSS } from "~/lib/performance.server";
-import { getSecurityHeaders, generateNonce, getCSPMetaTag } from "~/lib/security-headers.server";
+import { generateNonce } from "~/lib/security-headers.server";
 import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/rate-limiter.server";
 import { useEffect } from "react";
 import { ResourceHints } from "~/components/ResourceHints";
@@ -605,27 +605,6 @@ export default function App() {
         <Scripts />
         <LiveReload />
         
-        {/* Service Worker registration with nonce */}
-        {ENV.NODE_ENV === 'production' && (
-          <script
-            nonce={nonce}
-            dangerouslySetInnerHTML={{
-              __html: `
-                if ('serviceWorker' in navigator) {
-                  navigator.serviceWorker.register('/sw.js', {
-                    updateViaCache: 'none'
-                  })
-                    .then(registration => {
-                      console.log('SW registered');
-                      // Check for updates every hour
-                      setInterval(() => registration.update(), 3600000);
-                    })
-                    .catch(error => console.log('SW registration failed'));
-                }
-              `,
-            }}
-          />
-        )}
         
         {/* Performance monitoring initialization */}
         <script 

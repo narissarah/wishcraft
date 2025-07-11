@@ -2,7 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import { log } from "~/lib/logger.server";
 
 declare global {
-  var __db__: PrismaClient;
+  // eslint-disable-next-line no-var
+  var __db__: PrismaClient | undefined;
 }
 
 let db: PrismaClient;

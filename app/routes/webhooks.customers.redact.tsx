@@ -18,19 +18,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const verification = await verifyWebhookRequest(request.clone());
   
   if (!verification.isValid) {
-    await logWebhookEvent("CUSTOMERS_REDACT", verification.shop ?? "unknown", null, false, "Invalid HMAC signature");
+    await logWebhookEvent("CUSTOMERS_REDACT", verification.shop, null, false, "Invalid HMAC signature");
     throw new Response("Unauthorized - Invalid HMAC signature", { status: 401 });
   }
 
   // Validate webhook topic
   if (!validateWebhookTopic(verification.topic, "CUSTOMERS_REDACT")) {
-    await logWebhookEvent("CUSTOMERS_REDACT", verification.shop ?? "unknown", null, false, "Invalid topic");
+    await logWebhookEvent("CUSTOMERS_REDACT", verification.shop, null, false, "Invalid topic");
     throw new Response("Bad Request - Invalid topic", { status: 400 });
   }
 
   // Rate limiting
-  if (!checkWebhookRateLimit(verification.shop ?? "unknown", 10, 60000)) {
-    await logWebhookEvent("CUSTOMERS_REDACT", verification.shop ?? "unknown", null, false, "Rate limit exceeded");
+  if (!checkWebhookRateLimit(verification.shop, 10, 60000)) {
+    await logWebhookEvent("CUSTOMERS_REDACT", verification.shop, null, false, "Rate limit exceeded");
     throw new Response("Too Many Requests", { status: 429 });
   }
 

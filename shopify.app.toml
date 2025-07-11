@@ -8,9 +8,10 @@ embedded = true
 
 [build]
 include_config_on_deploy = true
+automatically_update_urls_on_dev = true
 
 [webhooks]
-api_version = "2025-07"
+api_version = "2025-01"
 
 [app_proxy]
 url = "http://localhost:3000/proxy"
@@ -19,7 +20,11 @@ prefix = "apps"
 
 [access_scopes]
 # Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_customers,read_products,read_orders,write_orders,read_inventory,write_content"
+# Required scopes for WishCraft gift registry functionality (2025 compliant)
+scopes = "read_customers,write_customers,read_products,read_orders,write_orders,read_inventory,write_content"
+
+# Optional scopes for future features
+use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [ 

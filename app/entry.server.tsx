@@ -1,11 +1,8 @@
 import type { EntryContext } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { renderToString } from "react-dom/server";
-import { initSentry, clearSensitiveContext } from "~/lib/monitoring.server";
 import { getSecurityHeaders } from "~/lib/security-headers.server";
-
-// Initialize Sentry monitoring
-initSentry();
+import { shopify } from "~/shopify.server";
 
 export default function handleRequest(
   request: Request,
@@ -13,8 +10,8 @@ export default function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
-  // Clear any sensitive context from previous requests
-  clearSensitiveContext();
+  // CRITICAL: Add Shopify document response headers for proper embedded app authentication
+  shopify.addDocumentResponseHeaders(request, responseHeaders);
   
   // Add performance timing
   const startTime = Date.now();

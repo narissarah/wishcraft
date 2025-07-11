@@ -3,7 +3,6 @@ import { createCookieSessionStorage } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 import crypto from "crypto";
-import { generateCSRFToken } from "~/lib/csrf.server";
 
 // ============================================================================
 // SESSION MANAGEMENT (2025 SECURITY STANDARDS)
@@ -59,31 +58,46 @@ export const customerSessionStorage = createCookieSessionStorage({
 // ADMIN AUTHENTICATION (SHOPIFY APP)
 // ============================================================================
 
+// 2025 Simplified Admin Auth - Shopify handles redirects automatically
 export async function requireAdminAuth(request: Request) {
   try {
     const { admin, session } = await authenticate.admin(request);
     
-    if (!admin || !session) {
-      // Don't redirect to /auth/login as that would cause a loop
-      // Instead, throw a proper authentication error
-      throw new Response("Unauthorized", { status: 401 });
-    }
-    
-    // Verify shop exists in our database
-    const shop = await db.shop.findUnique({
+    // Verify shop exists in our database (optional - create if not exists)
+    let shop = await db.shop.findUnique({
       where: { id: session.shop },
       include: { settings: true }
     });
     
     if (!shop) {
-      console.error(`Shop ${session.shop} not found in database`);
-      throw new Response("Shop not found", { status: 404 });
+      // Auto-create shop record for new installations
+      shop = await db.shop.create({
+        data: {
+          id: session.shop,
+          name: session.shop.replace('.myshopify.com', ''),
+          email: '',
+          domain: session.shop,
+          currencyCode: 'USD',
+          settings: {
+            create: {
+              enablePasswordProtection: false,
+              enableGiftMessages: true,
+              enableSocialSharing: true,
+              enableEmailNotifications: true,
+              maxItemsPerRegistry: 100,
+              appActive: true,
+              appUninstalledAt: null
+            }
+          }
+        },
+        include: { settings: true }
+      });
     }
     
     return { admin, session, shop };
   } catch (error) {
     if (error instanceof Response) {
-      throw error; // Re-throw redirects
+      throw error; // Re-throw Shopify redirects
     }
     
     console.error("Admin authentication failed:", error);
@@ -91,10 +105,12 @@ export async function requireAdminAuth(request: Request) {
   }
 }
 
+// Safe admin auth that doesn't throw
 export async function getAdminAuth(request: Request) {
   try {
     return await authenticate.admin(request);
   } catch (error) {
+    // In 2025, authentication errors are handled by Shopify automatically
     return null;
   }
 }
@@ -360,7 +376,7 @@ export function isValidShopDomain(shop: string): boolean {
   shop = shop.replace(/^https?:\/\//, '');
   
   // Check if it's a valid myshopify.com domain
-  const shopifyDomainRegex = /^[a-zA-Z0-9][a-zA-Z0-9\-]*\.myshopify\.com$/;
+  const shopifyDomainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
   
   return shopifyDomainRegex.test(shop);
 }

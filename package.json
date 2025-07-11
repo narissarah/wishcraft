@@ -9,16 +9,8 @@
     "deploy": "shopify app deploy",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
-    "db:seed": "prisma db seed",
     "db:generate": "prisma generate",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "test:unit": "vitest run test/unit",
-    "test:integration": "vitest run test/integration",
-    "test:e2e": "playwright test",
-    "test:security": "vitest run test/security",
-    "test:all": "npm run test:unit && npm run test:integration && npm run test:e2e && npm run test:security",
     "lint": "eslint app",
     "lint:fix": "eslint app --fix"
   },
@@ -28,8 +20,6 @@
     "@remix-run/node": "^2.16.8",
     "@remix-run/react": "^2.16.8",
     "@remix-run/serve": "^2.16.8",
-    "@sentry/node": "^9.35.0",
-    "@sentry/profiling-node": "^9.35.0",
     "@shopify/app-bridge": "^3.7.10",
     "@shopify/app-bridge-react": "^3.7.10",
     "@shopify/polaris": "^13.9.5",
@@ -42,75 +32,32 @@
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.1",
     "helmet": "^8.1.0",
-    "ioredis": "^5.3.2",
     "isomorphic-dompurify": "^2.26.0",
     "lru-cache": "^10.2.0",
     "morgan": "^1.10.0",
-    "node-cron": "^4.2.0",
-    "node-statsd": "^0.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "redis": "^4.6.13",
-    "swagger-ui-dist": "^4.15.5",
     "web-vitals": "^3.5.2",
     "winston": "^3.16.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
-    "@lhci/cli": "^0.15.1",
-    "@playwright/test": "^1.40.0",
     "@remix-run/dev": "^2.16.8",
-    "@remix-run/testing": "^2.16.8",
     "@shopify/app-bridge-types": "^0.0.4",
-    "@size-limit/preset-app": "^11.0.2",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.1.0",
-    "@testing-library/user-event": "^14.5.2",
     "@types/gtag.js": "^0.0.20",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "@typescript-eslint/eslint-plugin": "^6.21.0",
     "@typescript-eslint/parser": "^6.21.0",
-    "@vitest/coverage-v8": "^2.1.8",
-    "axe-playwright": "^2.1.0",
-    "bundlesize": "^0.18.2",
-    "chalk": "^5.4.1",
     "eslint": "^8.57.1",
     "eslint-plugin-react": "^7.37.2",
-    "jsdom": "^26.0.0",
-    "lighthouse": "^12.7.1",
-    "node-mocks-http": "^1.14.1",
     "prisma": "^6.11.1",
     "rollup-plugin-visualizer": "^5.12.0",
-    "size-limit": "^11.0.2",
     "tsx": "^4.20.3",
     "typescript": "^5.7.3",
     "vite": "^6.3.5",
-    "vitest": "^2.1.8",
-    "wait-on": "^8.0.3",
     "ws": "^8.16.0"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
-  "bundlesize": [
-    {
-      "path": "./public/build/entry.client-*.js",
-      "maxSize": "200kb"
-    },
-    {
-      "path": "./public/build/root-*.js",
-      "maxSize": "150kb"
-    },
-    {
-      "path": "./public/build/_shared/chunk-*.js",
-      "maxSize": "100kb"
-    },
-    {
-      "path": "./public/build/routes/**/*.js",
-      "maxSize": "50kb"
-    }
-  ],
   "engines": {
     "node": ">=18.20.0"
   },

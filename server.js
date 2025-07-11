@@ -167,32 +167,14 @@ app.use((err, req, res, next) => {
 const server = app.listen(port, host, async () => {
   console.log(`✅ WishCraft server is running on http://${host}:${port}`);
   
-  // Initialize background job processor
-  if (process.env.NODE_ENV === 'production') {
-    try {
-      const { initializeJobProcessor } = await import('./app/lib/jobs/job-processor.server.js');
-      initializeJobProcessor();
-      console.log('✅ Background job processor initialized');
-    } catch (error) {
-      console.error('Failed to initialize job processor:', error);
-    }
-  }
+  // Background job processor removed for production stability
 });
 
   // Graceful shutdown
   const gracefulShutdown = async () => {
     console.log('Shutting down gracefully...');
     
-    // Stop background jobs
-    if (process.env.NODE_ENV === 'production') {
-      try {
-        const { stopAllJobs } = await import('./app/lib/jobs/job-processor.server.js');
-        stopAllJobs();
-        console.log('✅ Background jobs stopped');
-      } catch (error) {
-        console.error('Error stopping jobs:', error);
-      }
-    }
+    // Background jobs removed for production stability
     
     server.close(() => {
       console.log('HTTP server closed');

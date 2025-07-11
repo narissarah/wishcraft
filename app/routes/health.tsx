@@ -2,10 +2,8 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { checkRedisHealth } from "~/lib/cache/redis.server";
-
 /**
- * Health Check Endpoint
+ * Simplified Health Check Endpoint
  * Provides application health status for monitoring and load balancers
  */
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -16,11 +14,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
     await db.$queryRaw`SELECT 1`;
     
     const dbResponseTime = Date.now() - startTime;
-    
-    // Check Redis connectivity
-    const redisStartTime = Date.now();
-    const redisHealthy = await checkRedisHealth();
-    const redisResponseTime = Date.now() - redisStartTime;
     
     // Check environment variables
     const requiredEnvVars = [
@@ -54,11 +47,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
           status: 'healthy',
           usage: process.memoryUsage(),
           freeMemory: process.memoryUsage().heapUsed / process.memoryUsage().heapTotal
-        },
-        redis: {
-          status: redisHealthy ? 'healthy' : process.env.REDIS_URL ? 'unhealthy' : 'disabled',
-          responseTime: redisResponseTime,
-          message: redisHealthy ? 'Redis connection successful' : process.env.REDIS_URL ? 'Redis connection failed' : 'Redis not configured'
         }
       }
     };

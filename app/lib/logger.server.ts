@@ -1,5 +1,4 @@
 import winston from 'winston';
-import Sentry from '~/lib/monitoring/sentry.server';
 
 // ============================================================================
 // WINSTON LOGGER CONFIGURATION FOR PRODUCTION
@@ -126,12 +125,7 @@ class Logger {
     
     (logger as any)[level](formattedMessage, logMeta);
 
-    // Send errors to Sentry in production
-    if (level === 'error' && !isDevelopment) {
-      Sentry.captureException(new Error(message), {
-        extra: logMeta,
-      });
-    }
+    // Error logging simplified for production
   }
 
   error(message: string, error?: Error | any, meta?: any) {

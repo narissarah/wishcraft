@@ -2,9 +2,8 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
-import { registryCache, apiCache } from "~/lib/cache/redis.server";
+// Removed complex caching for production simplicity
 import { log } from "~/lib/logger.server";
-import { captureException } from "~/lib/monitoring.server";
 import { rateLimiter } from "~/lib/rate-limiter.server";
 
 /**
@@ -14,8 +13,8 @@ import { rateLimiter } from "~/lib/rate-limiter.server";
 export async function loader({ request }: LoaderFunctionArgs) {
   try {
     // Rate limiting
-    const { allowed } = await rateLimiter.check(request);
-    if (!allowed) {
+    const rateLimitResult = await rateLimiter.check(request);
+    if (rateLimitResult && !rateLimitResult.allowed) {
       return json({ error: "Too many requests" }, { status: 429 });
     }
     
@@ -23,14 +22,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const { admin, session } = await authenticate.admin(request);
     const shop = session.shop;
     
-    // Check cache first
-    const cacheKey = `registries:${shop}`;
-    const cached = await apiCache.get(cacheKey);
-    
-    if (cached) {
-      log.debug("Cache hit for registries", { shop });
-      return json(cached);
-    }
+    // Simplified for production - direct database access
     
     // Fetch from database
     const registries = await db.registry.findMany({
@@ -49,7 +41,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
           select: {
             id: true,
             status: true,
-            purchasedAt: true,
+            createdAt: true,
           },
         },
       },
@@ -60,28 +52,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
     const response = {
       registries: registries.map(registry => ({
         id: registry.id,
-        name: registry.name,
+        name: registry.title,
         customerId: registry.customerId,
         eventDate: registry.eventDate,
         status: registry.status,
-        privacy: registry.privacy,
+        privacy: registry.visibility,
         itemCount: registry.items.length,
-        purchaseCount: registry.purchases.filter(p => p.status === "COMPLETED").length,
+        purchaseCount: registry.purchases.filter((p: any) => p.status === "COMPLETED").length,
         createdAt: registry.createdAt,
         updatedAt: registry.updatedAt,
       })),
       total: registries.length,
     };
     
-    // Cache the response
-    await apiCache.set(cacheKey, response, undefined, 300); // 5 minutes
+    // Simplified - no caching for production readiness
     
     return json(response);
   } catch (error) {
     log.error("Failed to fetch registries", error);
-    captureException(error as Error, { 
-      tags: { endpoint: "api.registries" },
-    });
     
     return json(
       { error: "Failed to fetch registries" },
@@ -100,8 +88,8 @@ export async function action({ request }: ActionFunctionArgs) {
   
   try {
     // Rate limiting
-    const { allowed } = await rateLimiter.check(request);
-    if (!allowed) {
+    const rateLimitResult = await rateLimiter.check(request);
+    if (rateLimitResult && !rateLimitResult.allowed) {
       return json({ error: "Too many requests" }, { status: 429 });
     }
     
@@ -128,11 +116,12 @@ export async function action({ request }: ActionFunctionArgs) {
       data: {
         shopId: shop,
         customerId: customerId as string,
-        name: name as string,
+        customerEmail: '',
+        title: name as string,
+        slug: `${name}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
         eventDate: eventDate ? new Date(eventDate as string) : null,
-        status: "ACTIVE",
-        privacy: privacy as "PUBLIC" | "PRIVATE",
-        preferences: {},
+        status: "active",
+        visibility: privacy as "public" | "private",
       },
     });
     
@@ -148,8 +137,7 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
     
-    // Invalidate cache
-    await apiCache.invalidate(`registries:${shop}`);
+    // Simplified - no cache to invalidate
     
     log.info("Registry created", {
       shop,
@@ -160,9 +148,6 @@ export async function action({ request }: ActionFunctionArgs) {
     return json({ registry }, { status: 201 });
   } catch (error) {
     log.error("Failed to create registry", error);
-    captureException(error as Error, {
-      tags: { endpoint: "api.registries", method: "POST" },
-    });
     
     return json(
       { error: "Failed to create registry" },

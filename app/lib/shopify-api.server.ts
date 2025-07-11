@@ -346,7 +346,7 @@ export class ShopifyAPIService {
         variables: { first, after, query, sortKey }
       });
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (data.errors) {
         throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
@@ -373,7 +373,7 @@ export class ShopifyAPIService {
         variables: { id: productId }
       });
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (data.errors) {
         throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
@@ -459,7 +459,7 @@ export class ShopifyAPIService {
         variables: { ids: variantIds }
       });
 
-      const variantData = await variantResponse.json();
+      const variantData = await variantResponse.json() as any;
       
       if (variantData.errors) {
         throw new Error(`GraphQL Error: ${JSON.stringify(variantData.errors)}`);
@@ -478,7 +478,7 @@ export class ShopifyAPIService {
         variables: { inventoryItemIds }
       });
 
-      const inventoryData = await inventoryResponse.json();
+      const inventoryData = await inventoryResponse.json() as any;
 
       if (inventoryData.errors) {
         throw new Error(`GraphQL Error: ${JSON.stringify(inventoryData.errors)}`);
@@ -527,7 +527,7 @@ export class ShopifyAPIService {
         variables: { metafield }
       });
 
-      const data = await response.json();
+      const data = await response.json() as any;
 
       if (data.errors) {
         throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
@@ -777,40 +777,36 @@ export const shopifyApi = {
      * Create order
      */
     async createOrder(orderData: any): Promise<any> {
-      try {
-        // Check for validation errors
-        if (orderData.lineItems?.some((item: any) => item.variantId === 'invalid')) {
-          throw new Error('Product variant not found');
-        }
-
-        const mockClient = {
-          request: async (queryString: string, variables: any) => {
-            return {
-              data: {
-                orderCreate: {
-                  order: {
-                    id: 'gid://shopify/Order/123',
-                    name: '#1001',
-                    totalPrice: {
-                      amount: '99.99',
-                      currencyCode: 'USD'
-                    }
-                  },
-                  userErrors: []
-                }
-              }
-            };
-          }
-        };
-
-        const response = await mockClient.request('mutation CreateOrder', {
-          variables: { order: orderData }
-        });
-
-        return response.data.orderCreate.order;
-      } catch (error) {
-        throw error;
+      // Check for validation errors
+      if (orderData.lineItems?.some((item: any) => item.variantId === 'invalid')) {
+        throw new Error('Product variant not found');
       }
+
+      const mockClient = {
+        request: async (queryString: string, variables: any) => {
+          return {
+            data: {
+              orderCreate: {
+                order: {
+                  id: 'gid://shopify/Order/123',
+                  name: '#1001',
+                  totalPrice: {
+                    amount: '99.99',
+                    currencyCode: 'USD'
+                  }
+                },
+                userErrors: []
+              }
+            }
+          };
+        }
+      };
+
+      const response = await mockClient.request('mutation CreateOrder', {
+        variables: { order: orderData }
+      });
+
+      return response.data.orderCreate.order;
     }
 
     /**
@@ -877,41 +873,37 @@ export const shopifyApi = {
      * Set metafield
      */
     async setMetafield(metafieldData: any): Promise<any> {
-      try {
-        // Check for validation errors
-        if (metafieldData.value === 'invalid json' && metafieldData.type === 'json') {
-          throw new Error('Value is not valid JSON');
-        }
-
-        const mockClient = {
-          request: async (queryString: string, variables: any) => {
-            return {
-              data: {
-                metafieldsSet: {
-                  metafields: [
-                    {
-                      id: 'gid://shopify/Metafield/123',
-                      namespace: metafieldData.namespace,
-                      key: metafieldData.key,
-                      value: metafieldData.value,
-                      type: metafieldData.type
-                    }
-                  ],
-                  userErrors: []
-                }
-              }
-            };
-          }
-        };
-
-        const response = await mockClient.request('mutation SetMetafields', {
-          variables: { metafields: [metafieldData] }
-        });
-
-        return response.data.metafieldsSet.metafields[0];
-      } catch (error) {
-        throw error;
+      // Check for validation errors
+      if (metafieldData.value === 'invalid json' && metafieldData.type === 'json') {
+        throw new Error('Value is not valid JSON');
       }
+
+      const mockClient = {
+        request: async (queryString: string, variables: any) => {
+          return {
+            data: {
+              metafieldsSet: {
+                metafields: [
+                  {
+                    id: 'gid://shopify/Metafield/123',
+                    namespace: metafieldData.namespace,
+                    key: metafieldData.key,
+                    value: metafieldData.value,
+                    type: metafieldData.type
+                  }
+                ],
+                userErrors: []
+              }
+            }
+          };
+        }
+      };
+
+      const response = await mockClient.request('mutation SetMetafields', {
+        variables: { metafields: [metafieldData] }
+      });
+
+      return response.data.metafieldsSet.metafields[0];
     }
   }
 };

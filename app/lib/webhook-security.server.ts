@@ -124,7 +124,7 @@ export function withWebhookHMACVerification<T extends (...args: any[]) => any>(
 /**
  * Validate webhook topic
  */
-export function validateWebhookTopic(topic: string | null, expectedTopic: string): boolean {
+export function validateWebhookTopic(topic: string | null | undefined, expectedTopic: string): boolean {
   if (!topic) {
     log.error(`Missing webhook topic header, expected: ${expectedTopic}`);
     return false;
@@ -143,7 +143,8 @@ export function validateWebhookTopic(topic: string | null, expectedTopic: string
  */
 const webhookRateLimit = new Map<string, { count: number; resetAt: number }>();
 
-export function checkWebhookRateLimit(shop: string, maxRequests = 10, windowMs = 60000): boolean {
+export function checkWebhookRateLimit(shop: string | null | undefined, maxRequests = 10, windowMs = 60000): boolean {
+  if (!shop) return true; // Allow if no shop is provided
   const now = Date.now();
   const key = `webhook:${shop}`;
   const limit = webhookRateLimit.get(key) || { count: 0, resetAt: now + windowMs };
@@ -170,7 +171,7 @@ export function checkWebhookRateLimit(shop: string, maxRequests = 10, windowMs =
  */
 export async function logWebhookEvent(
   topic: string, 
-  shop: string, 
+  shop: string | null | undefined, 
   payload: any, 
   success: boolean, 
   error?: string | null

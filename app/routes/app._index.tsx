@@ -1,6 +1,6 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData } from "@remix-run/react";
+import { useLoaderData, useRouteError } from "@remix-run/react";
 import {
   Page,
   Layout,
@@ -11,22 +11,37 @@ import {
   InlineStack,
   Badge,
 } from "@shopify/polaris";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { authenticate } from "~/shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
 
+  // Get shop details using GraphQL (2025 standard)
+  const response = await admin.graphql(`
+    #graphql
+    query getShop {
+      shop {
+        id
+        name
+        email
+        myshopifyDomain
+        currencyCode
+        ianaTimezone
+      }
+    }
+  `);
+  
+  const shopData = await response.json();
+
   return json({
-    shop: {
-      name: session.shop.replace('.myshopify.com', ''),
-      myshopifyDomain: session.shop,
-      email: session.accessToken ? 'shop@example.com' : ''
-    },
+    shop: shopData.data.shop,
+    sessionShop: session.shop,
   });
 };
 
 export default function Index() {
-  const { shop } = useLoaderData<typeof loader>();
+  const { shop, sessionShop } = useLoaderData<typeof loader>();
 
   return (
     <Page>
@@ -42,8 +57,9 @@ export default function Index() {
                 and manage their wish lists.
               </Text>
               <InlineStack gap="200">
-                <Badge tone="success">{`Connected to ${shop.name}`}</Badge>
-                <Badge>{shop.myshopifyDomain}</Badge>
+                <Badge tone="success">{`Connected to ${shop?.name || sessionShop}`}</Badge>
+                <Badge>{shop?.myshopifyDomain || sessionShop}</Badge>
+                {shop?.currencyCode && <Badge tone="info">{shop.currencyCode}</Badge>}
               </InlineStack>
             </BlockStack>
           </Card>
@@ -77,3 +93,13 @@ export default function Index() {
     </Page>
   );
 }
+
+// 2025 Error Boundary with Shopify boundary helper
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+// Required headers for embedded apps
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};
