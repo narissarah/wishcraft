@@ -56,24 +56,13 @@ const logger = winston.createLogger({
   ],
 });
 
-// Add file transport in production
+// In production environments like Railway, we only use console logging
+// File logging is handled by the platform (Railway, Docker, etc.)
+// Railway automatically captures console output for logging
 if (!isDevelopment && !isTest) {
-  logger.add(
-    new winston.transports.File({
-      filename: 'logs/error.log',
-      level: 'error',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    })
-  );
-  
-  logger.add(
-    new winston.transports.File({
-      filename: 'logs/combined.log',
-      maxsize: 5242880, // 5MB
-      maxFiles: 5,
-    })
-  );
+  // Railway/Docker environments: console logging only
+  // Platform handles log collection and storage
+  logger.info('Production logging: Console output captured by platform');
 }
 
 // ============================================================================
