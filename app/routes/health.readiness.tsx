@@ -1,47 +1,54 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunction } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { db } from "~/lib/db.server";
 
 /**
- * Readiness Probe Endpoint
- * Checks if the application is ready to accept traffic
- * Used by load balancers and orchestrators to determine if the app should receive requests
+ * Kubernetes Readiness Probe
+ * Checks if the application is ready to receive traffic
+ * Validates critical dependencies like database and environment
  */
-export async function loader({ request }: LoaderFunctionArgs) {
+export const loader: LoaderFunction = async () => {
+  const checks = {
+    database: false,
+    environment: false,
+    shopify: false,
+  };
+  
+  // Check database connectivity
   try {
-    // Quick database connectivity check
     await db.$queryRaw`SELECT 1`;
-    
-    // Check if critical environment variables are set
-    const criticalEnvVars = [
-      'DATABASE_URL',
-      'SHOPIFY_API_KEY',
-      'SHOPIFY_API_SECRET',
-      'SESSION_SECRET'
-    ];
-    
-    const missingVars = criticalEnvVars.filter(v => !process.env[v]);
-    
-    if (missingVars.length > 0) {
-      throw new Error(`Missing critical environment variables: ${missingVars.join(', ')}`);
-    }
-    
-    return new Response("READY", {
-      status: 200,
-      headers: {
-        "Content-Type": "text/plain",
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-      },
-    });
+    checks.database = true;
   } catch (error) {
-    // Service is not ready
-    console.error("Readiness check failed:", error);
-    
-    return new Response("NOT READY", {
-      status: 503,
+    console.error("Database readiness check failed:", error);
+  }
+  
+  // Check critical environment variables
+  checks.environment = !!(
+    process.env.DATABASE_URL &&
+    process.env.SHOPIFY_API_KEY &&
+    process.env.SHOPIFY_API_SECRET &&
+    process.env.SHOPIFY_APP_URL
+  );
+  
+  // Check Shopify configuration
+  checks.shopify = !!(
+    process.env.SHOPIFY_SCOPES &&
+    process.env.SESSION_SECRET
+  );
+  
+  const isReady = Object.values(checks).every(Boolean);
+  
+  return json(
+    {
+      status: isReady ? "ready" : "not ready",
+      timestamp: new Date().toISOString(),
+      checks,
+    },
+    {
+      status: isReady ? 200 : 503,
       headers: {
-        "Content-Type": "text/plain",
         "Cache-Control": "no-cache, no-store, must-revalidate",
       },
-    });
-  }
-}
+    }
+  );
+};

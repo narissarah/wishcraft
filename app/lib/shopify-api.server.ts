@@ -1,5 +1,7 @@
 import { authenticate } from "~/shopify.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
+import { shopifyRetry } from "./retry.server";
+import { ShopifyErrorHandler, withErrorHandling } from "./shopify-error-handler.server";
 
 // ============================================================================
 // SHOPIFY GRAPHQL QUERIES & MUTATIONS
@@ -249,6 +251,119 @@ export const UPDATE_METAFIELD_MUTATION = `#graphql
   }
 `;
 
+// 3DS Authentication Support (2025-01 API requirement)
+export const VERIFICATION_SESSION_REDIRECT_MUTATION = `#graphql
+  mutation VerificationSessionRedirect($id: ID!, $redirectUrl: String!) {
+    verificationSessionRedirect(id: $id, redirectUrl: $redirectUrl) {
+      verificationSession {
+        id
+        status
+        nextAction {
+          action
+          context
+        }
+      }
+      userErrors {
+        field
+        message
+        code
+      }
+    }
+  }
+`;
+
+export const VERIFICATION_SESSION_RESOLVE_MUTATION = `#graphql
+  mutation VerificationSessionResolve($id: ID!, $authentication: String!) {
+    verificationSessionResolve(id: $id, authentication: $authentication) {
+      verificationSession {
+        id
+        status
+        nextAction {
+          action
+          context
+        }
+      }
+      userErrors {
+        field
+        message
+        code
+      }
+    }
+  }
+`;
+
+export const VERIFICATION_SESSION_REJECT_MUTATION = `#graphql
+  mutation VerificationSessionReject($id: ID!, $authentication: String!) {
+    verificationSessionReject(id: $id, authentication: $authentication) {
+      verificationSession {
+        id
+        status
+      }
+      userErrors {
+        field
+        message
+        code
+      }
+    }
+  }
+`;
+
+// Bulk Operations for improved performance (2025 best practice)
+export const BULK_OPERATION_RUN_QUERY = `#graphql
+  mutation BulkOperationRunQuery($query: String!) {
+    bulkOperationRunQuery(query: $query) {
+      bulkOperation {
+        id
+        status
+        errorCode
+        createdAt
+        completedAt
+        objectCount
+        fileSize
+        url
+        partialDataUrl
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const BULK_OPERATION_STATUS_QUERY = `#graphql
+  query BulkOperationStatus($id: ID!) {
+    node(id: $id) {
+      ... on BulkOperation {
+        id
+        status
+        errorCode
+        createdAt
+        completedAt
+        objectCount
+        fileSize
+        url
+        partialDataUrl
+      }
+    }
+  }
+`;
+
+export const BULK_OPERATION_CANCEL_MUTATION = `#graphql
+  mutation BulkOperationCancel($id: ID!) {
+    bulkOperationCancel(id: $id) {
+      bulkOperation {
+        id
+        status
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 // ============================================================================
 // SHOPIFY API SERVICE FUNCTIONS
 // ============================================================================
@@ -342,8 +457,10 @@ export class ShopifyAPIService {
     const { first = 50, after, query, sortKey = "CREATED_AT" } = options;
 
     try {
-      const response = await this.admin.graphql(PRODUCTS_QUERY, {
-        variables: { first, after, query, sortKey }
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(PRODUCTS_QUERY, {
+          variables: { first, after, query, sortKey }
+        });
       });
 
       const data = await response.json() as any;
@@ -369,8 +486,10 @@ export class ShopifyAPIService {
    */
   async getProduct(productId: string): Promise<ShopifyProduct | null> {
     try {
-      const response = await this.admin.graphql(PRODUCT_BY_ID_QUERY, {
-        variables: { id: productId }
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(PRODUCT_BY_ID_QUERY, {
+          variables: { id: productId }
+        });
       });
 
       const data = await response.json() as any;
@@ -455,8 +574,10 @@ export class ShopifyAPIService {
         }
       `;
 
-      const variantResponse = await this.admin.graphql(variantQuery, {
-        variables: { ids: variantIds }
+      const variantResponse = await shopifyRetry(async () => {
+        return await this.admin.graphql(variantQuery, {
+          variables: { ids: variantIds }
+        });
       });
 
       const variantData = await variantResponse.json() as any;
@@ -474,8 +595,10 @@ export class ShopifyAPIService {
       }
 
       // Get inventory levels
-      const inventoryResponse = await this.admin.graphql(INVENTORY_LEVELS_QUERY, {
-        variables: { inventoryItemIds }
+      const inventoryResponse = await shopifyRetry(async () => {
+        return await this.admin.graphql(INVENTORY_LEVELS_QUERY, {
+          variables: { inventoryItemIds }
+        });
       });
 
       const inventoryData = await inventoryResponse.json() as any;
@@ -523,8 +646,10 @@ export class ShopifyAPIService {
         type
       };
 
-      const response = await this.admin.graphql(CREATE_METAFIELD_MUTATION, {
-        variables: { metafield }
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(CREATE_METAFIELD_MUTATION, {
+          variables: { metafield }
+        });
       });
 
       const data = await response.json() as any;
@@ -541,6 +666,147 @@ export class ShopifyAPIService {
     } catch (error) {
       console.error("Error setting metafield:", error);
       return false;
+    }
+  }
+
+  /**
+   * Handle 3DS authentication redirect (2025-01 API requirement)
+   */
+  async handle3DSRedirect(verificationSessionId: string, redirectUrl: string): Promise<{
+    success: boolean;
+    nextAction?: {
+      action: string;
+      context: any;
+    };
+    error?: string;
+  }> {
+    try {
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(VERIFICATION_SESSION_REDIRECT_MUTATION, {
+          variables: { 
+            id: verificationSessionId, 
+            redirectUrl 
+          }
+        });
+      });
+
+      const data = await response.json() as any;
+
+      if (data.errors) {
+        throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
+      }
+
+      if (data.data.verificationSessionRedirect.userErrors.length > 0) {
+        const error = data.data.verificationSessionRedirect.userErrors[0];
+        return {
+          success: false,
+          error: `${error.field}: ${error.message}`
+        };
+      }
+
+      const verificationSession = data.data.verificationSessionRedirect.verificationSession;
+      return {
+        success: true,
+        nextAction: verificationSession.nextAction
+      };
+    } catch (error) {
+      console.error("Error handling 3DS redirect:", error);
+      return {
+        success: false,
+        error: "Failed to process 3DS authentication"
+      };
+    }
+  }
+
+  /**
+   * Resolve 3DS authentication challenge
+   */
+  async resolve3DSChallenge(verificationSessionId: string, authenticationResult: string): Promise<{
+    success: boolean;
+    status?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(VERIFICATION_SESSION_RESOLVE_MUTATION, {
+          variables: { 
+            id: verificationSessionId, 
+            authentication: authenticationResult 
+          }
+        });
+      });
+
+      const data = await response.json() as any;
+
+      if (data.errors) {
+        throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
+      }
+
+      if (data.data.verificationSessionResolve.userErrors.length > 0) {
+        const error = data.data.verificationSessionResolve.userErrors[0];
+        return {
+          success: false,
+          error: `${error.field}: ${error.message}`
+        };
+      }
+
+      const verificationSession = data.data.verificationSessionResolve.verificationSession;
+      return {
+        success: true,
+        status: verificationSession.status
+      };
+    } catch (error) {
+      console.error("Error resolving 3DS challenge:", error);
+      return {
+        success: false,
+        error: "Failed to resolve 3DS authentication"
+      };
+    }
+  }
+
+  /**
+   * Reject 3DS authentication challenge
+   */
+  async reject3DSChallenge(verificationSessionId: string, authenticationResult: string): Promise<{
+    success: boolean;
+    status?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(VERIFICATION_SESSION_REJECT_MUTATION, {
+          variables: { 
+            id: verificationSessionId, 
+            authentication: authenticationResult 
+          }
+        });
+      });
+
+      const data = await response.json() as any;
+
+      if (data.errors) {
+        throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
+      }
+
+      if (data.data.verificationSessionReject.userErrors.length > 0) {
+        const error = data.data.verificationSessionReject.userErrors[0];
+        return {
+          success: false,
+          error: `${error.field}: ${error.message}`
+        };
+      }
+
+      const verificationSession = data.data.verificationSessionReject.verificationSession;
+      return {
+        success: true,
+        status: verificationSession.status
+      };
+    } catch (error) {
+      console.error("Error rejecting 3DS challenge:", error);
+      return {
+        success: false,
+        error: "Failed to reject 3DS authentication"
+      };
     }
   }
 
@@ -610,6 +876,201 @@ export class ShopifyAPIService {
         type: edge.node.type
       })) || []
     };
+  }
+
+  /**
+   * Start a bulk operation for large data processing
+   */
+  async startBulkOperation(query: string): Promise<{
+    success: boolean;
+    operationId?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(BULK_OPERATION_RUN_QUERY, {
+          variables: { query }
+        });
+      });
+
+      const data = await response.json() as any;
+
+      if (data.errors) {
+        throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
+      }
+
+      if (data.data.bulkOperationRunQuery.userErrors.length > 0) {
+        const error = data.data.bulkOperationRunQuery.userErrors[0];
+        return {
+          success: false,
+          error: `${error.field}: ${error.message}`
+        };
+      }
+
+      const bulkOperation = data.data.bulkOperationRunQuery.bulkOperation;
+      return {
+        success: true,
+        operationId: bulkOperation.id
+      };
+    } catch (error) {
+      console.error("Error starting bulk operation:", error);
+      return {
+        success: false,
+        error: "Failed to start bulk operation"
+      };
+    }
+  }
+
+  /**
+   * Check the status of a bulk operation
+   */
+  async getBulkOperationStatus(operationId: string): Promise<{
+    success: boolean;
+    status?: 'CREATED' | 'RUNNING' | 'COMPLETED' | 'CANCELING' | 'CANCELED' | 'FAILED' | 'EXPIRED';
+    objectCount?: number;
+    url?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(BULK_OPERATION_STATUS_QUERY, {
+          variables: { id: operationId }
+        });
+      });
+
+      const data = await response.json() as any;
+
+      if (data.errors) {
+        throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
+      }
+
+      const bulkOperation = data.data.node;
+      if (!bulkOperation) {
+        return {
+          success: false,
+          error: "Bulk operation not found"
+        };
+      }
+
+      return {
+        success: true,
+        status: bulkOperation.status,
+        objectCount: bulkOperation.objectCount,
+        url: bulkOperation.url
+      };
+    } catch (error) {
+      console.error("Error checking bulk operation status:", error);
+      return {
+        success: false,
+        error: "Failed to check bulk operation status"
+      };
+    }
+  }
+
+  /**
+   * Cancel a running bulk operation
+   */
+  async cancelBulkOperation(operationId: string): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    try {
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(BULK_OPERATION_CANCEL_MUTATION, {
+          variables: { id: operationId }
+        });
+      });
+
+      const data = await response.json() as any;
+
+      if (data.errors) {
+        throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
+      }
+
+      if (data.data.bulkOperationCancel.userErrors.length > 0) {
+        const error = data.data.bulkOperationCancel.userErrors[0];
+        return {
+          success: false,
+          error: `${error.field}: ${error.message}`
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error canceling bulk operation:", error);
+      return {
+        success: false,
+        error: "Failed to cancel bulk operation"
+      };
+    }
+  }
+
+  /**
+   * Bulk update inventory levels for multiple products
+   */
+  async bulkUpdateInventory(updates: Array<{
+    inventoryItemId: string;
+    locationId: string;
+    available: number;
+  }>): Promise<{
+    success: boolean;
+    error?: string;
+  }> {
+    // Generate bulk query for inventory updates
+    const mutations = updates.map((update, index) => `
+      mutation${index}: inventoryAdjustQuantity(input: {
+        inventoryItemId: "${update.inventoryItemId}"
+        locationId: "${update.locationId}"
+        availableDelta: ${update.available}
+      }) {
+        inventoryLevel {
+          id
+          available
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    `).join('\n');
+
+    const bulkQuery = `
+      mutation BulkInventoryUpdate {
+        ${mutations}
+      }
+    `;
+
+    try {
+      const response = await shopifyRetry(async () => {
+        return await this.admin.graphql(bulkQuery);
+      });
+
+      const data = await response.json() as any;
+
+      if (data.errors) {
+        throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);
+      }
+
+      // Check for any user errors in the mutations
+      const hasErrors = Object.values(data.data).some((mutation: any) => 
+        mutation.userErrors && mutation.userErrors.length > 0
+      );
+
+      if (hasErrors) {
+        return {
+          success: false,
+          error: "Some inventory updates failed"
+        };
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error("Error bulk updating inventory:", error);
+      return {
+        success: false,
+        error: "Failed to bulk update inventory"
+      };
+    }
   }
 }
 

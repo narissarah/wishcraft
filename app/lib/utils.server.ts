@@ -1,6 +1,7 @@
 /**
  * Server-side utility functions
  */
+import bcrypt from 'bcrypt';
 
 export function generateSlug(text: string): string {
   return text
@@ -9,13 +10,14 @@ export function generateSlug(text: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-export function hashPassword(password: string): string {
-  // Simple hash - in production, use bcrypt or similar
-  return Buffer.from(password).toString('base64');
+const SALT_ROUNDS = 10;
+
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, SALT_ROUNDS);
 }
 
-export function validatePassword(password: string, hash: string): boolean {
-  return hashPassword(password) === hash;
+export async function validatePassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 export function sanitizeInput(input: string): string {

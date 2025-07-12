@@ -26,6 +26,7 @@ model Session {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  @@index([shop, userId])
   @@map("sessions")
 }
 
@@ -109,6 +110,8 @@ model Registry {
   @@index([shopId])
   @@index([customerId])
   @@index([status])
+  @@index([shopId, status])
+  @@index([customerId, eventDate])
   @@map("registries")
 }
 
@@ -146,6 +149,8 @@ model RegistryItem {
   @@index([registryId])
   @@index([productId])
   @@index([status])
+  @@index([registryId, status])
+  @@index([productId, inventoryTracked])
   @@map("registry_items")
 }
 
@@ -180,6 +185,7 @@ model RegistryPurchase {
   @@index([registryId])
   @@index([orderId])
   @@index([status])
+  @@index([registryId, status])
   @@map("registry_purchases")
 }
 
@@ -208,6 +214,7 @@ model AuditLog {
   @@index([shopId])
   @@index([action])
   @@index([timestamp])
+  @@index([shopId, timestamp])
   @@map("audit_logs")
 }
 
@@ -236,5 +243,6 @@ model SystemJob {
   @@index([status])
   @@index([type])
   @@index([runAt])
+  @@index([status, priority, runAt])
   @@map("system_jobs")
 }

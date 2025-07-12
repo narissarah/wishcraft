@@ -17,12 +17,18 @@ app.set('trust proxy', true);
 // REMOVED: HTTPS redirection handled by Shopify CLI
 
 // Security middleware - Built for Shopify requirements
+// Generate a nonce for each request for CSP
+app.use((req, res, next) => {
+  res.locals.cspNonce = require('crypto').randomBytes(16).toString('base64');
+  next();
+});
+
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://cdn.shopify.com"],
+      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`, "https://cdn.shopify.com"],
+      styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`, "https://cdn.shopify.com"],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'", "https://*.shopify.com", "wss://*.shopify.com"],
       fontSrc: ["'self'", "https://cdn.shopify.com"],

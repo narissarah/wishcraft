@@ -1,16 +1,14 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunction } from "@remix-run/node";
+import { json } from "@remix-run/node";
 
 /**
- * Liveness Probe Endpoint
- * Simple endpoint that returns 200 OK if the application is running
- * Used by Kubernetes/container orchestrators to check if the app is alive
+ * Kubernetes Liveness Probe
+ * Returns 200 OK if the application is running
+ * This endpoint should be lightweight and fast
  */
-export async function loader({ request }: LoaderFunctionArgs) {
-  return new Response("OK", {
-    status: 200,
-    headers: {
-      "Content-Type": "text/plain",
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-    },
+export const loader: LoaderFunction = async () => {
+  return json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
   });
-}
+};
