@@ -14,6 +14,8 @@ async function startServer() {
 // Trust proxy for Railway deployments
 app.set('trust proxy', true);
 
+// REMOVED: HTTPS redirection handled by Shopify CLI
+
 // Security middleware - Built for Shopify requirements
 app.use(helmet({
   contentSecurityPolicy: {

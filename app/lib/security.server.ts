@@ -105,7 +105,7 @@ export const securityConfig = {
   cors: {
     origin: process.env.NODE_ENV === "production"
       ? ["https://admin.shopify.com", /^https:\/\/.*\.myshopify\.com$/]
-      : ["http://localhost:3000"],
+      : ["https://localhost:3000"],
     credentials: true,
     optionsSuccessStatus: 200,
   },

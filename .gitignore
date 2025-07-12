@@ -78,3 +78,9 @@ coverage/
 # Local development
 .claude/
 CLAUDE.local.md
+# SSL Certificates
+certs/
+*.pem
+*.key
+*.crt
+*.p12
