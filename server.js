@@ -27,7 +27,13 @@ app.use(helmet({
       connectSrc: ["'self'", "https://*.shopify.com", "wss://*.shopify.com"],
       fontSrc: ["'self'", "https://cdn.shopify.com"],
       frameSrc: ["'self'", "https://*.shopify.com"],
-      frameAncestors: ["https://*.myshopify.com", "https://admin.shopify.com"]
+      // Allow both HTTP and HTTPS for local development
+      frameAncestors: [
+        "https://*.myshopify.com", 
+        "https://admin.shopify.com",
+        "http://localhost:*", // Allow HTTP localhost for development
+        "https://localhost:*" // Allow HTTPS localhost for development
+      ]
     }
   },
   crossOriginEmbedderPolicy: false, // Required for Shopify embedded apps

@@ -46,13 +46,20 @@ export function getSecurityHeaders(request: Request, nonce?: string): HeadersIni
   
   // For Shopify embedded apps, we need dynamic frame-ancestors
   // CRITICAL: frame-ancestors must be set dynamically per shop (2025 requirement)
-  const frameAncestors = shop && shop !== 'admin.shopify.com' 
-    ? `frame-ancestors https://${shop} https://admin.shopify.com`
-    : `frame-ancestors https://admin.shopify.com`;
+  // In development, allow both HTTP and HTTPS for localhost
+  let frameAncestors = '';
+  if (isDevelopment) {
+    // Don't set frame-ancestors in development - let server.js helmet handle it
+    // This avoids conflicts with the CSP header set by helmet
+  } else {
+    frameAncestors = shop && shop !== 'admin.shopify.com' 
+      ? `frame-ancestors https://${shop} https://admin.shopify.com`
+      : `frame-ancestors https://admin.shopify.com`;
+  }
   
   const headers: HeadersInit = {
-    // REQUIRED for Shopify embedded apps (2025)
-    "Content-Security-Policy": frameAncestors,
+    // REQUIRED for Shopify embedded apps (2025) - only in production
+    ...(frameAncestors ? { "Content-Security-Policy": frameAncestors } : {}),
     // Security headers - adjusted for Shopify embedded apps
     "X-Content-Type-Options": "nosniff",
     "X-Permitted-Cross-Domain-Policies": "none",
