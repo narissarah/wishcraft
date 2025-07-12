@@ -464,6 +464,11 @@ export class ShopifyAPIService {
       });
 
       const data = await response.json() as any;
+      
+      // Log GraphQL cost for monitoring
+      if (data.extensions?.cost) {
+        console.log(`GraphQL Query Cost: ${data.extensions.cost.actualQueryCost}/${data.extensions.cost.throttleStatus.maximumAvailable}`);
+      }
 
       if (data.errors) {
         throw new Error(`GraphQL Error: ${JSON.stringify(data.errors)}`);

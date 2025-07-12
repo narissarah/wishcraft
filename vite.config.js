@@ -39,12 +39,37 @@ export default defineConfig({
     // Optimize bundle splitting
     rollupOptions: {
       output: {
-        // Manual chunks for better caching
-        manualChunks: {
-          // Vendor chunks
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-shopify': ['@shopify/polaris', '@shopify/app-bridge', '@shopify/app-bridge-react'],
-          'vendor-utils': ['lru-cache'],
+        // Optimized manual chunks for <300KB target
+        manualChunks: (id) => {
+          // Separate Polaris CSS to reduce main bundle
+          if (id.includes('@shopify/polaris') && id.includes('.css')) {
+            return 'polaris-styles';
+          }
+          
+          // Core React chunk
+          if (['react', 'react-dom'].some(pkg => id.includes(pkg))) {
+            return 'vendor-react';
+          }
+          
+          // Shopify core (without CSS)
+          if (id.includes('@shopify/app-bridge') || id.includes('@shopify/shopify-app-remix')) {
+            return 'vendor-shopify-core';
+          }
+          
+          // Polaris components (separate from CSS)
+          if (id.includes('@shopify/polaris') && !id.includes('.css')) {
+            return 'vendor-polaris';
+          }
+          
+          // Utilities and smaller dependencies
+          if (['lru-cache', 'date-fns', 'zod'].some(pkg => id.includes(pkg))) {
+            return 'vendor-utils';
+          }
+          
+          // Large external libraries
+          if (id.includes('node_modules')) {
+            return 'vendor-external';
+          }
         },
         
         // Optimize chunk file names for caching

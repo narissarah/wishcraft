@@ -62,6 +62,35 @@ export async function verifyWebhookRequest(request: Request): Promise<{
   const hmacHeader = request.headers.get("X-Shopify-Hmac-Sha256");
   const topicHeader = request.headers.get("X-Shopify-Topic");
   const shopHeader = request.headers.get("X-Shopify-Shop-Domain");
+  const timestampHeader = request.headers.get("X-Shopify-Webhook-Timestamp");
+  const apiVersionHeader = request.headers.get("X-Shopify-API-Version");
+  
+  // Validate required headers
+  const requiredHeaders = ["X-Shopify-Hmac-Sha256", "X-Shopify-Topic", "X-Shopify-Shop-Domain"];
+  for (const header of requiredHeaders) {
+    if (!request.headers.get(header)) {
+      log.error(`Missing required webhook header: ${header}`);
+      return { isValid: false, payload: "" };
+    }
+  }
+  
+  // Validate API version
+  if (apiVersionHeader && apiVersionHeader !== "2025-01") {
+    log.error(`Invalid API version: ${apiVersionHeader}, expected: 2025-01`);
+    return { isValid: false, payload: "" };
+  }
+  
+  // Validate timestamp to prevent replay attacks
+  if (timestampHeader) {
+    const timestamp = parseInt(timestampHeader, 10);
+    const age = Date.now() - (timestamp * 1000);
+    const maxAge = 5 * 60 * 1000; // 5 minutes
+    
+    if (age > maxAge) {
+      log.error(`Webhook timestamp too old: ${age}ms (max: ${maxAge}ms)`);
+      return { isValid: false, payload: "" };
+    }
+  }
   
   const payload = await request.text();
   

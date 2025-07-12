@@ -33,13 +33,10 @@ app.use(helmet({
       connectSrc: ["'self'", "https://*.shopify.com", "wss://*.shopify.com"],
       fontSrc: ["'self'", "https://cdn.shopify.com"],
       frameSrc: ["'self'", "https://*.shopify.com"],
-      // Allow both HTTP and HTTPS for local development
-      frameAncestors: [
-        "https://*.myshopify.com", 
-        "https://admin.shopify.com",
-        "http://localhost:*", // Allow HTTP localhost for development
-        "https://localhost:*" // Allow HTTPS localhost for development
-      ]
+      // Production-aware frame ancestors
+      frameAncestors: process.env.NODE_ENV === 'production' 
+        ? ["https://*.myshopify.com", "https://admin.shopify.com"]
+        : ["https://*.myshopify.com", "https://admin.shopify.com", "http://localhost:*", "https://localhost:*"]
     }
   },
   crossOriginEmbedderPolicy: false, // Required for Shopify embedded apps
