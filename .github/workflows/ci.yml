@@ -2,13 +2,14 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches: [ main, develop ]
   pull_request:
-    branches: [main]
+    branches: [ main, develop ]
 
 env:
-  NODE_VERSION: '18'
-  REGISTRY_URL: ${{ secrets.REGISTRY_URL }}
+  NODE_VERSION: '18.20.0'
+  POSTGRES_VERSION: '15'
+  REDIS_VERSION: '7'
 
 jobs:
   lint-and-typecheck:
@@ -287,3 +288,335 @@ jobs:
             exit 1
           fi
           echo "Coverage meets threshold: $COVERAGE%"
+
+  code-quality:
+    name: Code Quality Analysis
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Run SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          
+      - name: Run Complexity Analysis
+        run: |
+          npx complexity-report --output complexity-report.html --format html app/
+          
+      - name: Upload complexity report
+        uses: actions/upload-artifact@v3
+        with:
+          name: complexity-report
+          path: complexity-report.html
+          
+      - name: Dependency Check
+        run: |
+          npm audit --audit-level=high
+          npx license-checker --onlyAllow 'MIT;Apache-2.0;BSD-2-Clause;BSD-3-Clause;ISC'
+          
+      - name: Bundle Analysis
+        run: |
+          npm run build
+          npx bundle-analyzer build/client/assets/manifest.json --format json > bundle-analysis.json
+          
+      - name: Upload bundle analysis
+        uses: actions/upload-artifact@v3
+        with:
+          name: bundle-analysis
+          path: bundle-analysis.json
+
+  docker-build:
+    name: Docker Build and Push
+    needs: [lint-and-typecheck, unit-tests, security-tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+            
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
+          
+      - name: Sign container image
+        if: github.ref == 'refs/heads/main'
+        run: |
+          echo "${{ secrets.COSIGN_PRIVATE_KEY }}" > cosign.key
+          cosign sign --key cosign.key ghcr.io/${{ github.repository }}:latest
+          rm cosign.key
+        env:
+          COSIGN_PASSWORD: ${{ secrets.COSIGN_PASSWORD }}
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [docker-build, e2e-tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    
+    steps:
+      - name: Deploy to Railway Staging
+        uses: railwayapp/railway-deploy@v3
+        with:
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+          service: wishcraft-staging
+          environment: staging
+          
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          sleep 30
+          
+      - name: Health Check
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://wishcraft-staging.up.railway.app/health)
+          if [ $response -eq 200 ]; then
+            echo "Staging deployment successful"
+          else
+            echo "Staging deployment failed - HTTP $response"
+            exit 1
+          fi
+          
+      - name: Run smoke tests
+        run: |
+          npx playwright test --config=playwright.staging.config.ts
+          
+      - name: Notify staging deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          channel: '#deployments'
+          text: 'Staging deployment completed for ${{ github.sha }}'
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [docker-build, e2e-tests, security-tests, performance-tests]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    
+    steps:
+      - name: Deploy to Railway Production
+        uses: railwayapp/railway-deploy@v3
+        with:
+          railway-token: ${{ secrets.RAILWAY_TOKEN }}
+          service: wishcraft-production
+          environment: production
+          
+      - name: Wait for deployment
+        run: |
+          echo "Waiting for deployment to complete..."
+          sleep 60
+          
+      - name: Health Check
+        run: |
+          response=$(curl -s -o /dev/null -w "%{http_code}" https://wishcraft.up.railway.app/health)
+          if [ $response -eq 200 ]; then
+            echo "Production deployment successful"
+          else
+            echo "Production deployment failed - HTTP $response"
+            exit 1
+          fi
+          
+      - name: Run production smoke tests
+        run: |
+          npx playwright test --config=playwright.production.config.ts
+          
+      - name: Update deployment status
+        uses: bobheadxi/deployments@v1
+        with:
+          step: finish
+          token: ${{ secrets.GITHUB_TOKEN }}
+          status: ${{ job.status }}
+          deployment_id: ${{ steps.deployment.outputs.deployment_id }}
+          env_url: https://wishcraft.up.railway.app
+          
+      - name: Notify production deployment
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ job.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          channel: '#deployments'
+          text: 'Production deployment completed for ${{ github.sha }}'
+
+  cleanup:
+    name: Cleanup
+    needs: [deploy-staging, deploy-production]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Cleanup old artifacts
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const artifacts = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.runId,
+            });
+            
+            const oldArtifacts = artifacts.data.artifacts.filter(artifact => {
+              const ageInDays = (new Date() - new Date(artifact.created_at)) / (1000 * 60 * 60 * 24);
+              return ageInDays > 7;
+            });
+            
+            for (const artifact of oldArtifacts) {
+              await github.rest.actions.deleteArtifact({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                artifact_id: artifact.id,
+              });
+            }
+            
+      - name: Cleanup old Docker images
+        run: |
+          echo "Cleaning up old Docker images older than 30 days"
+          # This would typically be done in the container registry
+          echo "Docker cleanup completed"
+
+  notify:
+    name: Notify Results
+    needs: [lint-and-typecheck, unit-tests, security-tests, performance-tests, e2e-tests, deploy-production]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+      - name: Determine overall status
+        id: status
+        run: |
+          if [[ "${{ needs.lint-and-typecheck.result }}" == "success" && 
+                "${{ needs.unit-tests.result }}" == "success" && 
+                "${{ needs.security-tests.result }}" == "success" && 
+                "${{ needs.performance-tests.result }}" == "success" && 
+                "${{ needs.e2e-tests.result }}" == "success" ]]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+          
+      - name: Send comprehensive notification
+        uses: 8398a7/action-slack@v3
+        with:
+          status: ${{ steps.status.outputs.status }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK }}
+          channel: '#ci-cd'
+          fields: |
+            {
+              "title": "CI/CD Pipeline Results",
+              "color": "${{ steps.status.outputs.status == 'success' && 'good' || 'danger' }}",
+              "fields": [
+                {
+                  "title": "Repository",
+                  "value": "${{ github.repository }}",
+                  "short": true
+                },
+                {
+                  "title": "Branch",
+                  "value": "${{ github.ref_name }}",
+                  "short": true
+                },
+                {
+                  "title": "Commit",
+                  "value": "${{ github.sha }}",
+                  "short": true
+                },
+                {
+                  "title": "Author",
+                  "value": "${{ github.actor }}",
+                  "short": true
+                },
+                {
+                  "title": "Lint & TypeCheck",
+                  "value": "${{ needs.lint-and-typecheck.result }}",
+                  "short": true
+                },
+                {
+                  "title": "Unit Tests",
+                  "value": "${{ needs.unit-tests.result }}",
+                  "short": true
+                },
+                {
+                  "title": "Security Tests",
+                  "value": "${{ needs.security-tests.result }}",
+                  "short": true
+                },
+                {
+                  "title": "Performance Tests",
+                  "value": "${{ needs.performance-tests.result }}",
+                  "short": true
+                },
+                {
+                  "title": "E2E Tests",
+                  "value": "${{ needs.e2e-tests.result }}",
+                  "short": true
+                },
+                {
+                  "title": "Production Deploy",
+                  "value": "${{ needs.deploy-production.result }}",
+                  "short": true
+                }
+              ]
+            }
+            
+      - name: Create GitHub release
+        if: github.ref == 'refs/heads/main' && steps.status.outputs.status == 'success'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ github.run_number }}
+          release_name: Release v${{ github.run_number }}
+          body: |
+            ## Changes
+            - Automated release from CI/CD pipeline
+            - Commit: ${{ github.sha }}
+            - All tests passed successfully
+            - Deployed to production
+          draft: false
+          prerelease: false

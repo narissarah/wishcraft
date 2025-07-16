@@ -2,6 +2,7 @@ import { authenticate } from "~/shopify.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { shopifyRetry } from "./retry.server";
 import { ShopifyErrorHandler, withErrorHandling } from "./shopify-error-handler.server";
+import { log } from "~/lib/logger.server";
 
 // ============================================================================
 // SHOPIFY GRAPHQL QUERIES & MUTATIONS
@@ -251,7 +252,7 @@ export const UPDATE_METAFIELD_MUTATION = `#graphql
   }
 `;
 
-// 3DS Authentication Support (2025-01 API requirement)
+// 3DS Authentication Support (2025-07 API requirement)
 export const VERIFICATION_SESSION_REDIRECT_MUTATION = `#graphql
   mutation VerificationSessionRedirect($id: ID!, $redirectUrl: String!) {
     verificationSessionRedirect(id: $id, redirectUrl: $redirectUrl) {
@@ -467,7 +468,7 @@ export class ShopifyAPIService {
       
       // Log GraphQL cost for monitoring
       if (data.extensions?.cost) {
-        console.log(`GraphQL Query Cost: ${data.extensions.cost.actualQueryCost}/${data.extensions.cost.throttleStatus.maximumAvailable}`);
+        log.info(`GraphQL Query Cost: ${data.extensions.cost.actualQueryCost}/${data.extensions.cost.throttleStatus.maximumAvailable}`);
       }
 
       if (data.errors) {
@@ -481,7 +482,7 @@ export class ShopifyAPIService {
         pageInfo: data.data.products.pageInfo
       };
     } catch (error) {
-      console.error("Error fetching products:", error);
+      log.error("Error fetching products", error as Error);
       throw new Error("Failed to fetch products from Shopify");
     }
   }
@@ -509,7 +510,7 @@ export class ShopifyAPIService {
 
       return this.formatProduct(data.data.product);
     } catch (error) {
-      console.error("Error fetching product:", error);
+      log.error("Error fetching product", error as Error);
       throw new Error("Failed to fetch product from Shopify");
     }
   }
@@ -633,7 +634,7 @@ export class ShopifyAPIService {
 
       return inventoryMap;
     } catch (error) {
-      console.error("Error fetching inventory levels:", error);
+      log.error("Error fetching inventory levels", error as Error);
       return {};
     }
   }
@@ -669,13 +670,13 @@ export class ShopifyAPIService {
 
       return true;
     } catch (error) {
-      console.error("Error setting metafield:", error);
+      log.error("Error setting metafield", error as Error);
       return false;
     }
   }
 
   /**
-   * Handle 3DS authentication redirect (2025-01 API requirement)
+   * Handle 3DS authentication redirect (2025-07 API requirement)
    */
   async handle3DSRedirect(verificationSessionId: string, redirectUrl: string): Promise<{
     success: boolean;
@@ -715,7 +716,7 @@ export class ShopifyAPIService {
         nextAction: verificationSession.nextAction
       };
     } catch (error) {
-      console.error("Error handling 3DS redirect:", error);
+      log.error("Error handling 3DS redirect", error as Error);
       return {
         success: false,
         error: "Failed to process 3DS authentication"
@@ -761,7 +762,7 @@ export class ShopifyAPIService {
         status: verificationSession.status
       };
     } catch (error) {
-      console.error("Error resolving 3DS challenge:", error);
+      log.error("Error resolving 3DS challenge", error as Error);
       return {
         success: false,
         error: "Failed to resolve 3DS authentication"
@@ -807,7 +808,7 @@ export class ShopifyAPIService {
         status: verificationSession.status
       };
     } catch (error) {
-      console.error("Error rejecting 3DS challenge:", error);
+      log.error("Error rejecting 3DS challenge", error as Error);
       return {
         success: false,
         error: "Failed to reject 3DS authentication"
@@ -918,7 +919,7 @@ export class ShopifyAPIService {
         operationId: bulkOperation.id
       };
     } catch (error) {
-      console.error("Error starting bulk operation:", error);
+      log.error("Error starting bulk operation", error as Error);
       return {
         success: false,
         error: "Failed to start bulk operation"
@@ -964,7 +965,7 @@ export class ShopifyAPIService {
         url: bulkOperation.url
       };
     } catch (error) {
-      console.error("Error checking bulk operation status:", error);
+      log.error("Error checking bulk operation status", error as Error);
       return {
         success: false,
         error: "Failed to check bulk operation status"
@@ -1002,7 +1003,7 @@ export class ShopifyAPIService {
 
       return { success: true };
     } catch (error) {
-      console.error("Error canceling bulk operation:", error);
+      log.error("Error canceling bulk operation", error as Error);
       return {
         success: false,
         error: "Failed to cancel bulk operation"
@@ -1070,7 +1071,7 @@ export class ShopifyAPIService {
 
       return { success: true };
     } catch (error) {
-      console.error("Error bulk updating inventory:", error);
+      log.error("Error bulk updating inventory", error as Error);
       return {
         success: false,
         error: "Failed to bulk update inventory"
@@ -1091,16 +1092,8 @@ export async function createShopifyAPI(request: Request): Promise<ShopifyAPIServ
   return new ShopifyAPIService(admin);
 }
 
-/**
- * Format price for display
- */
-export function formatPrice(amount: string, currencyCode: string): string {
-  const price = parseFloat(amount);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currencyCode
-  }).format(price);
-}
+// REMOVED: formatPrice function - use formatPrice from utils.ts instead
+// This eliminates duplicate implementation and ensures consistency
 
 /**
  * Check if product is available

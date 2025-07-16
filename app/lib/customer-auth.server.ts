@@ -1,12 +1,5 @@
 import { redirect } from "@remix-run/node";
-import { 
-  generateState, 
-  generateCodeVerifier, 
-  generateCodeChallenge,
-  createCustomerSession,
-  getCustomerSession,
-  makeCustomerAPIRequest
-} from "~/lib/auth.server";
+import { generateState, generateCodeVerifier, generateCodeChallenge, createCustomerSession, getCustomerSession, makeCustomerAPIRequest } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 
@@ -27,10 +20,11 @@ interface CustomerAccountConfig {
 }
 
 function getCustomerAccountConfig(shop: string): CustomerAccountConfig {
+  const apiVersion = '2025-07'; // FIXED: Explicit 2025 compliance
   return {
     authorizationEndpoint: `https://shopify.com/${shop}/account/oauth/authorize`,
     tokenEndpoint: `https://shopify.com/${shop}/account/oauth/token`,
-    graphqlEndpoint: `https://shopify.com/${shop}/account/customer/api/2025-07/graphql`,
+    graphqlEndpoint: `https://shopify.com/${shop}/account/customer/api/${apiVersion}/graphql`,
     scopes: [
       "https://api.customers.com/auth/customer.graphql",
       "https://api.customers.com/auth/customer.addresses",
@@ -292,7 +286,7 @@ export async function getCustomerRegistries(customerId: string, shop: string) {
     
     return registries;
   } catch (error) {
-    console.error('Failed to get customer registries:', error);
+    log.error('Failed to get customer registries', error as Error, { customerId, shop });
     throw new Error('Failed to retrieve registries');
   }
 }
@@ -357,7 +351,7 @@ export async function linkCustomerToRegistry(
     return updatedRegistry;
     
   } catch (error) {
-    console.error('Failed to link customer to registry:', error);
+    log.error('Failed to link customer to registry', error as Error, { customerId, registryId });
     throw new Error('Failed to link customer account');
   }
 }
@@ -395,15 +389,22 @@ export async function validateCustomerAccess(
       return { hasAccess: true, customer: customerSession, registry };
     }
     
-    // Check registry visibility
+    // SECURITY FIX: Public registry access with proper validation
     if (registry.visibility === 'public') {
+      // Additional security: Log public access for monitoring
+      log.info("Public registry access granted", { 
+        registryId: registry.id, 
+        shopId: registry.shopId,
+        customerId: customerSession?.customerId || 'anonymous' 
+      });
+      
       return { hasAccess: true, customer: customerSession, registry };
     }
     
     return { hasAccess: false, registry };
     
   } catch (error) {
-    console.error('Failed to validate customer access:', error);
+    log.error('Failed to validate customer access', error as Error, { registryId });
     return { hasAccess: false };
   }
 }

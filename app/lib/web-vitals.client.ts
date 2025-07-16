@@ -5,14 +5,14 @@ import { onCLS, onFID, onLCP, onFCP, onTTFB, onINP, type Metric } from "web-vita
  * Built for Shopify Apps - Error-safe implementation
  */
 
-// 2025 Core Web Vitals Thresholds for Built for Shopify
+// 2025 Core Web Vitals Thresholds for Built for Shopify - INP PRIMARY
 const PERFORMANCE_THRESHOLDS = {
-  LCP: { good: 2500, poor: 4000 },
-  FID: { good: 100, poor: 300 },
-  CLS: { good: 0.1, poor: 0.25 },
-  FCP: { good: 1800, poor: 3000 },
-  TTFB: { good: 800, poor: 1800 },
-  INP: { good: 200, poor: 500 }, // PRIMARY 2025 METRIC
+  INP: { good: 200, poor: 500 }, // PRIMARY 2025 METRIC (MANDATORY)
+  CLS: { good: 0.1, poor: 0.25 }, // MANDATORY 2025
+  LCP: { good: 2500, poor: 4000 }, // MANDATORY 2025
+  FCP: { good: 1800, poor: 3000 }, // SUPPORTING METRIC
+  TTFB: { good: 800, poor: 1800 }, // SUPPORTING METRIC
+  FID: { good: 100, poor: 300 }, // DEPRECATED 2025 - INP REPLACES FID
 };
 
 interface PerformanceData {
@@ -92,15 +92,31 @@ function reportMetric(metric: Metric): void {
     
     // Only log in development
     if (process.env.NODE_ENV === "development") {
-      console.log(`[Web Vitals] ${metric.name}:`, {
-        value: metric.value,
-        rating: data.rating,
-        delta: metric.delta,
-      });
+      // Development logging for web vitals
     }
     
     // Send to analytics (with error isolation)
     sendAnalytics(data);
+    
+    // Check for performance violations (2025 compliance)
+    if (data.rating === 'poor' || (data.rating === 'needs-improvement' && 
+        ['INP', 'CLS', 'LCP'].includes(data.metric))) {
+      // Send performance alert data to server for processing
+      fetch('/api/performance/alert', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          metric: data.metric,
+          value: data.value,
+          rating: data.rating,
+          path: data.path,
+          timestamp: data.timestamp
+        }),
+        keepalive: true
+      }).catch(() => {
+        // Silent failure - alerts should not break app
+      });
+    }
     
   } catch (error) {
     // Silent failure - never break the main app for monitoring
@@ -115,7 +131,7 @@ export function initWebVitals(): void {
     // Only run in browser environment
     if (typeof window === 'undefined') return;
     
-    // Register all metrics with error handling
+    // Register all metrics with error handling - INP PRIORITY ORDER (2025)
     const safeRegister = (fn: Function) => {
       try {
         fn(reportMetric);
@@ -124,12 +140,13 @@ export function initWebVitals(): void {
       }
     };
     
-    safeRegister(onCLS);
-    safeRegister(onFID);
-    safeRegister(onLCP);
-    safeRegister(onFCP);
-    safeRegister(onTTFB);
-    safeRegister(onINP);
+    // 2025 PRIORITY ORDER: INP -> CLS -> LCP -> Supporting Metrics
+    safeRegister(onINP); // PRIMARY 2025 METRIC - MANDATORY
+    safeRegister(onCLS); // MANDATORY 2025
+    safeRegister(onLCP); // MANDATORY 2025
+    safeRegister(onFCP); // SUPPORTING METRIC
+    safeRegister(onTTFB); // SUPPORTING METRIC
+    safeRegister(onFID); // DEPRECATED - KEEP FOR TRANSITION PERIOD
     
     // Handle page visibility changes safely
     try {
@@ -152,7 +169,7 @@ export function initWebVitals(): void {
               if (entry.duration > 50) {
                 // Long task detected - only log in development
                 if (process.env.NODE_ENV === "development") {
-                  console.warn(`[Performance] Long task: ${Math.round(entry.duration)}ms`);
+                  // Development logging for long tasks
                 }
               }
             }
@@ -172,42 +189,3 @@ export function initWebVitals(): void {
   }
 }
 
-/**
- * Simple performance tracking utilities
- */
-export const PerformanceTracker = {
-  /**
-   * Mark the start of a timing
-   */
-  mark(name: string): void {
-    try {
-      if (typeof performance !== 'undefined' && performance.mark) {
-        performance.mark(name);
-      }
-    } catch (error) {
-      // Silent failure
-    }
-  },
-  
-  /**
-   * Measure between two marks
-   */
-  measure(name: string, startMark: string, endMark?: string): void {
-    try {
-      if (typeof performance !== 'undefined' && performance.measure) {
-        performance.measure(name, startMark, endMark);
-        
-        const measures = performance.getEntriesByName(name);
-        if (measures.length > 0) {
-          const measure = measures[measures.length - 1];
-          
-          if (process.env.NODE_ENV === "development") {
-            console.log(`[Performance] ${name}: ${Math.round(measure.duration)}ms`);
-          }
-        }
-      }
-    } catch (error) {
-      // Silent failure
-    }
-  },
-};

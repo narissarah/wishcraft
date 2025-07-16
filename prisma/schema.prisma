@@ -1,6 +1,5 @@
-// WishCraft Database Schema - Optimized for 100/100 Shopify Score
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl"]
 }
 
@@ -9,142 +8,137 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================================================
-// CORE SHOPIFY INTEGRATION
-// ============================================================================
-
 model Session {
   id          String    @id
   shop        String
+  shopId      String
   state       String
   isOnline    Boolean   @default(false)
   scope       String?
   expires     DateTime?
   accessToken String
   userId      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  shopRef     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shop, userId])
+  @@index([expires])
+  @@index([shopId])
   @@map("sessions")
 }
 
 model Shop {
-  id              String   @id
-  domain          String   @unique
-  name            String
-  email           String?
-  currencyCode    String   @default("USD")
-  
-  settings        ShopSettings?
-  registries      Registry[]
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                  String               @id
+  domain              String               @unique
+  name                String
+  email               String?
+  currencyCode        String               @default("USD")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  complianceMetadata  Json?
+  dataRetentionPeriod Int?                 @default(2555)
+  lastDataCleanup     DateTime?
+  performanceMetrics  PerformanceMetrics[]
+  apiResponseTimes    ApiResponseTime[]
+  registries          Registry[]
+  settings            ShopSettings?
+  sessions            Session[]
+  auditLogs           AuditLog[]
+  systemJobs          SystemJob[]
 
   @@map("shops")
 }
 
 model ShopSettings {
-  id                    String   @id @default(cuid())
-  shopId                String   @unique
-  shop                  Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  
-  enablePasswordProtection    Boolean @default(true)
-  enableGiftMessages         Boolean @default(true)
-  enableSocialSharing        Boolean @default(true)
-  enableEmailNotifications   Boolean @default(true)
-  
-  primaryColor              String  @default("#007ace")
-  accentColor               String  @default("#f3f3f3")
-  
-  defaultRegistryVisibility String  @default("public")
-  maxItemsPerRegistry       Int     @default(100)
-  enableInventoryTracking   Boolean @default(true)
-  
-  appActive                 Boolean  @default(true)
-  appUninstalledAt         DateTime?
-  
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  id                        String    @id @default(cuid())
+  shopId                    String    @unique
+  enablePasswordProtection  Boolean   @default(true)
+  enableGiftMessages        Boolean   @default(true)
+  enableSocialSharing       Boolean   @default(true)
+  enableEmailNotifications  Boolean   @default(true)
+  primaryColor              String    @default("#007ace")
+  accentColor               String    @default("#f3f3f3")
+  defaultRegistryVisibility String    @default("public")
+  maxItemsPerRegistry       Int       @default(100)
+  enableInventoryTracking   Boolean   @default(true)
+  appActive                 Boolean   @default(true)
+  appUninstalledAt          DateTime?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
+  shop                      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@map("shop_settings")
 }
 
-// ============================================================================
-// CORE REGISTRY MODELS
-// ============================================================================
-
 model Registry {
-  id                String   @id @default(cuid())
-  
+  id                String             @id @default(cuid())
   title             String
   description       String?
-  slug              String   @unique
-  status            String   @default("active")
-  
-  eventType         String   @default("general")
+  slug              String             @unique
+  status            String             @default("active")
+  eventType         String             @default("general")
   eventDate         DateTime?
-  
-  visibility        String   @default("public")
+  visibility        String             @default("public")
   accessCode        String?
-  
   shopId            String
-  shop              Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
   customerId        String
   customerEmail     String
+  customerEmailHash String?            // Searchable hash of customer email for efficient queries
   customerFirstName String?
   customerLastName  String?
-  
-  items             RegistryItem[]
-  purchases         RegistryPurchase[]
-  
-  views             Int      @default(0)
-  totalValue        Float    @default(0)
-  purchasedValue    Float    @default(0)
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  views             Int                @default(0)
+  totalValue        Float              @default(0)
+  purchasedValue        Float                   @default(0)
+  collaborationEnabled  Boolean                 @default(false)
+  collaborationSettings Json?                   @default("{\"maxCollaborators\": 10, \"allowPublicInvites\": false, \"requireApproval\": true}")
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+  deletedAt             DateTime?
+  lastAccessedAt        DateTime?               @default(now())
+  privacyMetadata       Json?
+  shop                  Shop                    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  items                 RegistryItem[]
+  purchases             RegistryPurchase[]
+  collaborators         RegistryCollaborator[]
+  activities            RegistryActivity[]
 
   @@index([shopId])
   @@index([customerId])
   @@index([status])
   @@index([shopId, status])
   @@index([customerId, eventDate])
+  @@index([deletedAt])
+  @@index([slug])
+  @@index([shopId, customerId, slug])
+  @@index([shopId, status, createdAt])
+  @@index([shopId, customerEmailHash])
   @@map("registries")
 }
 
 model RegistryItem {
   id                String   @id @default(cuid())
-  
   registryId        String
-  registry          Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
-  
   productId         String
   variantId         String?
   productHandle     String
   productTitle      String
   variantTitle      String?
-  
   productImage      String?
-  
   quantity          Int      @default(1)
   quantityPurchased Int      @default(0)
   priority          String   @default("medium")
   notes             String?
-  
   price             Float
   compareAtPrice    Float?
   currencyCode      String   @default("USD")
-  
   inventoryTracked  Boolean  @default(true)
   inventoryQuantity Int?
-  
   status            String   @default("active")
-  
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  registry          Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
 
   @@index([registryId])
   @@index([productId])
@@ -155,32 +149,25 @@ model RegistryItem {
 }
 
 model RegistryPurchase {
-  id                String   @id @default(cuid())
-  
-  registryId        String
-  registry          Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
-  
-  orderId           String?
-  lineItemId        String?
-  orderName         String?
-  
-  productId         String
-  variantId         String?
-  quantity          Int
-  unitPrice         Float
-  totalAmount       Float
-  currencyCode      String   @default("USD")
-  
-  purchaserEmail    String?
-  purchaserName     String?
-  
-  isGift            Boolean  @default(true)
-  giftMessage       String?
-  
-  status            String   @default("pending")
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id             String   @id @default(cuid())
+  registryId     String
+  orderId        String?
+  lineItemId     String?
+  orderName      String?
+  productId      String
+  variantId      String?
+  quantity       Int
+  unitPrice      Float
+  totalAmount    Float
+  currencyCode   String   @default("USD")
+  purchaserEmail String?
+  purchaserName  String?
+  isGift         Boolean  @default(true)
+  giftMessage    String?
+  status         String   @default("pending")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  registry       Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
 
   @@index([registryId])
   @@index([orderId])
@@ -189,27 +176,20 @@ model RegistryPurchase {
   @@map("registry_purchases")
 }
 
-// ============================================================================
-// GDPR COMPLIANCE & AUDIT
-// ============================================================================
-
 model AuditLog {
-  id                String   @id @default(cuid())
+  id         String   @id @default(cuid())
+  shopId     String
+  userId     String?
+  userEmail  String?
+  action     String
+  resource   String
+  resourceId String
+  metadata   String?
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
   
-  shopId            String?
-  userId            String?
-  userEmail         String?
-  
-  action            String
-  resource          String
-  resourceId        String
-  
-  metadata          String?
-  
-  ipAddress         String?
-  userAgent         String?
-  
-  timestamp         DateTime @default(now())
+  shop       Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([shopId])
   @@index([action])
@@ -219,30 +199,112 @@ model AuditLog {
 }
 
 model SystemJob {
-  id                String   @id @default(cuid())
+  id           String    @id @default(cuid())
+  type         String
+  status       String    @default("pending")
+  priority     Int       @default(5)
+  payload      String?
+  result       String?
+  errorMessage String?
+  attempts     Int       @default(0)
+  maxAttempts  Int       @default(3)
+  runAt        DateTime  @default(now())
+  startedAt    DateTime?
+  completedAt  DateTime?
+  shopId       String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
   
-  type              String
-  status            String   @default("pending")
-  priority          Int      @default(5)
-  
-  payload           String?
-  result            String?
-  errorMessage      String?
-  
-  attempts          Int      @default(0)
-  maxAttempts       Int      @default(3)
-  runAt             DateTime @default(now())
-  startedAt         DateTime?
-  completedAt       DateTime?
-  
-  shopId            String?
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  shop         Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@index([status])
   @@index([type])
   @@index([runAt])
+  @@index([shopId])
   @@index([status, priority, runAt])
   @@map("system_jobs")
+}
+
+model PerformanceMetrics {
+  id          String   @id @default(cuid())
+  shopId      String
+  metricType  String
+  metricValue Float
+  url         String?
+  userAgent   String?
+  viewport    String?
+  connection  String?
+  createdAt   DateTime @default(now())
+  shop        Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([metricType])
+  @@index([createdAt])
+  @@index([shopId, metricType, createdAt])
+  @@map("performance_metrics")
+}
+
+model ApiResponseTime {
+  id           String   @id @default(cuid())
+  shopId       String
+  endpoint     String
+  method       String
+  responseTime Int      // Response time in milliseconds
+  statusCode   Int
+  timestamp    DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  shop Shop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId])
+  @@index([endpoint])
+  @@index([timestamp])
+  @@index([shopId, endpoint, timestamp, responseTime])
+  @@map("api_response_times")
+}
+
+model RegistryCollaborator {
+  id            String   @id @default(cuid())
+  registryId    String
+  email         String
+  firstName     String?
+  lastName      String?
+  role          String   @default("collaborator") // "owner", "collaborator", "viewer"
+  permissions   String   @default("read_write") // "read_only", "read_write", "admin"
+  status        String   @default("pending") // "pending", "active", "revoked"
+  invitedBy     String?  // Email of the person who invited them
+  invitedAt     DateTime @default(now())
+  acceptedAt    DateTime?
+  lastActiveAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  registry      Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
+
+  @@unique([registryId, email])
+  @@index([registryId])
+  @@index([email])
+  @@index([status])
+  @@index([registryId, status])
+  @@map("registry_collaborators")
+}
+
+model RegistryActivity {
+  id           String   @id @default(cuid())
+  registryId   String
+  actorEmail   String   // Email of the person who performed the action
+  actorName    String?  // Name of the person who performed the action
+  action       String   // "item_added", "item_removed", "item_updated", "collaborator_invited", "collaborator_removed", "registry_updated", "item_purchased"
+  description  String   // Human-readable description of the action
+  metadata     Json?    // Additional data about the action (item details, changes made, etc.)
+  isSystem     Boolean  @default(false) // Whether this was a system-generated activity
+  createdAt    DateTime @default(now())
+  registry     Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
+
+  @@index([registryId])
+  @@index([actorEmail])
+  @@index([action])
+  @@index([createdAt])
+  @@index([registryId, createdAt])
+  @@index([registryId, action])
+  @@map("registry_activities")
 }

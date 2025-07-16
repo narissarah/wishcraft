@@ -1,75 +1,71 @@
-# Multi-stage Dockerfile for WishCraft Shopify App
-# Stage 1: Dependencies
-FROM node:20-alpine AS deps
-WORKDIR /app
+# Multi-stage build for production optimization
+FROM node:18.20.0-alpine AS base
 
-# Install dependencies for native modules
-RUN apk add --no-cache libc6-compat python3 make g++
+# Install security updates and required packages
+RUN apk update && apk upgrade && \
+    apk add --no-cache dumb-init curl && \
+    rm -rf /var/cache/apk/*
+
+# Set working directory
+WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
-COPY prisma ./prisma/
 
-# Install production dependencies
-RUN npm ci --only=production
+# Install dependencies
+RUN npm ci --only=production && npm cache clean --force
 
-# Stage 2: Builder
-FROM node:20-alpine AS builder
-WORKDIR /app
+# Development stage
+FROM base AS development
 
-# Install build dependencies
-RUN apk add --no-cache libc6-compat python3 make g++
-
-# Copy package files and install all dependencies
-COPY package*.json ./
+# Install all dependencies including dev dependencies
 RUN npm ci
 
-# Copy application code
+# Copy source code
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate
+# Build stage
+FROM base AS build
+
+# Install dev dependencies for building
+RUN npm ci
+
+# Copy source code
+COPY . .
 
 # Build the application
 RUN npm run build
 
-# Stage 3: Runner
-FROM node:20-alpine AS runner
-WORKDIR /app
+# Production stage
+FROM base AS production
 
-ENV NODE_ENV=production
-ENV PORT=3000
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nextjs -u 1001
 
-# Install runtime dependencies
-RUN apk add --no-cache libc6-compat
+# Copy built application from build stage
+COPY --from=build --chown=nextjs:nodejs /app/build ./build
+COPY --from=build --chown=nextjs:nodejs /app/public ./public
+COPY --from=build --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S shopify -u 1001
+# Copy production node_modules
+COPY --from=base --chown=nextjs:nodejs /app/node_modules ./node_modules
 
-# Copy production dependencies
-COPY --from=deps --chown=shopify:nodejs /app/node_modules ./node_modules
-COPY --from=deps --chown=shopify:nodejs /app/package*.json ./
-
-# Copy built application
-COPY --from=builder --chown=shopify:nodejs /app/build ./build
-COPY --from=builder --chown=shopify:nodejs /app/public ./public
-COPY --from=builder --chown=shopify:nodejs /app/prisma ./prisma
-
-# Copy server and configuration files
-COPY --chown=shopify:nodejs server.js ./
-COPY --chown=shopify:nodejs remix.config.js ./
-COPY --chown=shopify:nodejs shopify.app.toml ./
+# Create necessary directories
+RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app/logs
 
 # Switch to non-root user
-USER shopify
+USER nextjs
 
 # Expose port
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); });"
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3000/health || exit 1
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["dumb-init", "--"]
 
 # Start the application
-CMD ["node", "server.js"]
+CMD ["npm", "start"]

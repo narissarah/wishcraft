@@ -46,6 +46,16 @@ export function generatePassword(length = 12): string {
   return password;
 }
 
+export function generateId(length = 13): string {
+  // More secure ID generation for client-side use (replace removed utils.server.ts version)
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let id = "";
+  for (let i = 0; i < length; i++) {
+    id += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return id;
+}
+
 export function extractShopifyId(gid: string): string {
   return gid.split("/").pop() || "";
 }

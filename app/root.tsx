@@ -1,17 +1,9 @@
 import type { LinksFunction, LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import {
-  Links,
-  LiveReload,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-  useLoaderData,
-} from "@remix-run/react";
+import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
-import { generateResourceHints, generateCriticalCSS } from "~/lib/performance.server";
+import { generateResourceHints, generateCriticalCSS } from "~/lib/unified-monitoring.server";
 import { generateNonce } from "~/lib/security-headers.server";
 import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/rate-limiter.server";
 import { useEffect } from "react";
@@ -67,6 +59,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       NODE_ENV: process.env.NODE_ENV,
       GA_MEASUREMENT_ID: process.env.GA_MEASUREMENT_ID,
       SHOPIFY_APP_URL: process.env.SHOPIFY_APP_URL,
+      WEB_VITALS_ENDPOINT: process.env.WEB_VITALS_ENDPOINT || '/api/performance/vitals',
+      PERFORMANCE_SAMPLE_RATE: process.env.PERFORMANCE_SAMPLE_RATE || '0.1',
     }
   });
 }
@@ -102,8 +96,16 @@ export default function App() {
   // Initialize Core Web Vitals monitoring on client
   useEffect(() => {
     if (typeof window !== "undefined") {
+      // Initialize performance monitoring for 2025 compliance
+      import("~/lib/performance-monitoring.client").then(({ initializePerformanceMonitoring }) => {
+        initializePerformanceMonitoring();
+      });
+      
+      // Legacy web vitals (if exists)
       import("~/lib/web-vitals.client").then(({ initWebVitals }) => {
         initWebVitals();
+      }).catch(() => {
+        // Ignore if legacy file doesn't exist
       });
       
       import("~/lib/global-error-handler.client").then(({ initializeGlobalErrorHandlers }) => {
@@ -602,6 +604,15 @@ export default function App() {
         <PerformanceMonitor />
         
         <ScrollRestoration />
+        
+        {/* Make ENV available to client */}
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `window.ENV = ${JSON.stringify(ENV)}`,
+          }}
+        />
+        
         <Scripts />
         <LiveReload />
         
@@ -619,11 +630,11 @@ export default function App() {
           }}
         />
         
-        {/* Environment variables for client */}
+        {/* Environment variables for client - SECURITY: Sanitized ENV */}
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `window.ENV = ${JSON.stringify(ENV)};`,
+            __html: `window.ENV = ${JSON.stringify(ENV).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')};`,
           }}
         />
       </body>

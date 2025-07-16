@@ -1,7 +1,9 @@
 /**
- * Enhanced Error Handling for Shopify 2025-01 API Changes
+ * Enhanced Error Handling for Shopify 2025-07 API Changes
  * Handles new error types, validation changes, and improved error reporting
  */
+
+import { log } from '~/lib/logger.server';
 
 export interface ShopifyAPIError {
   code: string;
@@ -53,7 +55,7 @@ export interface ShopifyErrorResponse {
 }
 
 /**
- * Enhanced error handler for 2025-01 API compliance
+ * Enhanced error handler for 2025-07 API compliance
  */
 export class ShopifyErrorHandler {
   
@@ -73,7 +75,7 @@ export class ShopifyErrorHandler {
     if (response.errors && response.errors.length > 0) {
       const firstError = response.errors[0];
       
-      // Check for specific 2025-01 error types
+      // Check for specific 2025-07 error types
       if (firstError.extensions?.code) {
         switch (firstError.extensions.code) {
           case 'THROTTLED':
@@ -179,7 +181,7 @@ export class ShopifyErrorHandler {
   }
 
   private static handleDeprecationError(error: GraphQLError) {
-    console.warn('DEPRECATED API USAGE:', error.message);
+    log.warn('DEPRECATED API USAGE: ' + error.message);
     
     return {
       isRetryable: false,
@@ -270,7 +272,7 @@ export class ShopifyErrorHandler {
   ) {
     const errorInfo = this.processAPIError(error);
     
-    console.error('Shopify API Error:', {
+    log.error('Shopify API Error', new Error(errorInfo.technicalMessage), {
       timestamp: new Date().toISOString(),
       operation: context.operation,
       category: errorInfo.category,

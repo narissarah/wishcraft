@@ -2,12 +2,12 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { 
-  verifyWebhookRequest, 
-  logWebhookEvent, 
-  validateWebhookTopic,
-  checkWebhookRateLimit 
-} from "~/lib/webhook-security.server";
+import { verifyWebhookRequest, logWebhookEvent, validateWebhookTopic, checkWebhookRateLimit } from "~/lib/webhook-security.server";
+import { parseWebhookPayload, handleWebhookResponse } from "~/lib/webhook-utils.server";
+import { responses } from "~/lib/response-utils.server";
+import { AuditLogger } from "~/lib/audit-logger.server";
+import { WebhookSchemas } from "~/lib/validation-unified.server";
+import { encryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation } from "~/lib/encryption.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   // Verify HMAC signature first
@@ -15,19 +15,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   
   if (!verification.isValid) {
     await logWebhookEvent("ORDERS_CREATE", verification.shop, null, false, "Invalid HMAC signature");
-    throw new Response("Unauthorized - Invalid HMAC signature", { status: 401 });
+    return responses.unauthorized("Invalid HMAC signature");
   }
 
   // Validate webhook topic
   if (!validateWebhookTopic(verification.topic, "ORDERS_CREATE")) {
     await logWebhookEvent("ORDERS_CREATE", verification.shop, null, false, "Invalid topic");
-    throw new Response("Bad Request - Invalid topic", { status: 400 });
+    return responses.badRequest("Invalid topic");
   }
 
   // Rate limiting
   if (!checkWebhookRateLimit(verification.shop, 20, 60000)) {
     await logWebhookEvent("ORDERS_CREATE", verification.shop, null, false, "Rate limit exceeded");
-    throw new Response("Too Many Requests", { status: 429 });
+    return responses.tooManyRequests("Rate limit exceeded");
   }
 
   const { topic, shop, session, admin, payload } = await authenticate.webhook(
@@ -36,21 +36,70 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   if (!admin && topic === "ORDERS_CREATE") {
     await logWebhookEvent("ORDERS_CREATE", shop, payload, false, "No admin context");
-    throw new Response("Unauthorized", { status: 401 });
+    return responses.unauthorized("No admin context");
   }
 
   log.webhook("ORDERS_CREATE", shop, { verified: true });
 
-  const order = typeof payload === 'string' ? JSON.parse(payload) : payload;
+  const order = parseWebhookPayload(payload);
+  
+  // Validate webhook payload structure
+  const orderValidation = WebhookSchemas.orderCreate.safeParse(order);
+  if (!orderValidation.success) {
+    log.error("Invalid order webhook payload", orderValidation.error);
+    await logWebhookEvent("ORDERS_CREATE", shop, payload, false, "Invalid payload structure");
+    return responses.ok(); // Still return 200 to prevent retries
+  }
+  
+  const validatedOrder = orderValidation.data;
   
   try {
     // Process order items that might be registry purchases
-    for (const item of order.line_items || []) {
+    for (const item of validatedOrder.line_items || []) {
       // Check if this is a registry purchase via line item properties
       const registryId = item.properties?.find((p: any) => p.name === '_registry_id')?.value;
       
       if (registryId) {
-        // Create purchase record
+        // Extract gift message from line item properties
+        const giftMessageProperty = item.properties?.find((p: any) => 
+          ['_gift_message', 'gift_message', 'Gift Message', 'message', 'note', 'personal_message'].includes(p.name)
+        );
+        const giftMessage = giftMessageProperty?.value;
+        
+        // Process gift message if present
+        let encryptedGiftMessage = null;
+        const purchaserEmail = validatedOrder.email || validatedOrder.customer?.email || 'anonymous';
+        
+        if (giftMessage && giftMessage.trim()) {
+          try {
+            // Validate gift message content
+            const validation = validateGiftMessage(giftMessage);
+            if (validation.isValid) {
+              // Sanitize and encrypt gift message
+              const sanitizedMessage = sanitizeGiftMessage(giftMessage);
+              encryptedGiftMessage = encryptGiftMessage(sanitizedMessage, purchaserEmail, registryId);
+              
+              logGiftMessageOperation('encrypt', purchaserEmail, registryId, true);
+            } else {
+              logGiftMessageOperation('validate', purchaserEmail, registryId, false, validation.error);
+              log.warn('Invalid gift message in order', {
+                orderId: validatedOrder.id,
+                error: validation.error,
+                shopDomain: verification.shop
+              });
+            }
+          } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+            logGiftMessageOperation('encrypt', purchaserEmail, registryId, false, errorMessage);
+            log.error('Failed to encrypt gift message', {
+              orderId: validatedOrder.id,
+              error: errorMessage,
+              shopDomain: verification.shop
+            });
+          }
+        }
+        
+        // Create purchase record with encrypted gift message
         const purchase = await db.registryPurchase.create({
           data: {
             registryId,
@@ -59,10 +108,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             quantity: item.quantity || 1,
             unitPrice: parseFloat(item.price) || 0,
             totalAmount: (parseFloat(item.price) || 0) * (item.quantity || 1),
-            currencyCode: order.currency || 'USD',
-            orderId: order.id.toString(),
-            orderName: order.name,
-            purchaserEmail: order.email || order.customer?.email || '',
+            currencyCode: validatedOrder.currency || 'USD',
+            orderId: validatedOrder.id.toString(),
+            orderName: validatedOrder.name,
+            purchaserEmail: purchaserEmail,
+            purchaserName: validatedOrder.customer?.first_name && validatedOrder.customer?.last_name
+              ? `${validatedOrder.customer.first_name} ${validatedOrder.customer.last_name}`
+              : validatedOrder.customer?.first_name || 'Anonymous',
+            giftMessage: encryptedGiftMessage,
             status: 'confirmed'
           }
         });
@@ -79,42 +132,40 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         });
 
         // Log the purchase
-        await db.auditLog.create({
-          data: {
-            action: 'registry_purchase',
-            resource: 'order',
-            resourceId: order.id.toString(),
-            shopId: shop,
-            metadata: JSON.stringify({
-              registryId,
-              purchaseId: purchase.id,
-              itemTitle: item.title,
-              quantity: item.quantity,
-              amount: itemPrice,
-              purchaserEmail: purchase.purchaserEmail
-            })
+        await AuditLogger.log({
+          action: 'registry_purchase',
+          resource: 'order',
+          resourceId: validatedOrder.id.toString(),
+          shopId: shop,
+          metadata: {
+            registryId,
+            purchaseId: purchase.id,
+            itemTitle: item.title,
+            quantity: item.quantity,
+            amount: itemPrice,
+            purchaserEmail: purchase.purchaserEmail
           }
         });
 
         log.info(`Recorded registry purchase for registry ${registryId}`, {
           registryId,
           purchaseId: purchase.id,
-          orderId: order.id.toString(),
+          orderId: validatedOrder.id.toString(),
           amount: itemPrice
         });
       }
     }
 
     await logWebhookEvent("ORDERS_CREATE", shop, payload, true);
-    return new Response("OK", { status: 200 });
+    return responses.ok();
   } catch (error) {
     log.error(`Error processing order webhook for ${shop}`, error as Error, { 
       shop,
-      orderId: order.id?.toString() 
+      orderId: validatedOrder.id?.toString() 
     });
     await logWebhookEvent("ORDERS_CREATE", shop, payload, false, error instanceof Error ? error.message : "Unknown error");
     
     // Still return 200 to prevent webhook retry storms
-    return new Response("OK", { status: 200 });
+    return responses.ok();
   }
 };

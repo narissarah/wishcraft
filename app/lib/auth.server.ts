@@ -2,6 +2,7 @@ import { redirect } from "@remix-run/node";
 import { createCookieSessionStorage } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 import crypto from "crypto";
 
 // ============================================================================
@@ -19,13 +20,15 @@ function getSessionSecret(): string {
     );
   }
   
-  // Only use dev secret in development
-  if (!secret && process.env.NODE_ENV !== 'production') {
-    console.warn('⚠️  Using development session secret. Set SESSION_SECRET for production.');
-    return 'dev-secret-for-local-development-only-change-in-production';
+  // SECURITY FIX: Never allow missing secrets in any environment
+  if (!secret) {
+    throw new Error(
+      '🚨 CRITICAL: SESSION_SECRET environment variable is required in all environments. ' +
+      'Generate a secure secret: `openssl rand -base64 32`'
+    );
   }
   
-  return secret!;
+  return secret;
 }
 
 const sessionSecret = getSessionSecret();
@@ -100,7 +103,7 @@ export async function requireAdminAuth(request: Request) {
       throw error; // Re-throw Shopify redirects
     }
     
-    console.error("Admin authentication failed:", error);
+    log.error("Admin authentication failed", error);
     throw new Response("Authentication failed", { status: 401 });
   }
 }
@@ -163,7 +166,7 @@ export async function getCustomerSession(request: Request): Promise<CustomerSess
     const sessionData = decryptSession(encryptedSession);
     return JSON.parse(sessionData) as CustomerSession;
   } catch (error) {
-    console.error("Failed to get customer session:", error);
+    log.error("Failed to get customer session", error);
     return null;
   }
 }
@@ -233,7 +236,7 @@ async function refreshCustomerToken(session: CustomerSession): Promise<CustomerS
       expiresAt: Date.now() + (tokenData.expires_in * 1000),
     };
   } catch (error) {
-    console.error("Token refresh failed:", error);
+    log.error("Token refresh failed", error);
     return null;
   }
 }
@@ -247,8 +250,8 @@ export async function makeCustomerAPIRequest(
   query: string,
   variables?: any
 ) {
-  // Use stable API version for Customer Account API
-  const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-01';
+  // FIXED: Explicit 2025-07 API version for Customer Account API compliance
+  const apiVersion = '2025-07'; // MANDATORY 2025 API version
   const response = await fetch(
     `https://shopify.com/${session.shop}/account/customer/api/${apiVersion}/graphql`,
     {
@@ -302,19 +305,31 @@ export async function getCustomerProfile(session: CustomerSession) {
 // SECURITY UTILITIES
 // ============================================================================
 
-// Get encryption key (separate from session secret for better security)
+// SECURITY FIX: Secure encryption key generation
 function getEncryptionKey(): Buffer {
   const encryptionKey = process.env.ENCRYPTION_KEY || process.env.SESSION_SECRET;
   
-  if (!encryptionKey && process.env.NODE_ENV === 'production') {
+  if (!encryptionKey) {
     throw new Error(
-      '🚨 CRITICAL: ENCRYPTION_KEY is not set in production!\n' +
-      'Generate a secure key with: node scripts/generate-secrets.js'
+      '🚨 CRITICAL: ENCRYPTION_KEY environment variable is required in all environments.\n' +
+      'Generate a secure key with: `openssl rand -base64 32`'
     );
   }
   
-  const key = encryptionKey || sessionSecret;
-  return crypto.scryptSync(key, 'wishcraft-salt-v1', 32);
+  // SECURITY FIX: Use proper random salt from environment or generate cryptographically secure salt
+  const saltHex = process.env.ENCRYPTION_SALT;
+  let salt: Buffer;
+  
+  if (saltHex) {
+    // Use provided salt from environment
+    salt = Buffer.from(saltHex, 'hex');
+  } else {
+    // Generate cryptographically secure salt for this session
+    salt = crypto.randomBytes(16);
+    log.warn('Generated temporary salt. Set ENCRYPTION_SALT environment variable for production.');
+  }
+  
+  return crypto.scryptSync(encryptionKey, salt, 32);
 }
 
 const encryptionKey = getEncryptionKey();
@@ -381,32 +396,16 @@ export function isValidShopDomain(shop: string): boolean {
   return shopifyDomainRegex.test(shop);
 }
 
+// Deprecated: Use verifyWebhookRequest from webhook-security.server.ts instead
 export function validateWebhookSignature(hmac: string, params: URLSearchParams): boolean {
-  const secret = process.env.SHOPIFY_API_SECRET!;
-  const sortedParams = new URLSearchParams();
+  log.warn('validateWebhookSignature is deprecated. Use verifyWebhookRequest from webhook-security.server.ts');
   
-  // Sort and filter parameters
-  for (const [key, value] of params.entries()) {
-    if (key !== 'hmac' && key !== 'signature') {
-      sortedParams.append(key, value);
-    }
-  }
+  // Import the consolidated implementation
+  const { verifyWebhookHMAC } = require('~/lib/webhook-security.server');
   
-  const queryString = sortedParams.toString();
-  const expectedHmac = crypto
-    .createHmac('sha256', secret)
-    .update(queryString)
-    .digest('hex');
-  
-  try {
-    return crypto.timingSafeEqual(
-      Buffer.from(hmac, 'hex'),
-      Buffer.from(expectedHmac, 'hex')
-    );
-  } catch (error) {
-    // Handle cases where HMAC lengths don't match
-    return false;
-  }
+  // Convert params to string for the new implementation
+  const queryString = params.toString();
+  return verifyWebhookHMAC(queryString, hmac, process.env.SHOPIFY_API_SECRET!);
 }
 
 // ============================================================================
@@ -534,7 +533,7 @@ export async function authenticateWebSocket(
     
     return null;
   } catch (error) {
-    console.error('WebSocket authentication failed:', error);
+    log.error('WebSocket authentication failed', error);
     return null;
   }
 }
@@ -543,7 +542,7 @@ export async function verifyAdminToken(token: string, shop: string): Promise<any
   try {
     // Use GraphQL Admin API with latest stable version
     const shopDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
-    const apiVersion = process.env.SHOPIFY_API_VERSION || '2025-01';
+    const apiVersion = '2025-07'; // FIXED: Explicit 2025 compliance
     const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
       method: 'POST',
       headers: {
@@ -575,7 +574,7 @@ export async function verifyAdminToken(token: string, shop: string): Promise<any
     
     return null;
   } catch (error) {
-    console.error('Admin token verification failed:', error);
+    log.error('Admin token verification failed', error);
     return null;
   }
 }
@@ -598,7 +597,7 @@ async function verifyCustomerToken(token: string, shop: string): Promise<Custome
     
     return session;
   } catch (error) {
-    console.error('Customer token verification failed:', error);
+    log.error('Customer token verification failed', error);
     return null;
   }
 }

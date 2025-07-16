@@ -1,12 +1,8 @@
+import { log } from "~/lib/logger.server";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
-import { 
-  verifyWebhookRequest, 
-  logWebhookEvent, 
-  validateWebhookTopic,
-  checkWebhookRateLimit 
-} from "~/lib/webhook-security.server";
+import { verifyWebhookRequest, logWebhookEvent, validateWebhookTopic, checkWebhookRateLimit } from "~/lib/webhook-security.server";
 
 /**
  * GDPR Webhook: Shop Redact
@@ -37,7 +33,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Response("Unauthorized", { status: 401 });
   }
 
-  console.log(`🗑️ Received verified SHOP_REDACT webhook for ${shop}`);
+  log.info(`Received verified SHOP_REDACT webhook for ${shop}`);
 
   const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
   
@@ -80,7 +76,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         where: { id: shop }
       });
       
-      console.log(`✅ Deleted all data for shop ${shop}:`, {
+      log.info(`Deleted all data for shop ${shop}`, {
         registries: registryCount,
         purchases: purchaseCount,
         auditLogs: auditLogCount
@@ -88,12 +84,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     });
 
     // Log the redaction completion (outside transaction since shop is deleted)
-    console.log(`🔒 Shop data redaction completed for ${shop}`);
+    log.info(`Shop data redaction completed for ${shop}`);
 
     await logWebhookEvent("SHOP_REDACT", shop, payload, true);
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error(`❌ Error processing shop redact webhook for ${shop}:`, error);
+    log.error(`Error processing shop redact webhook for ${shop}:`, error as Error);
     await logWebhookEvent("SHOP_REDACT", shop, payload, false, error instanceof Error ? error.message : "Unknown error");
     
     // Still return 200 to prevent webhook retry storms

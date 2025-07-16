@@ -1,13 +1,122 @@
-import { PrismaClient } from "@prisma/client";
-import { log } from "./logger.server";
-
-const db = new PrismaClient();
-
 /**
- * GDPR Compliance Utilities
- * Implements data export, deletion, and retention policies
- * Required for Shopify app compliance
+ * GDPR Compliance Features for Built for Shopify 2025
+ * 
+ * Features:
+ * - Data retention management
+ * - Consent management
+ * - Data export (Right to Access)
+ * - Data deletion (Right to Erasure)
+ * - Data portability
+ * - Audit logging
+ * - Automated cleanup
  */
+
+import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
+import { cache, cacheKeys } from "~/lib/cache-unified.server";
+import { decryptPII, createSearchableEmailHash } from "~/lib/encryption.server";
+import { z } from "zod";
+
+// GDPR consent types
+export enum ConsentType {
+  ANALYTICS = "analytics",
+  MARKETING = "marketing",
+  FUNCTIONALITY = "functionality",
+  PERFORMANCE = "performance"
+}
+
+// GDPR request types
+export enum GDPRRequestType {
+  ACCESS = "access",
+  PORTABILITY = "portability",
+  RECTIFICATION = "rectification",
+  ERASURE = "erasure",
+  RESTRICTION = "restriction",
+  OBJECTION = "objection"
+}
+
+// Data retention periods (in days)
+export const DATA_RETENTION_PERIODS = {
+  REGISTRY_DATA: parseInt(process.env.DATA_RETENTION_DAYS || "730"), // 2 years
+  AUDIT_LOGS: 2555, // 7 years
+  PERFORMANCE_METRICS: 365, // 1 year
+  SESSION_DATA: 30, // 30 days
+  WEBHOOK_LOGS: 90, // 90 days
+  PURCHASE_DATA: 2555, // 7 years (legal requirement)
+  CUSTOMER_COMMUNICATION: 365 // 1 year
+};
+
+// Consent management
+export interface ConsentRecord {
+  id: string;
+  shopId: string;
+  customerEmail: string;
+  consentType: ConsentType;
+  granted: boolean;
+  timestamp: Date;
+  ipAddress?: string;
+  userAgent?: string;
+  method: 'explicit' | 'implied' | 'withdrawn';
+  legalBasis: 'consent' | 'legitimate_interest' | 'contract' | 'legal_obligation';
+  expiresAt?: Date;
+}
+
+export class GDPRComplianceService {
+  
+  /**
+   * Record user consent
+   */
+  async recordConsent(data: {
+    shopId: string;
+    customerEmail: string;
+    consentType: ConsentType;
+    granted: boolean;
+    ipAddress?: string;
+    userAgent?: string;
+    method: 'explicit' | 'implied' | 'withdrawn';
+    legalBasis: 'consent' | 'legitimate_interest' | 'contract' | 'legal_obligation';
+    expiresAt?: Date;
+  }): Promise<void> {
+    const emailHash = createSearchableEmailHash(data.customerEmail);
+    
+    // Create consent record
+    await db.auditLog.create({
+      data: {
+        shopId: data.shopId,
+        userEmail: data.customerEmail,
+        action: `consent_${data.granted ? 'granted' : 'withdrawn'}`,
+        resource: 'consent',
+        resourceId: `${data.consentType}:${emailHash}`,
+        metadata: JSON.stringify({
+          consentType: data.consentType,
+          granted: data.granted,
+          method: data.method,
+          legalBasis: data.legalBasis,
+          expiresAt: data.expiresAt,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent
+        }),
+        ipAddress: data.ipAddress,
+        userAgent: data.userAgent
+      }
+    });
+    
+    // Invalidate consent cache
+    await cache.delete(this.getConsentCacheKey(data.shopId, data.customerEmail));
+    
+    log.info("Consent recorded", {
+      shopId: data.shopId,
+      customerEmail: data.customerEmail,
+      consentType: data.consentType,
+      granted: data.granted,
+      method: data.method
+    });
+  }
+
+  private getConsentCacheKey(shopId: string, customerEmail: string): string {
+    return `consent:${shopId}:${createSearchableEmailHash(customerEmail)}`;
+  }
+}
 
 /**
  * Export all customer data for GDPR compliance

@@ -2,12 +2,7 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { 
-  verifyWebhookRequest, 
-  logWebhookEvent, 
-  validateWebhookTopic,
-  checkWebhookRateLimit 
-} from "~/lib/webhook-security.server";
+import { verifyWebhookRequest, logWebhookEvent, validateWebhookTopic, checkWebhookRateLimit } from "~/lib/webhook-security.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   // Verify HMAC signature first

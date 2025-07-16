@@ -118,3 +118,16 @@ export function closeRedisConnection(): void {
     redis = null;
   }
 }
+
+// MEMORY LEAK FIX: Ensure proper cleanup on process exit
+process.on('beforeExit', () => {
+  closeRedisConnection();
+});
+
+process.on('SIGTERM', () => {
+  closeRedisConnection();
+});
+
+process.on('SIGINT', () => {
+  closeRedisConnection();
+});

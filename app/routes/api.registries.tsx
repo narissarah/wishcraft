@@ -2,9 +2,12 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
-// Removed complex caching for production simplicity
 import { log } from "~/lib/logger.server";
 import { rateLimiter } from "~/lib/rate-limiter.server";
+import { RegistrySchemas, QuerySchemas, withValidation, validateQueryParams, validationErrorResponse, Sanitizer } from "~/lib/validation-unified.server";
+import { responses } from "~/lib/response-utils.server";
+import { AuditLogger } from "~/lib/audit-logger.server";
+import { RegistryCache } from "~/lib/cache-unified.server";
 
 /**
  * GET /api/registries - List all registries for a shop
@@ -15,18 +18,47 @@ export async function loader({ request }: LoaderFunctionArgs) {
     // Rate limiting
     const rateLimitResult = await rateLimiter.check(request);
     if (rateLimitResult && !rateLimitResult.allowed) {
-      return json({ error: "Too many requests" }, { status: 429 });
+      return responses.tooManyRequests();
+    }
+    
+    // Validate query parameters
+    const { data: queryData, errors: queryErrors } = validateQueryParams(
+      request,
+      QuerySchemas.registryFilters.merge(QuerySchemas.pagination)
+    );
+    
+    if (queryErrors) {
+      return validationErrorResponse(queryErrors);
     }
     
     // Authenticate
     const { admin, session } = await authenticate.admin(request);
     const shop = session.shop;
     
-    // Simplified for production - direct database access
+    // Try to get from cache first
+    const cacheKey = { ...queryData };
+    const cachedData = await RegistryCache.getList(shop, cacheKey);
+    if (cachedData) {
+      log.debug('Registry list cache hit', { shop });
+      return json(cachedData);
+    }
     
-    // Fetch from database
+    // Build where clause with validated filters
+    const whereClause: any = { shopId: shop };
+    if (queryData?.status) whereClause.status = queryData.status;
+    if (queryData?.eventType) whereClause.eventType = queryData.eventType;
+    if (queryData?.visibility) whereClause.visibility = queryData.visibility;
+    if (queryData?.customerId) whereClause.customerId = queryData.customerId;
+    if (queryData?.search) {
+      whereClause.title = {
+        contains: Sanitizer.sanitizeHtml(queryData.search),
+        mode: 'insensitive'
+      };
+    }
+    
+    // Fetch from database with pagination
     const registries = await db.registry.findMany({
-      where: { shopId: shop },
+      where: whereClause,
       include: {
         items: {
           select: {
@@ -46,6 +78,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
         },
       },
       orderBy: { createdAt: "desc" },
+      skip: ((queryData?.page || 1) - 1) * (queryData?.limit || 20),
+      take: queryData?.limit || 20,
     });
     
     // Transform data
@@ -65,7 +99,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
       total: registries.length,
     };
     
-    // Simplified - no caching for production readiness
+    // Cache the response
+    await RegistryCache.setList(shop, cacheKey, response);
+    log.debug('Registry list cached', { shop });
     
     return json(response);
   } catch (error) {
@@ -83,75 +119,81 @@ export async function loader({ request }: LoaderFunctionArgs) {
  */
 export async function action({ request }: ActionFunctionArgs) {
   if (request.method !== "POST") {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return responses.methodNotAllowed();
   }
   
   try {
     // Rate limiting
     const rateLimitResult = await rateLimiter.check(request);
     if (rateLimitResult && !rateLimitResult.allowed) {
-      return json({ error: "Too many requests" }, { status: 429 });
+      return responses.tooManyRequests();
+    }
+    
+    // Validate input data
+    const validator = withValidation(RegistrySchemas.create);
+    const { data: validatedData, errors } = await validator(request);
+    
+    if (errors || !validatedData) {
+      return validationErrorResponse(errors || [{ message: 'Validation failed' }]);
     }
     
     // Authenticate
     const { admin, session } = await authenticate.admin(request);
     const shop = session.shop;
     
-    // Parse request body
-    const formData = await request.formData();
-    const data = Object.fromEntries(formData);
+    // Sanitize customer data
+    const sanitizedCustomer = Sanitizer.sanitizeCustomerData({
+      firstName: validatedData.customerFirstName,
+      lastName: validatedData.customerLastName,
+      email: validatedData.customerEmail
+    });
     
-    // Validate input
-    const { name, customerId, eventDate, privacy = "PUBLIC" } = data;
-    
-    if (!name || !customerId) {
-      return json(
-        { error: "Name and customer ID are required" },
-        { status: 400 }
-      );
-    }
-    
-    // Create registry
+    // Create registry with validated and sanitized data
     const registry = await db.registry.create({
       data: {
         shopId: shop,
-        customerId: customerId as string,
-        customerEmail: '',
-        title: name as string,
-        slug: `${name}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
-        eventDate: eventDate ? new Date(eventDate as string) : null,
+        customerId: validatedData.customerId,
+        customerEmail: sanitizedCustomer.email!,
+        customerFirstName: sanitizedCustomer.firstName,
+        customerLastName: sanitizedCustomer.lastName,
+        title: Sanitizer.sanitizeHtml(validatedData.title),
+        description: validatedData.description ? Sanitizer.sanitizeHtml(validatedData.description) : null,
+        slug: Sanitizer.createSlug(validatedData.title),
+        eventType: validatedData.eventType,
+        eventDate: validatedData.eventDate ? new Date(validatedData.eventDate) : null,
         status: "active",
-        visibility: privacy as "public" | "private",
+        visibility: validatedData.visibility,
+        accessCode: validatedData.accessCode || null,
       },
     });
     
     // Create audit log
-    await db.auditLog.create({
-      data: {
-        shopId: shop,
-        userId: session.id,
-        action: "REGISTRY_CREATED",
-        resource: "registry",
-        resourceId: registry.id,
-        metadata: JSON.stringify({ name, customerId }),
-      },
-    });
+    await AuditLogger.logUserAction(
+      'registry_created',
+      'registry',
+      registry.id,
+      shop,
+      session.id,
+      undefined,
+      request
+    );
     
-    // Simplified - no cache to invalidate
+    // Invalidate list cache
+    await RegistryCache.invalidate(shop);
+    
+    // Cache the new registry
+    await RegistryCache.set(shop, registry.id, registry);
     
     log.info("Registry created", {
       shop,
       registryId: registry.id,
-      customerId,
+      customerId: validatedData.customerId,
     });
     
     return json({ registry }, { status: 201 });
   } catch (error) {
     log.error("Failed to create registry", error);
     
-    return json(
-      { error: "Failed to create registry" },
-      { status: 500 }
-    );
+    return responses.serverError();
   }
 }

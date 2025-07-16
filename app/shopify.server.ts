@@ -1,10 +1,10 @@
-import { LATEST_API_VERSION } from "@shopify/shopify-app-remix/server";
+// 2025 API Version - MANDATORY for Built for Shopify compliance
+const SHOPIFY_API_VERSION_2025 = "2025-07";
 import { shopifyApp } from "@shopify/shopify-app-remix/server";
-import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
-import { db } from "~/lib/db.server";
+import { EncryptedPrismaSessionStorage } from "~/lib/encrypted-session-storage.server";
 
-// Initialize Prisma session storage
-const sessionStorage = new PrismaSessionStorage(db);
+// Initialize encrypted Prisma session storage for security compliance
+const sessionStorage = new EncryptedPrismaSessionStorage();
 
 // Shopify App Configuration (2025 Standards)
 export const shopify = shopifyApp({
@@ -25,7 +25,7 @@ export const shopify = shopifyApp({
   appUrl: process.env.SHOPIFY_APP_URL!,
   authPathPrefix: "/auth",
   sessionStorage,
-  apiVersion: LATEST_API_VERSION,
+  apiVersion: SHOPIFY_API_VERSION_2025, // FIXED: 2025-07 for compliance
   
   // 2025 Embedded App Strategy (MANDATORY)
   isEmbeddedApp: true,
@@ -36,12 +36,29 @@ export const shopify = shopifyApp({
     unstable_newEmbeddedAuthStrategy: true, // Required for 2025
   },
   
-  // Enhanced webhook configuration
+  // Enhanced webhook configuration (2025 GDPR Compliant)
   webhooks: {
+    // App lifecycle
     APP_UNINSTALLED: {
       deliveryMethod: "http" as any,
       callbackUrl: "/webhooks/app/uninstalled",
     },
+    
+    // GDPR webhooks (MANDATORY for Built for Shopify)
+    CUSTOMERS_DATA_REQUEST: {
+      deliveryMethod: "http" as any,
+      callbackUrl: "/webhooks/customers/data_request",
+    },
+    CUSTOMERS_REDACT: {
+      deliveryMethod: "http" as any,
+      callbackUrl: "/webhooks/customers/redact",
+    },
+    SHOP_REDACT: {
+      deliveryMethod: "http" as any,
+      callbackUrl: "/webhooks/shop/redact",
+    },
+    
+    // Business logic webhooks
     CUSTOMERS_CREATE: {
       deliveryMethod: "http" as any,
       callbackUrl: "/webhooks/customers/create",
@@ -53,6 +70,10 @@ export const shopify = shopifyApp({
     PRODUCTS_UPDATE: {
       deliveryMethod: "http" as any,
       callbackUrl: "/webhooks/products/update",
+    },
+    INVENTORY_LEVELS_UPDATE: {
+      deliveryMethod: "http" as any,
+      callbackUrl: "/webhooks/inventory_levels/update",
     },
   },
 });

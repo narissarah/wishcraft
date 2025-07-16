@@ -74,9 +74,10 @@ export async function verifyWebhookRequest(request: Request): Promise<{
     }
   }
   
-  // Validate API version
-  if (apiVersionHeader && apiVersionHeader !== "2025-01") {
-    log.error(`Invalid API version: ${apiVersionHeader}, expected: 2025-01`);
+  // Validate API version - FIXED: Explicit 2025-07 for compliance
+  const expectedApiVersion = '2025-07'; // MANDATORY 2025 API version
+  if (apiVersionHeader && apiVersionHeader !== expectedApiVersion) {
+    log.error(`Invalid API version: ${apiVersionHeader}, expected: ${expectedApiVersion}`);
     return { isValid: false, payload: "" };
   }
   

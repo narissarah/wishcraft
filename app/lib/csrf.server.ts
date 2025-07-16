@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { json } from "@remix-run/node";
 import { sessionStorage } from "~/lib/auth.server";
+import { log } from '~/lib/logger.server';
 
 // ============================================================================
 // CSRF PROTECTION IMPLEMENTATION
@@ -91,7 +92,7 @@ export async function validateCSRFToken(
     
     return { valid, error: valid ? undefined : "Invalid CSRF token" };
   } catch (error) {
-    console.error("CSRF validation error:", error);
+    log.error("CSRF validation error", error as Error);
     return { valid: false, error: "CSRF validation failed" };
   }
 }

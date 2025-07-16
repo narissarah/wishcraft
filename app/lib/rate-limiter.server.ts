@@ -209,6 +209,14 @@ export function withRateLimit<T extends (...args: any[]) => any>(
  */
 export class ShopifyAPIRateLimiter {
   private buckets: Map<string, { points: number; resetAt: number }> = new Map();
+  private cleanupInterval: NodeJS.Timeout | null = null;
+  
+  constructor() {
+    // MEMORY LEAK FIX: Clean up expired buckets periodically
+    this.cleanupInterval = setInterval(() => {
+      this.cleanupExpiredBuckets();
+    }, 60000); // Every minute
+  }
   
   /**
    * Check Shopify GraphQL cost
@@ -232,6 +240,11 @@ export class ShopifyAPIRateLimiter {
     bucket.points -= cost;
     this.buckets.set(shop, bucket);
     
+    // MEMORY LEAK FIX: Limit buckets size
+    if (this.buckets.size > 1000) {
+      this.cleanupExpiredBuckets();
+    }
+    
     return true;
   }
   
@@ -252,6 +265,33 @@ export class ShopifyAPIRateLimiter {
       available: bucket.points,
       resetAt: new Date(bucket.resetAt)
     };
+  }
+  
+  /**
+   * Clean up expired buckets to prevent memory leaks
+   */
+  private cleanupExpiredBuckets() {
+    const now = Date.now();
+    const expiredShops: string[] = [];
+    
+    this.buckets.forEach((bucket, shop) => {
+      if (now > bucket.resetAt + 300000) { // 5 minutes grace period
+        expiredShops.push(shop);
+      }
+    });
+    
+    expiredShops.forEach(shop => this.buckets.delete(shop));
+  }
+  
+  /**
+   * Dispose and clean up resources
+   */
+  dispose() {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.buckets.clear();
   }
 }
 
@@ -277,6 +317,22 @@ export const shopifyRateLimiter = new ShopifyAPIRateLimiter();
 
 // Default rate limiter instance
 export const rateLimiter = new RateLimiter();
+
+// MEMORY LEAK FIX: Clean up on process exit
+process.on('beforeExit', () => {
+  shopifyRateLimiter.dispose();
+  rateLimitStore.clear();
+});
+
+process.on('SIGTERM', () => {
+  shopifyRateLimiter.dispose();
+  rateLimitStore.clear();
+});
+
+process.on('SIGINT', () => {
+  shopifyRateLimiter.dispose();
+  rateLimitStore.clear();
+});
 
 /**
  * Rate limit by shop (for multi-tenant scenarios)

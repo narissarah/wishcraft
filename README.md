@@ -3,7 +3,7 @@
 [![Shopify App](https://img.shields.io/badge/Shopify-App-7AB55C)](https://shopify.dev)
 [![Built with Remix](https://img.shields.io/badge/Built%20with-Remix-000)](https://remix.run)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue)](https://www.typescriptlang.org/)
-[![Shopify API](https://img.shields.io/badge/API-2025--01-green)](https://shopify.dev/api)
+[![Shopify API](https://img.shields.io/badge/API-2025--07-green)](https://shopify.dev/api)
 
 WishCraft is a production-ready Shopify gift registry app that provides seamless integration with Shopify's inventory and order management systems. Built with modern technologies and following Shopify's 2025 best practices, it offers superior native integration compared to third-party solutions.
 
@@ -30,7 +30,7 @@ WishCraft is a production-ready Shopify gift registry app that provides seamless
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/wishcraft.git
+   git clone https://github.com/wishcraft-team/wishcraft.git
    cd wishcraft
    ```
 
@@ -41,7 +41,7 @@ WishCraft is a production-ready Shopify gift registry app that provides seamless
 
 3. **Set up environment variables**
    ```bash
-   cp .env.production.template .env
+   cp .env.example .env
    ```
    
    Edit `.env` and add your credentials:
@@ -224,8 +224,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🆘 Support
 
-- [Documentation](https://github.com/yourusername/wishcraft/wiki)
-- [Issue Tracker](https://github.com/yourusername/wishcraft/issues)
+- [Documentation](https://github.com/wishcraft-team/wishcraft/wiki)
+- [Issue Tracker](https://github.com/wishcraft-team/wishcraft/issues)
 - [Shopify Community](https://community.shopify.com)
 
 ## 🙏 Acknowledgments

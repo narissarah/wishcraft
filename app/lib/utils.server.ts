@@ -3,13 +3,6 @@
  */
 import bcrypt from 'bcrypt';
 
-export function generateSlug(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
 const SALT_ROUNDS = 10;
 
 export async function hashPassword(password: string): Promise<string> {
@@ -20,26 +13,17 @@ export async function validatePassword(password: string, hash: string): Promise<
   return bcrypt.compare(password, hash);
 }
 
+// DEPRECATED: Use sanitizeInput from sanitization-unified.server.ts instead
 export function sanitizeInput(input: string): string {
-  return input.replace(/[<>]/g, '');
+  const { sanitizeInput: unifiedSanitizeInput } = require('./sanitization-unified.server');
+  return unifiedSanitizeInput(input);
 }
 
-export function formatCurrency(amount: number, currency: string = 'USD'): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-  }).format(amount);
-}
+// Removed duplicate formatCurrency - use formatPrice from utils.ts instead
 
-export function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
+// Removed duplicate generateSlug - use generateSlug from utils.ts instead
 
-export function truncateString(str: string, length: number): string {
-  if (str.length <= length) return str;
-  return str.substring(0, length) + '...';
-}
+// Removed duplicate truncateString - use truncateText from utils.ts instead
 
 export function parseJSON<T>(jsonString: string, fallback: T): T {
   try {
@@ -49,9 +33,9 @@ export function parseJSON<T>(jsonString: string, fallback: T): T {
   }
 }
 
-export function generateId(): string {
-  return Math.random().toString(36).substring(2, 15);
-}
+// Removed insecure generateId - use generatePassword or generateSecureToken from security.server.ts for secure ID generation
+
+// Removed duplicate generateSlug - use generateSlug from utils.ts instead
 
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));

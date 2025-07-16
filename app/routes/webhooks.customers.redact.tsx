@@ -1,12 +1,8 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
-import { 
-  verifyWebhookRequest, 
-  logWebhookEvent, 
-  validateWebhookTopic,
-  checkWebhookRateLimit 
-} from "~/lib/webhook-security.server";
+import { verifyWebhookRequest, logWebhookEvent, validateWebhookTopic, checkWebhookRateLimit } from "~/lib/webhook-security.server";
+import { log } from "~/lib/logger.server";
 
 /**
  * GDPR Webhook: Customer Redact
@@ -43,13 +39,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     throw new Response("Unauthorized", { status: 401 });
   }
 
-  console.log(`🔒 Received verified CUSTOMERS_REDACT webhook for ${shop}`);
+  log.info(`Received verified CUSTOMERS_REDACT webhook for ${shop}`);
 
   const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
   const customerId = data.customer.id;
   const customerEmail = data.customer.email;
   
-  console.log(`📝 Redacting customer data for ${customerEmail} (${customerId})`);
+  log.info(`Redacting customer data for ${customerEmail} (${customerId})`);
 
   try {
     await db.$transaction(async (tx) => {
@@ -80,7 +76,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         }
       });
 
-      console.log(`✅ Anonymized ${registriesToAnonymize.count} registries for customer ${customerId}`);
+      log.info(`Anonymized ${registriesToAnonymize.count} registries for customer ${customerId}`);
     });
 
     // Log the redaction
@@ -102,7 +98,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await logWebhookEvent("CUSTOMERS_REDACT", shop, payload, true);
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error(`❌ Error processing customer redact webhook for ${shop}:`, error);
+    log.error(`Error processing customer redact webhook for ${shop}`, error as Error);
     await logWebhookEvent("CUSTOMERS_REDACT", shop, payload, false, error instanceof Error ? error.message : "Unknown error");
     
     // Still return 200 to prevent webhook retry storms

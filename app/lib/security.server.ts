@@ -1,34 +1,28 @@
 import type { HeadersFunction } from "@remix-run/node";
+import crypto from "crypto";
 
 /**
- * Production Security Headers Configuration
- * Implements comprehensive security headers for 100/100 Shopify score
+ * Enhanced Security Module for Shopify 2025 Compliance
+ * Combines comprehensive security headers, utilities, and configurations
  */
 
-export const securityHeaders: HeadersFunction = () => {
+/**
+ * Enhanced Security Headers for Shopify 2025 Compliance
+ * Implements comprehensive security measures for 100/100 Shopify score
+ */
+export const securityHeaders: HeadersFunction = ({ request }: any) => {
   const isDevelopment = process.env.NODE_ENV !== "production";
   
-  return {
-    // Strict Transport Security
+  // Get the shop domain from the request for dynamic CSP
+  const url = new URL(request.url);
+  const shopDomain = url.searchParams.get("shop") || "";
+  
+  // Base security headers
+  const headers: Record<string, string> = {
+    // Strict Transport Security (HSTS)
     "Strict-Transport-Security": isDevelopment 
       ? "max-age=0" 
       : "max-age=31536000; includeSubDomains; preload",
-    
-    // Content Security Policy - Shopify compliant
-    "Content-Security-Policy": [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.shopify.com https://*.myshopify.com",
-      "style-src 'self' 'unsafe-inline' https://cdn.shopify.com",
-      "img-src 'self' data: https: blob:",
-      "font-src 'self' data: https://cdn.shopify.com",
-      "connect-src 'self' https://*.myshopify.com wss://*.myshopify.com https://cdn.shopify.com",
-      "frame-src 'self' https://*.myshopify.com",
-      "frame-ancestors https://admin.shopify.com https://*.myshopify.com",
-      "base-uri 'self'",
-      "form-action 'self' https://*.myshopify.com",
-      "object-src 'none'",
-      "upgrade-insecure-requests"
-    ].join("; "),
     
     // Prevent XSS attacks
     "X-XSS-Protection": "1; mode=block",
@@ -39,40 +33,176 @@ export const securityHeaders: HeadersFunction = () => {
     // Control referrer information
     "Referrer-Policy": "strict-origin-when-cross-origin",
     
-    // Permissions Policy (formerly Feature Policy)
-    "Permissions-Policy": [
-      "accelerometer=()",
-      "autoplay=()",
-      "camera=()",
-      "display-capture=()",
-      "encrypted-media=()",
-      "fullscreen=(self)",
-      "geolocation=()",
-      "gyroscope=()",
-      "magnetometer=()",
-      "microphone=()",
-      "midi=()",
-      "payment=(self)",
-      "picture-in-picture=()",
-      "sync-xhr=()",
-      "usb=()",
-      "xr-spatial-tracking=()"
-    ].join(", "),
+    // DNS prefetch control
+    "X-DNS-Prefetch-Control": "on",
     
-    // Prevent clickjacking
-    "X-Frame-Options": "ALLOW-FROM https://admin.shopify.com",
-    
-    // Cache control for security
-    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
-    "Pragma": "no-cache",
-    "Expires": "0",
+    // Prevent clickjacking for non-embedded contexts
+    "X-Frame-Options": "SAMEORIGIN",
     
     // Additional security headers
     "X-Permitted-Cross-Domain-Policies": "none",
-    "X-DNS-Prefetch-Control": "off",
     "X-Download-Options": "noopen",
+    
+    // Report API endpoints for security monitoring
+    "Report-To": JSON.stringify({
+      group: "default",
+      max_age: 86400,
+      endpoints: [{ url: "/api/security-reports" }],
+      include_subdomains: true
+    }),
+    
+    // Network Error Logging
+    "NEL": JSON.stringify({
+      report_to: "default",
+      max_age: 86400,
+      include_subdomains: true
+    })
   };
+
+  // Content Security Policy - Dynamic for Shopify 2025
+  const cspDirectives = [
+    "default-src 'self'",
+    
+    // Script sources - Secure CSP for Shopify App Bridge and embedded apps
+    // SECURITY FIX: Removed 'unsafe-eval' and 'unsafe-inline' to prevent code injection attacks
+    "script-src 'self' " +
+      "https://cdn.shopify.com https://*.shopifycdn.com " +
+      "https://admin.shopify.com https://*.myshopify.com " +
+      `'nonce-${crypto.randomBytes(16).toString('base64')}' ` +
+      (shopDomain ? `https://${shopDomain}` : ""),
+    
+    // Style sources - Required for Polaris and Shopify styles
+    "style-src 'self' 'unsafe-inline' " +
+      "https://cdn.shopify.com https://*.shopifycdn.com " +
+      "https://fonts.googleapis.com",
+    
+    // Image sources
+    "img-src 'self' data: blob: https: " +
+      "https://cdn.shopify.com https://*.shopifycdn.com " +
+      "https://*.shopify.com https://*.myshopify.com",
+    
+    // Font sources
+    "font-src 'self' data: " +
+      "https://cdn.shopify.com https://*.shopifycdn.com " +
+      "https://fonts.gstatic.com",
+    
+    // Connection sources - WebSocket support for real-time features
+    "connect-src 'self' " +
+      "https://*.myshopify.com wss://*.myshopify.com " +
+      "https://cdn.shopify.com https://*.shopifycdn.com " +
+      "https://admin.shopify.com " +
+      (process.env.SENTRY_DSN ? "https://sentry.io https://*.ingest.sentry.io" : ""),
+    
+    // Frame sources - Required for Shopify embedded apps
+    "frame-src 'self' " +
+      "https://admin.shopify.com https://*.myshopify.com " +
+      (shopDomain ? `https://${shopDomain}` : ""),
+    
+    // Frame ancestors - Critical for embedded app functionality
+    "frame-ancestors " +
+      "https://admin.shopify.com https://*.myshopify.com " +
+      (shopDomain ? `https://${shopDomain}` : "'none'"),
+    
+    // Form action
+    "form-action 'self' https://*.myshopify.com",
+    
+    // Base URI
+    "base-uri 'self'",
+    
+    // Object sources
+    "object-src 'none'",
+    
+    // Media sources
+    "media-src 'self' blob: data:",
+    
+    // Worker sources
+    "worker-src 'self' blob:",
+    
+    // Manifest source
+    "manifest-src 'self'",
+    
+    // Upgrade insecure requests in production
+    ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
+    
+    // Report violations
+    "report-uri /api/csp-reports",
+    "report-to default"
+  ];
+
+  headers["Content-Security-Policy"] = cspDirectives.join("; ");
+
+  // Permissions Policy (Enhanced for 2025)
+  const permissionsPolicy = [
+    "accelerometer=()",
+    "ambient-light-sensor=()",
+    "autoplay=()",
+    "battery=()",
+    "camera=()",
+    "cross-origin-isolated=()",
+    "display-capture=()",
+    "document-domain=()",
+    "encrypted-media=()",
+    "execution-while-not-rendered=()",
+    "execution-while-out-of-viewport=()",
+    "fullscreen=(self)",
+    "geolocation=()",
+    "gyroscope=()",
+    "keyboard-map=()",
+    "magnetometer=()",
+    "microphone=()",
+    "midi=()",
+    "navigation-override=()",
+    "payment=(self)",
+    "picture-in-picture=()",
+    "publickey-credentials-get=()",
+    "screen-wake-lock=()",
+    "sync-xhr=()",
+    "usb=()",
+    "web-share=()",
+    "xr-spatial-tracking=()",
+    "clipboard-read=(self)",
+    "clipboard-write=(self)",
+    "gamepad=()",
+    "speaker-selection=()",
+    "conversion-measurement=()",
+    "focus-without-user-activation=()",
+    "hid=()",
+    "idle-detection=()",
+    "interest-cohort=()",
+    "serial=()",
+    "sync-script=()",
+    "trust-token-redemption=()",
+    "window-placement=()",
+    "vertical-scroll=(self)"
+  ];
+
+  headers["Permissions-Policy"] = permissionsPolicy.join(", ");
+
+  // Additional security headers for 2025
+  headers["Cross-Origin-Embedder-Policy"] = "unsafe-none"; // Required for Shopify embedded apps
+  headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"; // Allow OAuth popups
+  headers["Cross-Origin-Resource-Policy"] = "cross-origin"; // Allow Shopify to load resources
+  
+  // Cache control for security
+  headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+  headers["Pragma"] = "no-cache";
+  headers["Expires"] = "0";
+
+  return headers;
 };
+
+/**
+ * Security headers for API routes
+ */
+export const apiSecurityHeaders: HeadersFunction = () => ({
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "DENY",
+  "X-XSS-Protection": "1; mode=block",
+  "Referrer-Policy": "no-referrer",
+  "Cache-Control": "no-store, no-cache, must-revalidate, private",
+  "Pragma": "no-cache",
+  "Expires": "0"
+});
 
 /**
  * Apply security headers to a Response
@@ -85,6 +215,35 @@ export function applySecurityHeaders(response: Response): Response {
   });
   
   return response;
+}
+
+/**
+ * CORS headers for API routes
+ */
+export function getCORSHeaders(origin: string | null): Record<string, string> {
+  const allowedOrigins = [
+    "https://admin.shopify.com",
+    /https:\/\/.*\.myshopify\.com$/,
+    process.env.SHOPIFY_APP_URL
+  ].filter(Boolean);
+
+  const isAllowed = origin && allowedOrigins.some(allowed => 
+    typeof allowed === 'string' 
+      ? allowed === origin 
+      : allowed?.test?.(origin)
+  );
+
+  if (isAllowed) {
+    return {
+      "Access-Control-Allow-Origin": origin,
+      "Access-Control-Allow-Credentials": "true",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Shopify-Access-Token",
+      "Access-Control-Max-Age": "86400"
+    };
+  }
+
+  return {};
 }
 
 /**
@@ -133,6 +292,20 @@ export const securityConfig = {
 };
 
 /**
+ * Get CSP nonce for inline scripts (if needed)
+ */
+export function generateCSPNonce(): string {
+  return crypto.randomBytes(16).toString('base64');
+}
+
+/**
+ * Generate secure random tokens
+ */
+export function generateSecureToken(length: number = 32): string {
+  return crypto.randomBytes(length).toString("base64url");
+}
+
+/**
  * Validate request origin for CSRF protection
  */
 export function validateOrigin(request: Request): boolean {
@@ -161,21 +334,11 @@ export function validateOrigin(request: Request): boolean {
 
 /**
  * Sanitize user input to prevent XSS
+ * DEPRECATED: Use sanitizeInput from sanitization-unified.server.ts instead
  */
 export function sanitizeInput(input: string): string {
-  return input
-    .replace(/[<>]/g, "") // Remove angle brackets
-    .replace(/javascript:/gi, "") // Remove javascript: protocol
-    .replace(/on\w+\s*=/gi, "") // Remove event handlers
-    .trim();
-}
-
-/**
- * Generate secure random tokens
- */
-export function generateSecureToken(length: number = 32): string {
-  const crypto = require("crypto");
-  return crypto.randomBytes(length).toString("base64url");
+  const { sanitizeInput: unifiedSanitizeInput } = require('./sanitization-unified.server');
+  return unifiedSanitizeInput(input);
 }
 
 /**

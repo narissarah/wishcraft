@@ -5,25 +5,41 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import morgan from "morgan";
 
+// Import cron job initialization
+import { initializeCronJobs, stopCronJobs } from "./app/lib/cron-jobs.server.js";
+
+// Import P95 monitoring
+import { createP95Middleware } from "./build/server/app/lib/p95-monitoring.server.js";
+
 // Async function to handle top-level await
 async function startServer() {
-  const app = express();
+  // ARCHITECTURAL FIX: Initialize application with dependency injection
+  try {
+    const { initializeApplication } = await import("./build/server/app/lib/application.server.js");
+    const app = await initializeApplication();
+    console.log('✅ Application initialized with dependency injection');
+  } catch (error) {
+    console.error('❌ Application initialization failed:', error.message);
+    process.exit(1);
+  }
+  
+  const expressApp = express();
 
 // Startup information logged in production startup section below;
 
 // Trust proxy for Railway deployments
-app.set('trust proxy', true);
+expressApp.set('trust proxy', true);
 
 // REMOVED: HTTPS redirection handled by Shopify CLI
 
 // Security middleware - Built for Shopify requirements
 // Generate a nonce for each request for CSP
-app.use((req, res, next) => {
+expressApp.use((req, res, next) => {
   res.locals.cspNonce = require('crypto').randomBytes(16).toString('base64');
   next();
 });
 
-app.use(helmet({
+expressApp.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
@@ -44,18 +60,21 @@ app.use(helmet({
 }));
 
 // Enable compression for all responses
-app.use(compression());
+expressApp.use(compression());
 
 // Request logging
 if (process.env.NODE_ENV === 'production') {
-  app.use(morgan('combined'));
+  expressApp.use(morgan('combined'));
 } else {
-  app.use(morgan('dev'));
+  expressApp.use(morgan('dev'));
 }
 
 // Parse JSON bodies
-app.use(express.json({ limit: '2mb' }));
-app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+expressApp.use(express.json({ limit: '2mb' }));
+expressApp.use(express.urlencoded({ extended: true, limit: '2mb' }));
+
+// P95 API monitoring middleware - Track all API performance
+expressApp.use('/api/', createP95Middleware());
 
 // Rate limiting - Built for Shopify requirement
 const generalLimiter = rateLimit({
@@ -81,29 +100,83 @@ const authLimiter = rateLimit({
 });
 
 // Apply rate limiting
-app.use('/api/', generalLimiter);
+expressApp.use('/api/', generalLimiter);
 // Only apply auth rate limiting in production to avoid development issues
 if (process.env.NODE_ENV === 'production') {
-  app.use('/auth/', authLimiter);
+  expressApp.use('/auth/', authLimiter);
 }
-app.use('/webhooks/', rateLimit({
+expressApp.use('/webhooks/', rateLimit({
   windowMs: 1 * 60 * 1000,
   max: 100 // Higher limit for webhooks
 }));
 
 // Health check endpoints (must be before static file serving)
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'healthy', 
-    timestamp: new Date().toISOString(),
-    version: process.env.npm_package_version || '1.0.0',
-    environment: process.env.NODE_ENV,
-    database_url_set: !!process.env.DATABASE_URL,
-    shopify_configured: !!(process.env.SHOPIFY_API_KEY && process.env.SHOPIFY_API_SECRET)
-  });
+expressApp.get('/health', async (req, res) => {
+  try {
+    const { applicationHealthCheck } = await import('./build/server/app/lib/application.server.js');
+    const healthStatus = await applicationHealthCheck();
+    res.json({
+      status: healthStatus.healthy ? 'healthy' : 'unhealthy',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '1.0.0',
+      environment: process.env.NODE_ENV,
+      ...healthStatus
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'unhealthy',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
-app.get('/health/db', async (req, res) => {
+// P95 Performance Monitoring API endpoint
+expressApp.get('/api/performance/metrics', async (req, res) => {
+  try {
+    const { handleP95MetricsRequest } = await import('./build/server/app/lib/p95-monitoring.server.js');
+    await handleP95MetricsRequest(req, res);
+  } catch (error) {
+    console.error('Failed to load P95 metrics handler:', error);
+    res.status(500).json({ error: 'Performance metrics unavailable' });
+  }
+});
+
+// Application metrics endpoint
+expressApp.get('/api/metrics', async (req, res) => {
+  try {
+    const { applicationMetrics } = await import('./build/server/app/lib/application.server.js');
+    const metrics = await applicationMetrics();
+    res.json(metrics);
+  } catch (error) {
+    console.error('Failed to load application metrics:', error);
+    res.status(500).json({ error: 'Application metrics unavailable' });
+  }
+});
+
+// Deployment readiness endpoint
+expressApp.get('/api/deployment/readiness', async (req, res) => {
+  try {
+    const { handleDeploymentReadinessRequest } = await import('./build/server/app/lib/deployment-readiness.server.js');
+    await handleDeploymentReadinessRequest(req, res);
+  } catch (error) {
+    console.error('Failed to load deployment readiness handler:', error);
+    res.status(500).json({ error: 'Deployment readiness check unavailable' });
+  }
+});
+
+// Performance optimization endpoint
+expressApp.get('/api/performance/optimize', async (req, res) => {
+  try {
+    const { handlePerformanceOptimizationRequest } = await import('./build/server/app/lib/performance-optimizations.server.js');
+    await handlePerformanceOptimizationRequest(req, res);
+  } catch (error) {
+    console.error('Failed to load performance optimization handler:', error);
+    res.status(500).json({ error: 'Performance optimization unavailable' });
+  }
+});
+
+expressApp.get('/health/db', async (req, res) => {
   try {
     const { PrismaClient } = await import('@prisma/client');
     const prisma = new PrismaClient();
@@ -123,11 +196,11 @@ app.get('/health/db', async (req, res) => {
 });
 
 // Serve static files
-app.use(express.static("public"));
+expressApp.use(express.static("public"));
 
 // Remix handler for all other routes
 const build = await import("./build/index.js");
-app.all(
+expressApp.all(
   "*",
   createRequestHandler({
     build: build.default,
@@ -147,7 +220,7 @@ const host = process.env.HOST || "0.0.0.0";
 // Removed duplicate security headers middleware that was causing CSP conflicts
 
 // Error handling middleware
-app.use((err, req, res, next) => {
+expressApp.use((err, req, res, next) => {
   // Log error details for monitoring
   if (process.env.NODE_ENV !== 'production') console.error('Server Error:', {
     error: err.message,
@@ -171,17 +244,30 @@ app.use((err, req, res, next) => {
   });
 });
 
-const server = app.listen(port, host, async () => {
+const server = expressApp.listen(port, host, async () => {
   console.log(`✅ WishCraft server running on port ${port} (${process.env.NODE_ENV})`);
   
-  // Background job processor removed for production stability
+  // Initialize cron jobs for Built for Shopify compliance
+  try {
+    await initializeCronJobs();
+    console.log(`✅ Background job processing initialized`);
+  } catch (error) {
+    console.error('Failed to initialize cron jobs:', error);
+    // Don't exit - app can still run without cron jobs
+  }
 });
 
   // Graceful shutdown
   const gracefulShutdown = async () => {
     if (process.env.NODE_ENV !== 'production') console.log('Shutting down gracefully...');
     
-    // Background jobs removed for production stability
+    // Stop cron jobs
+    try {
+      stopCronJobs();
+      console.log('✅ Cron jobs stopped');
+    } catch (error) {
+      console.error('Error stopping cron jobs:', error);
+    }
     
     server.close(() => {
       if (process.env.NODE_ENV !== 'production') console.log('HTTP server closed');

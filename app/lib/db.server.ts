@@ -1,10 +1,43 @@
 import { PrismaClient } from "@prisma/client";
 import { log } from "~/lib/logger.server";
+import { configureDatabaseMiddleware } from "~/lib/db-middleware.server";
 
 declare global {
   // eslint-disable-next-line no-var
   var __db__: PrismaClient | undefined;
 }
+
+// PERFORMANCE FIX: Enhanced database configuration with connection pooling
+const createPrismaClient = () => {
+  const databaseUrl = new URL(process.env.DATABASE_URL!);
+  
+  // Add connection pooling parameters
+  databaseUrl.searchParams.set('connection_limit', process.env.DATABASE_POOL_MAX || '10');
+  databaseUrl.searchParams.set('connect_timeout', '30');
+  databaseUrl.searchParams.set('pool_timeout', '10');
+  databaseUrl.searchParams.set('pgbouncer', 'true'); // Enable PgBouncer compatibility
+  databaseUrl.searchParams.set('statement_cache_size', '100');
+  
+  return new PrismaClient({
+    log: process.env.NODE_ENV === "development"
+      ? [
+          { level: "query", emit: "event" },
+          { level: "error", emit: "event" },
+          { level: "warn", emit: "event" }
+        ]
+      : [
+          { level: "error", emit: "event" },
+          { level: "warn", emit: "event" }
+        ],
+    datasources: {
+      db: {
+        url: databaseUrl.toString(),
+      },
+    },
+    // Connection pool configuration
+    errorFormat: process.env.NODE_ENV === "development" ? "pretty" : "minimal",
+  });
+};
 
 let db: PrismaClient;
 
@@ -12,19 +45,28 @@ let db: PrismaClient;
 // the server with every change, but we want to make sure we don't
 // create a new connection to the DB with every change either.
 if (process.env.NODE_ENV === "production") {
-  db = new PrismaClient();
+  db = createPrismaClient();
+  
+  // Configure middleware for production
+  configureDatabaseMiddleware(db);
+  
+  db.$connect().catch((error) => {
+    log.error("Failed to connect to database", error);
+    process.exit(1);
+  });
 } else {
   if (!global.__db__) {
-    global.__db__ = new PrismaClient({
-      log: [
-        { level: "query", emit: "event" },
-        { level: "error", emit: "event" },
-        { level: "warn", emit: "event" }
-      ],
-    });
+    global.__db__ = createPrismaClient();
+    
+    // Configure middleware for development
+    configureDatabaseMiddleware(global.__db__);
     
     // Log Prisma events in development
     global.__db__.$on("query" as never, (e: any) => {
+      // PERFORMANCE: Log slow queries
+      if (e.duration > 1000) {
+        log.warn(`Slow query detected (${e.duration}ms): ${e.query}`);
+      }
       log.debug(`Prisma Query: ${e.query}`, { duration: e.duration });
     });
     global.__db__.$on("error" as never, (e: any) => {
@@ -33,10 +75,46 @@ if (process.env.NODE_ENV === "production") {
     global.__db__.$on("warn" as never, (e: any) => {
       log.warn("Prisma Warning", e);
     });
+    
+    global.__db__.$connect().catch((error) => {
+      log.error("Failed to connect to database in development", error);
+      process.exit(1);
+    });
   }
   db = global.__db__;
-  db.$connect();
 }
+
+// PERFORMANCE: Graceful shutdown with error handling
+process.on("beforeExit", async () => {
+  try {
+    await db.$disconnect();
+    log.info("Database connection closed gracefully");
+  } catch (error) {
+    log.error("Error during database disconnection", error as Error);
+  }
+});
+
+process.on("SIGTERM", async () => {
+  try {
+    await db.$disconnect();
+    log.info("Database connection closed on SIGTERM");
+    process.exit(0);
+  } catch (error) {
+    log.error("Error during database disconnection on SIGTERM", error as Error);
+    process.exit(1);
+  }
+});
+
+process.on("SIGINT", async () => {
+  try {
+    await db.$disconnect();
+    log.info("Database connection closed on SIGINT");
+    process.exit(0);
+  } catch (error) {
+    log.error("Error during database disconnection on SIGINT", error as Error);
+    process.exit(1);
+  }
+});
 
 export { db };
 

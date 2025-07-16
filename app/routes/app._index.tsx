@@ -1,16 +1,7 @@
 import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useRouteError } from "@remix-run/react";
-import {
-  Page,
-  Layout,
-  Text,
-  Card,
-  Button,
-  BlockStack,
-  InlineStack,
-  Badge,
-} from "@shopify/polaris";
+import { Page, Layout, Text, Card, Button, BlockStack, InlineStack, Badge } from "@shopify/polaris";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { authenticate } from "~/shopify.server";
 

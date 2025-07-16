@@ -4,12 +4,34 @@ import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { topic, shop, session, admin, payload } = await authenticate.webhook(
-    request,
-  );
+  // CRITICAL SECURITY: Verify webhook HMAC signature before processing
+  let shop: string;
+  let payload: any;
+  
+  try {
+    const { topic, shop: webhookShop, session, admin, payload: webhookPayload } = await authenticate.webhook(
+      request,
+    );
+    
+    shop = webhookShop;
+    payload = webhookPayload;
 
-  if (!admin && topic === "PRODUCTS_UPDATE") {
-    throw new Response("Unauthorized", { status: 401 });
+    // Additional security: Verify topic matches expected webhook
+    if (topic !== "PRODUCTS_UPDATE") {
+      log.warn("Webhook topic mismatch", { expected: "PRODUCTS_UPDATE", received: topic, shop });
+      throw new Response("Invalid webhook topic", { status: 400 });
+    }
+
+    if (!admin && topic === "PRODUCTS_UPDATE") {
+      log.error("Webhook authentication failed", { topic, shop });
+      throw new Response("Unauthorized", { status: 401 });
+    }
+  } catch (error) {
+    log.error("Webhook verification failed", error as Error, { 
+      url: request.url, 
+      headers: Object.fromEntries(request.headers.entries()) 
+    });
+    throw new Response("Webhook verification failed", { status: 401 });
   }
 
   log.webhook("PRODUCTS_UPDATE", shop, { verified: true });

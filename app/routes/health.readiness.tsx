@@ -1,6 +1,7 @@
 import type { LoaderFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 
 /**
  * Kubernetes Readiness Probe
@@ -19,7 +20,7 @@ export const loader: LoaderFunction = async () => {
     await db.$queryRaw`SELECT 1`;
     checks.database = true;
   } catch (error) {
-    console.error("Database readiness check failed:", error);
+    log.error("Database readiness check failed", error as Error);
   }
   
   // Check critical environment variables

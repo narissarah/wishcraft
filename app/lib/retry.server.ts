@@ -4,6 +4,7 @@
  */
 
 import { sleep } from "./utils.server";
+import { log } from '~/lib/logger.server';
 
 export interface RetryOptions {
   maxAttempts?: number;
@@ -168,7 +169,7 @@ export const shopifyRetry = createRetryWrapper({
   factor: 2,
   jitter: true,
   onRetry: (error, attempt) => {
-    console.warn(`Shopify API retry attempt ${attempt}:`, error.message);
+    log.warn(`Shopify API retry attempt ${attempt}: ${error.message}`);
   },
   shouldRetry: (error) => {
     // Always retry rate limit errors

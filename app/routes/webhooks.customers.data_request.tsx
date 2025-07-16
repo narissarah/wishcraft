@@ -1,3 +1,4 @@
+import { log } from "~/lib/logger.server";
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
@@ -11,7 +12,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, payload, topic } = await authenticate.webhook(request);
   
   if (!payload.customer?.id || !payload.customer?.email) {
-    console.error("Invalid customer data in webhook payload");
+    log.error("Invalid customer data in webhook payload");
     throw new Response("Bad request", { status: 400 });
   }
 
@@ -48,11 +49,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       },
     });
 
-    console.log(`📊 GDPR: Customer data request received for ${payload.customer.email} from shop ${shop}`);
+    log.info(`GDPR: Customer data request received for ${payload.customer.email} from shop ${shop}`);
     
     return new Response("OK", { status: 200 });
   } catch (error) {
-    console.error("Error processing customer data request:", error);
+    log.error("Error processing customer data request:", error as Error);
     // Still return 200 to prevent webhook retry storms
     return new Response("OK", { status: 200 });
   }
