@@ -23,9 +23,9 @@ const WEBHOOK_BREAKER_CONFIG = {
   errorThresholdPercentage: 60
 };
 
-// Circuit breaker instances
+// Circuit breaker instances - 2025 GraphQL-only compliance
 export const graphqlAdminApiBreaker = getCircuitBreaker('ShopifyGraphQLAdminAPI', SHOPIFY_API_BREAKER_CONFIG);
-export const restAdminApiBreaker = getCircuitBreaker('ShopifyRESTAdminAPI', SHOPIFY_API_BREAKER_CONFIG);
+// REMOVED: restAdminApiBreaker - REST API deprecated for 2025 compliance
 export const webhookProcessingBreaker = getCircuitBreaker('ShopifyWebhookProcessing', WEBHOOK_BREAKER_CONFIG);
 export const externalServiceBreaker = getCircuitBreaker('ExternalServices', SHOPIFY_API_BREAKER_CONFIG);
 
@@ -64,30 +64,8 @@ export async function callGraphQLAdminAPIWithBreaker(
   });
 }
 
-// Wrapped REST Admin API call with circuit breaker (legacy)
-export async function callRESTAdminAPIWithBreaker(
-  admin: AdminApiContext,
-  path: string,
-  options?: RequestInit
-) {
-  return restAdminApiBreaker.call(async () => {
-    try {
-      const response = await admin.rest.get({ path, ...options });
-      
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('Shopify API rate limit exceeded');
-        }
-        throw new Error(`REST API error: ${response.status} ${response.statusText}`);
-      }
-      
-      return response.json();
-    } catch (error) {
-      log.error('Shopify REST API error', error);
-      throw error;
-    }
-  });
-}
+// REMOVED: callRESTAdminAPIWithBreaker - REST API deprecated for 2025 compliance
+// Use callGraphQLAdminAPIWithBreaker instead for all API calls
 
 // Wrapped webhook processing with circuit breaker
 export async function processWebhookWithBreaker(

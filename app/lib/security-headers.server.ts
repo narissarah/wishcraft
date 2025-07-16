@@ -48,24 +48,41 @@ export function getSecurityHeaders(requestOrOptions: Request | SecurityHeadersOp
 }
 
 function generateCSP({ nonce, shop, development }: SecurityHeadersOptions): string {
+  // Enhanced CSP for 2025 compliance - removes 'unsafe-inline' and uses nonce-based approach
   const directives = [
     "default-src 'self'",
-    `script-src 'self' ${nonce ? `'nonce-${nonce}'` : "'unsafe-inline'"} https://cdn.shopify.com`,
-    "style-src 'self' 'unsafe-inline' https://cdn.shopify.com",
-    "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com",
-    "img-src 'self' data: https: blob:",
-    "connect-src 'self' https://*.myshopify.com",
-    "frame-src 'self' https://*.myshopify.com",
+    // Script sources with nonce-based CSP (2025 compliant)
+    `script-src 'self' ${nonce ? `'nonce-${nonce}'` : "'strict-dynamic'"} https://cdn.shopify.com https://js.shopifycs.com`,
+    // Style sources with nonce-based CSP (removes unsafe-inline)
+    `style-src 'self' ${nonce ? `'nonce-${nonce}'` : "'strict-dynamic'"} https://cdn.shopify.com https://fonts.googleapis.com`,
+    // Font sources for Polaris and Google Fonts
+    "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.shopify.com",
+    // Image sources including Shopify CDN
+    "img-src 'self' data: https: blob: https://*.shopifycdn.com",
+    // Connect sources for GraphQL and API calls
+    "connect-src 'self' https://*.myshopify.com https://*.shopifycs.com wss://*.myshopify.com",
+    // Frame sources for embedded app
+    "frame-src 'self' https://*.myshopify.com https://admin.shopify.com",
+    // Object and base restrictions
     "object-src 'none'",
-    "base-uri 'self'"
+    "base-uri 'self'",
+    // Media sources
+    "media-src 'self' https://*.shopifycdn.com",
+    // Worker sources
+    "worker-src 'self' blob:"
   ];
   
   if (shop) {
+    // Frame ancestors for specific shop domain
     directives.push(`frame-ancestors https://${shop}.myshopify.com https://admin.shopify.com`);
+  } else {
+    // General frame ancestors for all Shopify domains
+    directives.push("frame-ancestors https://*.myshopify.com https://admin.shopify.com");
   }
   
   if (development) {
-    directives.push("connect-src 'self' ws: wss: https://*.myshopify.com");
+    // Additional development sources
+    directives.push("connect-src 'self' ws: wss: https://*.myshopify.com http://localhost:* https://localhost:*");
   }
   
   return directives.join('; ');

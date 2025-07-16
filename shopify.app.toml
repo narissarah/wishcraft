@@ -3,7 +3,7 @@
 client_id = "ac161e228a6b078fcdd3fa14586ded14"
 name = "wishcraft"
 handle = "wishcraft"
-application_url = "https://localhost:3000"
+application_url = "https://wishcraft-production.up.railway.app"
 embedded = true
 
 [build]
@@ -28,6 +28,7 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [ 
+  "https://wishcraft-production.up.railway.app/auth/callback",
   "https://localhost:3000/auth/callback"
 ]
 
