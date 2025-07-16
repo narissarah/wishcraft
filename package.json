@@ -23,7 +23,7 @@
     "performance:audit": "node scripts/performance-audit.js",
     "generate-secrets": "node scripts/generate-secrets.js",
     "deploy:railway": "node deploy.js railway",
-    "deploy:render": "node deploy.js render", 
+    "deploy:render": "node deploy.js render",
     "deploy:fly": "node deploy.js fly",
     "deployment:check": "node -e \"const { runDeploymentReadinessCheck } = require('./build/server/app/lib/deployment-readiness.server.js'); runDeploymentReadinessCheck().then(console.log)\"",
     "health:check": "curl -f http://localhost:3000/health || exit 1"
@@ -54,6 +54,7 @@
     "node-cron": "^4.2.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "remix-utils": "^7.7.0",
     "web-vitals": "^3.5.2",
     "winston": "^3.16.0",
     "zod": "^3.25.76"

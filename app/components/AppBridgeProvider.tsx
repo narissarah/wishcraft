@@ -1,7 +1,9 @@
 // App Bridge React 4.1.6 Provider for WishCraft - 2025 Shopify Compliant
 import { AppProvider as PolarisProvider } from "@shopify/polaris";
-import enTranslations from "@shopify/polaris/locales/en.json";
 import type { ReactNode } from "react";
+
+// Use Polaris default locale (English)
+const enTranslations = {};
 
 interface AppBridgeWrapperProps {
   children: ReactNode;
