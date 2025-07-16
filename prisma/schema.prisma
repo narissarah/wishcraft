@@ -430,3 +430,20 @@ model registry_invitations {
   @@index([email])
   @@index([registryId])
 }
+
+model performance_metrics {
+  id          String   @id
+  shopId      String
+  metricType  String
+  metricValue Float
+  url         String?
+  userAgent   String?
+  viewport    String?
+  connection  String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([metricType])
+  @@index([shopId])
+  @@index([shopId, metricType, createdAt])
+}

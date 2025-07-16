@@ -5,12 +5,12 @@ CREATE TABLE IF NOT EXISTS performance_metrics (
   value NUMERIC(10, 2) NOT NULL,
   rating VARCHAR(20) NOT NULL,
   path VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  INDEX idx_performance_metric (metric),
-  INDEX idx_performance_created (created_at),
-  INDEX idx_performance_metric_created (metric, created_at)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_performance_metric ON performance_metrics (metric);
+CREATE INDEX IF NOT EXISTS idx_performance_created ON performance_metrics (created_at);
+CREATE INDEX IF NOT EXISTS idx_performance_metric_created ON performance_metrics (metric, created_at);
 
 -- GraphQL Query Performance Tracking
 CREATE TABLE IF NOT EXISTS graphql_queries (
@@ -20,13 +20,13 @@ CREATE TABLE IF NOT EXISTS graphql_queries (
   complexity INTEGER NOT NULL,
   cache_hit BOOLEAN DEFAULT FALSE,
   error_message TEXT,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  INDEX idx_graphql_query_name (query_name),
-  INDEX idx_graphql_duration (duration),
-  INDEX idx_graphql_created (created_at),
-  INDEX idx_graphql_slow_queries (created_at, duration) WHERE duration > 1000
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_graphql_query_name ON graphql_queries (query_name);
+CREATE INDEX IF NOT EXISTS idx_graphql_duration ON graphql_queries (duration);
+CREATE INDEX IF NOT EXISTS idx_graphql_created ON graphql_queries (created_at);
+CREATE INDEX IF NOT EXISTS idx_graphql_slow_queries ON graphql_queries (created_at, duration) WHERE duration > 1000;
 
 -- Webhook Event Tracking
 CREATE TABLE IF NOT EXISTS webhook_events (
@@ -37,13 +37,13 @@ CREATE TABLE IF NOT EXISTS webhook_events (
   success BOOLEAN NOT NULL,
   error_message TEXT,
   payload_size INTEGER,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  INDEX idx_webhook_topic (topic),
-  INDEX idx_webhook_shop (shop_domain),
-  INDEX idx_webhook_created (created_at),
-  INDEX idx_webhook_failures (created_at, success) WHERE success = FALSE
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_webhook_topic ON webhook_events (topic);
+CREATE INDEX IF NOT EXISTS idx_webhook_shop ON webhook_events (shop_domain);
+CREATE INDEX IF NOT EXISTS idx_webhook_created ON webhook_events (created_at);
+CREATE INDEX IF NOT EXISTS idx_webhook_failures ON webhook_events (created_at, success) WHERE success = FALSE;
 
 -- Bundle Size Tracking
 CREATE TABLE IF NOT EXISTS bundle_metrics (
@@ -53,11 +53,11 @@ CREATE TABLE IF NOT EXISTS bundle_metrics (
   size_bytes INTEGER NOT NULL,
   gzip_size_bytes INTEGER NOT NULL,
   parse_time NUMERIC(10, 2),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  INDEX idx_bundle_build (build_id),
-  INDEX idx_bundle_created (created_at)
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_bundle_build ON bundle_metrics (build_id);
+CREATE INDEX IF NOT EXISTS idx_bundle_created ON bundle_metrics (created_at);
 
 -- Create views for performance analytics
 CREATE OR REPLACE VIEW performance_summary AS
@@ -102,9 +102,9 @@ CREATE TABLE IF NOT EXISTS performance_alerts (
   severity VARCHAR(20) NOT NULL,
   resolved BOOLEAN DEFAULT FALSE,
   resolved_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  
-  INDEX idx_alert_type (alert_type),
-  INDEX idx_alert_severity (severity),
-  INDEX idx_alert_unresolved (created_at, resolved) WHERE resolved = FALSE
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX IF NOT EXISTS idx_alert_type ON performance_alerts (alert_type);
+CREATE INDEX IF NOT EXISTS idx_alert_severity ON performance_alerts (severity);
+CREATE INDEX IF NOT EXISTS idx_alert_unresolved ON performance_alerts (created_at, resolved) WHERE resolved = FALSE;
