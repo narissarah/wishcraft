@@ -1,14 +1,15 @@
 [variables]
 NODE_VERSION = "18.20.0"
+NPM_VERSION = "9.8.1"
 
 [phases.setup]
 nixPkgs = ["nodejs-18_x", "npm-9_x"]
 
 [phases.install]
-cmd = "npm ci --omit=dev"
+cmd = "npm ci --production=false --legacy-peer-deps"
 
 [phases.build]
 cmd = "npm run build"
 
 [start]
-cmd = "npm run start"
+cmd = "npm run start:production"

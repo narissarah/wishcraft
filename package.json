@@ -6,6 +6,7 @@
     "build": "npx prisma generate && remix build",
     "dev": "shopify app dev --use-localhost",
     "start": "node server.js",
+    "start:production": "npx prisma db push && node server.js",
     "deploy": "shopify app deploy",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",

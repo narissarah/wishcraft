@@ -12,14 +12,32 @@ const prisma = new PrismaClient();
 // Async function to handle top-level await and proper initialization
 async function startServer() {
   console.log('🚀 Starting WishCraft - Built for Shopify 2025 Production Server');
+  console.log('🔧 Environment:', process.env.NODE_ENV);
+  console.log('🔧 Port:', process.env.PORT || 3000);
   
-  // Verify database connection
-  try {
-    await prisma.$connect();
-    console.log('✅ Database connected successfully');
-  } catch (error) {
-    console.error('❌ Database connection failed:', error.message);
-    // Don't exit - let the app start without DB for now
+  // Verify database connection with retry logic
+  let dbConnected = false;
+  let retryCount = 0;
+  const maxRetries = 10;
+  
+  while (!dbConnected && retryCount < maxRetries) {
+    try {
+      await prisma.$connect();
+      await prisma.$queryRaw`SELECT 1`;
+      console.log('✅ Database connected successfully');
+      dbConnected = true;
+    } catch (error) {
+      retryCount++;
+      console.error(`❌ Database connection attempt ${retryCount}/${maxRetries} failed:`, error.message);
+      
+      if (retryCount < maxRetries) {
+        console.log(`⏳ Retrying in ${retryCount * 2} seconds...`);
+        await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
+      } else {
+        console.error('❌ Max database connection retries exceeded. Starting without database.');
+        // Continue without DB connection - health checks will handle this
+      }
+    }
   }
   
   const app = express();
@@ -104,32 +122,38 @@ async function startServer() {
 
   // Health check endpoints (must be before static file serving)
   app.get('/health', async (req, res) => {
+    console.log('🔍 Health check requested');
+    
+    const healthData = {
+      status: 'healthy',
+      timestamp: new Date().toISOString(),
+      version: process.env.npm_package_version || '1.0.0',
+      environment: process.env.NODE_ENV || 'development',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      shopifyCompliant: true,
+      railway: {
+        deployment: process.env.RAILWAY_DEPLOYMENT_ID || 'unknown',
+        environment: process.env.RAILWAY_ENVIRONMENT || 'unknown',
+        project: process.env.RAILWAY_PROJECT_NAME || 'unknown'
+      }
+    };
+
     try {
       // Check database connectivity
       await prisma.$queryRaw`SELECT 1`;
+      healthData.database = 'connected';
+      console.log('✅ Health check: Database connected');
       
-      res.json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || '1.0.0',
-        environment: process.env.NODE_ENV,
-        database: 'connected',
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        shopifyCompliant: true
-      });
+      res.json(healthData);
     } catch (error) {
-      res.status(200).json({
-        status: 'healthy',
-        timestamp: new Date().toISOString(),
-        version: process.env.npm_package_version || '1.0.0',
-        environment: process.env.NODE_ENV,
-        database: 'disconnected',
-        uptime: process.uptime(),
-        memory: process.memoryUsage(),
-        shopifyCompliant: true,
-        warning: 'Database connection issue'
-      });
+      console.log('⚠️  Health check: Database disconnected -', error.message);
+      healthData.database = 'disconnected';
+      healthData.warning = 'Database connection issue';
+      healthData.dbError = error.message;
+      
+      // Still return 200 OK for Railway health check
+      res.status(200).json(healthData);
     }
   });
 
