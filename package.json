@@ -36,8 +36,7 @@
     "@remix-run/serve": "^2.16.8",
     "@sentry/node": "^9.38.0",
     "@sentry/profiling-node": "^9.38.0",
-    "@shopify/app-bridge": "^3.7.10",
-    "@shopify/app-bridge-react": "^4.2.0",
+    "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/polaris": "^13.9.5",
     "@shopify/shopify-app-remix": "^3.3.0",
     "@shopify/shopify-app-session-storage-prisma": "^6.0.7",
@@ -61,7 +60,6 @@
   },
   "devDependencies": {
     "@remix-run/dev": "^2.16.8",
-    "@shopify/app-bridge-types": "^0.0.4",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",

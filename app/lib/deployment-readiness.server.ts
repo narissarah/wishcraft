@@ -678,25 +678,41 @@ export class DeploymentReadinessService {
    */
   private async checkShopifyCompliance(): Promise<{ passed: boolean; message: string; details?: any }> {
     const packageJson = JSON.parse(readFileSync('package.json', 'utf-8'));
-    const appBridgeVersion = packageJson.dependencies?.['@shopify/app-bridge'];
+    const appBridgeReactVersion = packageJson.dependencies?.['@shopify/app-bridge-react'];
 
-    if (!appBridgeVersion) {
+    if (!appBridgeReactVersion) {
       return { 
         passed: false, 
-        message: 'Shopify App Bridge not found',
-        details: { suggestion: 'Install @shopify/app-bridge for Shopify compliance' }
+        message: 'Shopify App Bridge React not found',
+        details: { suggestion: 'Install @shopify/app-bridge-react for Shopify 2025 compliance' }
       };
     }
 
-    if (appBridgeVersion.includes('snapshot')) {
+    if (appBridgeReactVersion.includes('snapshot')) {
       return { 
         passed: false, 
-        message: 'Using snapshot version of App Bridge',
-        details: { version: appBridgeVersion, suggestion: 'Use stable version for production' }
+        message: 'Using snapshot version of App Bridge React',
+        details: { version: appBridgeReactVersion, suggestion: 'Use stable version for production' }
       };
     }
 
-    return { passed: true, message: 'Shopify compliance requirements met' };
+    // Check for 2025 compliance (4.1.6+ required)
+    const versionMatch = appBridgeReactVersion.match(/(\d+)\.(\d+)\.(\d+)/);
+    if (versionMatch) {
+      const [, major, minor, patch] = versionMatch.map(Number);
+      if (major < 4 || (major === 4 && minor < 1) || (major === 4 && minor === 1 && patch < 6)) {
+        return {
+          passed: false,
+          message: 'App Bridge React version not 2025 compliant',
+          details: { 
+            version: appBridgeReactVersion, 
+            suggestion: 'Update to @shopify/app-bridge-react@^4.1.6 for 2025 compliance' 
+          }
+        };
+      }
+    }
+
+    return { passed: true, message: 'Shopify 2025 compliance requirements met' };
   }
 
   /**
