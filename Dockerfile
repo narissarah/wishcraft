@@ -1,4 +1,4 @@
-# Optimized Dockerfile for Railway - Fix build issues
+# Optimized Dockerfile for Railway - Deploy with Prisma fixes
 FROM node:20-alpine
 
 # Install build dependencies and update npm
