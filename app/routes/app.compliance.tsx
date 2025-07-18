@@ -6,7 +6,7 @@ import { Page, Card, Layout, Text, Badge, ProgressBar, DataTable, Icon, Banner, 
 import { CheckCircleIcon, AlertCircleIcon, InfoIcon } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
 import { checkBuiltForShopifyCompliance, getWebhookReliabilityMetrics } from "~/lib/built-for-shopify.server";
-import { getCircuitBreakerStates, areCircuitBreakersHealthy } from "~/lib/shopify-circuit-breakers.server";
+// Circuit breaker monitoring removed for 2025 GraphQL-only compliance
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -18,9 +18,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Get webhook metrics
   const webhookMetrics = await getWebhookReliabilityMetrics(shopId);
   
-  // Get circuit breaker health
-  const circuitBreakerStates = getCircuitBreakerStates();
-  const circuitBreakersHealthy = areCircuitBreakersHealthy();
+  // Circuit breaker monitoring removed for 2025 GraphQL-only compliance
+  const circuitBreakerStates = [];
+  const circuitBreakersHealthy = true;
   
   return json({
     shopId,
