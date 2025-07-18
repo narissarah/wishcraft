@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
-import { Card, Text, Button, Modal, TextField, Select, Badge, Icon, ButtonGroup, Tooltip, Box, InlineStack, BlockStack, DataTable, Divider, Banner, List, EmptyState, Spinner } from '@shopify/polaris';
-import { PersonAddIcon, DeleteIcon, EditIcon, EmailIcon, CalendarIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon } from '@shopify/polaris-icons';
+import { Card, Text, Button, Modal, TextField, Select, Badge, Icon, ButtonGroup, Tooltip, Box, InlineStack, BlockStack, DataTable, Divider, Banner, List, EmptyState } from '@shopify/polaris';
+import { PersonAddIcon, DeleteIcon, EditIcon, CheckCircleIcon, AlertCircleIcon, ClockIcon } from '@shopify/polaris-icons';
 import { useFetcher } from '@remix-run/react';
 import type { RegistryCollaborator } from '@prisma/client';
 

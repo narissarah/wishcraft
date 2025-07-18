@@ -15,6 +15,15 @@ async function startServer() {
   console.log('🔧 Environment:', process.env.NODE_ENV);
   console.log('🔧 Port:', process.env.PORT || 3000);
   
+  // Railway deployment debugging
+  console.log('=== RAILWAY DEPLOYMENT DEBUG ===');
+  console.log('Node version:', process.version);
+  console.log('PORT:', process.env.PORT);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
+  console.log('Database URL present:', !!process.env.DATABASE_URL);
+  console.log('Current working directory:', process.cwd());
+  console.log('=== END DEBUG INFO ===');
+  
   // Prisma client should be generated at build time
   
   // Verify database connection with retry logic

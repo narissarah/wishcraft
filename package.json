@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "WishCraft - Shopify Gift Registry App - Deploy Ready",
   "scripts": {
-    "build": "npx prisma generate && remix build",
+    "build": "CI=false npx prisma generate && CI=false remix build",
     "dev": "shopify app dev --use-localhost",
     "start": "node server.js",
     "start:production": "npx prisma db push && node server.js",
