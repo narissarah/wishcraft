@@ -1,4 +1,4 @@
-# Simplified Railway Dockerfile - Optimized for reliability and 2025 compliance
+# Simplified Railway Dockerfile - Optimized for reliability and 2025 compliance (v2)
 FROM node:20-slim
 
 # Set environment variables
