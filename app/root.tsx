@@ -96,17 +96,7 @@ export default function App() {
   // Initialize Core Web Vitals monitoring on client
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Initialize performance monitoring for 2025 compliance
-      import("~/lib/performance-monitoring.client").then(({ initializePerformanceMonitoring }) => {
-        initializePerformanceMonitoring();
-      });
-      
-      // Legacy web vitals (if exists)
-      import("~/lib/web-vitals.client").then(({ initWebVitals }) => {
-        initWebVitals();
-      }).catch(() => {
-        // Ignore if legacy file doesn't exist
-      });
+      // Performance monitoring removed for production deployment
       
       import("~/lib/global-error-handler.client").then(({ initializeGlobalErrorHandlers }) => {
         initializeGlobalErrorHandlers();

@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { initWebVitals } from "~/lib/web-vitals.client";
 
 /**
  * Performance Monitor Component for React Integration
@@ -17,9 +16,7 @@ export function PerformanceMonitor() {
         window.performance.mark("app-interactive");
       }
       
-      // Initialize comprehensive Web Vitals monitoring
-      // This handles Core Web Vitals, long tasks, and analytics reporting
-      initWebVitals();
+      // Performance monitoring removed for production deployment
       
     } catch (error) {
       // Silent failure - monitoring should never break the app
