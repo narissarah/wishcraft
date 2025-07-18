@@ -1,54 +1,43 @@
-# Railway Deployment Dockerfile for WishCraft - 2025 Shopify Compliant
-# Optimized for Railway with fast startup and proper database handling
+# Optimized Dockerfile for Railway - Fix build issues
+FROM node:18.20.0-alpine
 
-FROM node:18.20.0-alpine AS base
+# Install build dependencies
+RUN apk add --no-cache python3 make g++ git
 
-# Install security updates and required packages
-RUN apk update && apk upgrade && \
-    apk add --no-cache dumb-init curl python3 make g++ libc6-compat openssl && \
-    rm -rf /var/cache/apk/*
-
-# Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better caching
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install all dependencies (including dev for building)
-RUN npm ci --legacy-peer-deps && npm cache clean --force
+# Install ALL dependencies (including dev) for build
+RUN npm ci --legacy-peer-deps
 
 # Generate Prisma client
 RUN npx prisma generate
 
-# Copy source code
+# Copy all source files
 COPY . .
 
-# Build the application
-RUN npm run build
+# Build the application with proper environment
+ENV NODE_ENV=production
+RUN npm run build || (echo "Build failed, checking errors..." && ls -la && exit 1)
 
-# Remove dev dependencies for production
-RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
+# Remove dev dependencies after build
+RUN npm prune --production
 
-# Create non-root user for security
+# Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nextjs -u 1001
+    adduser -S railway -u 1001 && \
+    chown -R railway:nodejs /app
 
-# Create necessary directories
-RUN mkdir -p /app/logs && chown -R nextjs:nodejs /app
+USER railway
 
-# Switch to non-root user
-USER nextjs
-
-# Expose port (Railway will override this)
 EXPOSE 3000
 
-# Health check optimized for Railway
-HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=3 \
-  CMD curl -f http://localhost:${PORT:-3000}/health || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD node -e "import('http').then(h => h.default.get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)))"
 
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["dumb-init", "--"]
-
-# Start the application with production command
+# Start with production script
 CMD ["npm", "run", "start:production"]
