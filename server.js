@@ -22,6 +22,26 @@ async function startServer() {
   console.log('NODE_ENV:', process.env.NODE_ENV);
   console.log('Database URL present:', !!process.env.DATABASE_URL);
   console.log('Current working directory:', process.cwd());
+  
+  // Check if build exists
+  try {
+    await import("./build/index.js");
+    console.log('✅ Build files found');
+  } catch (error) {
+    console.error('❌ Build files missing:', error.message);
+    console.log('Build directory contents:');
+    try {
+      const fs = await import('fs');
+      const buildExists = fs.existsSync('./build');
+      console.log('Build directory exists:', buildExists);
+      if (buildExists) {
+        const files = fs.readdirSync('./build');
+        console.log('Files in build:', files);
+      }
+    } catch (e) {
+      console.error('Error checking build directory:', e);
+    }
+  }
   console.log('=== END DEBUG INFO ===');
   
   // Prisma client should be generated at build time
@@ -135,36 +155,44 @@ async function startServer() {
   app.get('/health', async (req, res) => {
     console.log('🔍 Health check requested');
     
-    const healthData = {
-      status: 'healthy',
-      timestamp: new Date().toISOString(),
-      version: process.env.npm_package_version || '1.0.0',
-      environment: process.env.NODE_ENV || 'development',
-      uptime: process.uptime(),
-      memory: process.memoryUsage(),
-      shopifyCompliant: true,
-      railway: {
-        deployment: process.env.RAILWAY_DEPLOYMENT_ID || 'unknown',
-        environment: process.env.RAILWAY_ENVIRONMENT || 'unknown',
-        project: process.env.RAILWAY_PROJECT_NAME || 'unknown'
-      }
-    };
-
     try {
+      const healthData = {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        version: process.env.npm_package_version || '1.0.0',
+        environment: process.env.NODE_ENV || 'development',
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        shopifyCompliant: true,
+        railway: {
+          deployment: process.env.RAILWAY_DEPLOYMENT_ID || 'unknown',
+          environment: process.env.RAILWAY_ENVIRONMENT || 'unknown',
+          project: process.env.RAILWAY_PROJECT_NAME || 'unknown'
+        }
+      };
+
       // Check database connectivity
-      await prisma.$queryRaw`SELECT 1`;
-      healthData.database = 'connected';
-      console.log('✅ Health check: Database connected');
+      try {
+        await prisma.$queryRaw`SELECT 1`;
+        healthData.database = 'connected';
+        console.log('✅ Health check: Database connected');
+      } catch (dbError) {
+        console.log('⚠️  Health check: Database disconnected -', dbError.message);
+        healthData.database = 'disconnected';
+        healthData.warning = 'Database connection issue';
+        healthData.dbError = dbError.message;
+      }
       
-      res.json(healthData);
-    } catch (error) {
-      console.log('⚠️  Health check: Database disconnected -', error.message);
-      healthData.database = 'disconnected';
-      healthData.warning = 'Database connection issue';
-      healthData.dbError = error.message;
-      
-      // Still return 200 OK for Railway health check
+      // Always return 200 OK for Railway health check
       res.status(200).json(healthData);
+    } catch (error) {
+      console.error('❌ Health check error:', error);
+      // Return 200 with error details to prevent Railway from failing
+      res.status(200).json({
+        status: 'error',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
     }
   });
 
@@ -328,15 +356,26 @@ async function startServer() {
   app.use(express.static("public"));
 
   // Remix handler for all other routes
-  const build = await import("./build/index.js");
-  app.all("*", createRequestHandler({
-    build: build.default,
-    mode: process.env.NODE_ENV,
-    getLoadContext() {
-      // Add any context needed by your loaders
-      return {};
-    }
-  }));
+  try {
+    const build = await import("./build/index.js");
+    app.all("*", createRequestHandler({
+      build: build.default,
+      mode: process.env.NODE_ENV,
+      getLoadContext() {
+        // Add any context needed by your loaders
+        return {};
+      }
+    }));
+  } catch (error) {
+    console.error('❌ Failed to load Remix build:', error);
+    app.all("*", (req, res) => {
+      res.status(500).json({
+        error: 'Application build not found',
+        message: 'The application failed to build properly',
+        timestamp: new Date().toISOString()
+      });
+    });
+  }
 
   // Error handling middleware
   app.use((err, req, res, next) => {

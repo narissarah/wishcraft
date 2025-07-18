@@ -1,6 +1,6 @@
 {
   "name": "wishcraft",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "WishCraft - Shopify Gift Registry App - Deploy Ready",
   "scripts": {
     "build": "CI=false npx prisma generate && CI=false remix build",
@@ -84,6 +84,11 @@
   },
   "overrides": {
     "@shopify/network": "3.3.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "@shopify/network": "3.3.0"
+    }
   },
   "type": "module",
   "keywords": [
