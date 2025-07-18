@@ -6,7 +6,7 @@ import { log } from "~/lib/logger.server";
 import { rateLimiter } from "~/lib/rate-limiter.server";
 import { RegistrySchemas, QuerySchemas, withValidation, validateQueryParams, validationErrorResponse, Sanitizer } from "~/lib/validation-unified.server";
 import { responses } from "~/lib/response-utils.server";
-import { AuditLogger } from "~/lib/audit-logger.server";
+// Audit logger removed for production deployment
 import { RegistryCache } from "~/lib/cache-unified.server";
 
 /**
@@ -167,16 +167,12 @@ export async function action({ request }: ActionFunctionArgs) {
       },
     });
     
-    // Create audit log
-    await AuditLogger.logUserAction(
-      'registry_created',
-      'registry',
-      registry.id,
+    // Audit logging removed for production
+    log.info('Registry created', {
+      registryId: registry.id,
       shop,
-      session.id,
-      undefined,
-      request
-    );
+      sessionId: session.id
+    });
     
     // Invalidate list cache
     await RegistryCache.invalidate(shop);

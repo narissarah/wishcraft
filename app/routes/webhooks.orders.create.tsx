@@ -5,7 +5,7 @@ import { log } from "~/lib/logger.server";
 import { verifyWebhookRequest, logWebhookEvent, validateWebhookTopic, checkWebhookRateLimit } from "~/lib/webhook-security.server";
 import { parseWebhookPayload, handleWebhookResponse } from "~/lib/webhook-utils.server";
 import { responses } from "~/lib/response-utils.server";
-import { AuditLogger } from "~/lib/audit-logger.server";
+// Audit logger removed for production deployment
 import { WebhookSchemas } from "~/lib/validation-unified.server";
 import { encryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation } from "~/lib/encryption.server";
 
@@ -131,8 +131,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           }
         });
 
-        // Log the purchase
-        await AuditLogger.log({
+        // Audit logging removed for production
+        log.info('Registry purchase', {
           action: 'registry_purchase',
           resource: 'order',
           resourceId: validatedOrder.id.toString(),

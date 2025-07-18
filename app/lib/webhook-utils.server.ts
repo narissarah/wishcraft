@@ -3,7 +3,7 @@
  * Reduces code duplication across webhook handlers
  */
 
-import { AuditLogger } from './audit-logger.server';
+// Audit logger removed for production deployment
 import { responses } from './response-utils.server';
 import { log } from '~/lib/logger.server';
 
@@ -25,9 +25,9 @@ export async function handleWebhookResponse(
   metadata?: Record<string, any>
 ) {
   try {
-    // Log the webhook action
-    await AuditLogger.log({
-      action,
+    // Audit logging removed for production
+    // Log to standard logger instead
+    log.info(`Webhook ${action}`, {
       resource,
       resourceId,
       shopId,
