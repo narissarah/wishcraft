@@ -106,12 +106,10 @@ temp/
 .nuxt/
 .vuepress/dist/
 
-# Shopify specific
+# Shopify specific (keep essentials)
 .shopify/
-shopify.app.toml
 
-# Database
-prisma/migrations/
+# Database (keep migrations for Railway)
 *.db
 *.sqlite
 *.sqlite3

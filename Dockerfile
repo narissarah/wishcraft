@@ -1,17 +1,17 @@
-# Simplified Railway Dockerfile - Optimized for reliability and 2025 compliance (v2)
-FROM node:20-slim
+# Railway Optimized Dockerfile - Node 22 Alpine for 2025 best practices
+FROM node:22-alpine
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-# Install system dependencies (minimal for reliability)
-RUN apt-get update && apt-get install -y \
+# Install system dependencies (minimal Alpine packages)
+RUN apk add --no-cache \
     openssl \
     ca-certificates \
     curl \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/cache/apk/*
 
 # Create app directory
 WORKDIR /app
@@ -32,9 +32,9 @@ RUN npx prisma generate
 # Build the application
 RUN npm run build
 
-# Create non-root user
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 railway
+# Create non-root user (Alpine commands)
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S -u 1001 -G nodejs railway
 
 # Change ownership
 RUN chown -R railway:nodejs /app

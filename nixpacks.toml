@@ -1,0 +1,17 @@
+# Railway Nixpacks configuration for optimal Node.js deployment
+[providers]
+node = "22"
+
+[variables]
+NODE_ENV = "production"
+NPM_CONFIG_PRODUCTION = "true"
+
+[phases.build]
+cmds = [
+    "npm ci --only=production --no-audit --no-fund",
+    "npx prisma generate",
+    "npm run build"
+]
+
+[start]
+cmd = "sleep 3 && npx prisma db push --accept-data-loss && node server.js"
