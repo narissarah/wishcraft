@@ -35,7 +35,7 @@
     "@sentry/profiling-node": "^9.38.0",
     "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/polaris": "^13.9.5",
-    "@shopify/shopify-app-remix": "^3.3.0",
+    "@shopify/shopify-app-remix": "^3.8.3",
     "@shopify/shopify-app-session-storage-prisma": "^6.0.7",
     "bcrypt": "^6.0.0",
     "compression": "^1.8.0",
