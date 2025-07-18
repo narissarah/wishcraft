@@ -1,46 +1,89 @@
-# Railway ignore file - optimize build size and speed
-.git
-.github
-*.md
-README*
-CHANGELOG*
-LICENSE*
-.DS_Store
-.vscode
-.idea
-*.log
-*.logs
+# Railway-specific ignore file for optimized builds
+# This reduces the Docker build context size for faster deployments
+
+# Node.js
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-coverage/
-.nyc_output/
+
+# Build and cache
 build/
 dist/
 .cache/
-.temp/
-.tmp/
-*.tgz
-*.tar.gz
-*.zip
+.output/
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Tests
 tests/
 test/
-spec/
-*.test.*
-*.spec.*
 __tests__/
-.eslintcache
-.stylelintcache
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+playwright-report/
+test-results/
+
+# Documentation
+docs/
+README.md
+CHANGELOG.md
+LICENSE
+
+# CI/CD
+.github/
+.travis.yml
+.gitlab-ci.yml
+
+# Shopify CLI
+.shopify/
+shopify.app.toml
+
+# Alternative Dockerfiles
+Dockerfile.simple
+Dockerfile.complex
+docker-compose*.yml
+
+# Logs
+logs/
+*.log
+
+# Cache
+.cache/
 .parcel-cache/
 .next/
 .nuxt/
-.docusaurus/
-docs/
-documentation/
-examples/
-demo/
-demos/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Security
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx

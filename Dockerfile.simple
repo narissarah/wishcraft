@@ -1,4 +1,4 @@
-# Simplified Railway Dockerfile - Optimized for reliability and 2025 compliance
+# Simple Railway Dockerfile - Optimized for reliability
 FROM node:20-slim
 
 # Set environment variables
@@ -6,27 +6,26 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-# Install system dependencies (minimal for reliability)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     openssl \
     ca-certificates \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
 
-# Copy package files for better caching
+# Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies (production only for faster build)
+# Install dependencies
 RUN npm ci --only=production --no-audit --no-fund
 
 # Copy source code
 COPY . .
 
-# Generate Prisma client (simple approach)
+# Generate Prisma client
 RUN npx prisma generate
 
 # Build the application
@@ -34,18 +33,18 @@ RUN npm run build
 
 # Create non-root user
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 railway
+RUN adduser --system --uid 1001 nextjs
 
 # Change ownership
-RUN chown -R railway:nodejs /app
+RUN chown -R nextjs:nodejs /app
 
 # Switch to non-root user
-USER railway
+USER nextjs
 
 # Expose port
 EXPOSE 3000
 
-# Simple health check
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 
