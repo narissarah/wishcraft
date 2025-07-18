@@ -1,6 +1,6 @@
 {
   "name": "wishcraft",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "WishCraft - Shopify Gift Registry App - Deploy Ready",
   "scripts": {
     "build": "NODE_NO_WARNINGS=1 CI=false npx prisma generate --no-hints && NODE_NO_WARNINGS=1 CI=false remix build",
@@ -8,6 +8,7 @@
     "start": "node server.js",
     "start:production": "NODE_NO_WARNINGS=1 node server.js",
     "db:deploy": "NODE_NO_WARNINGS=1 npx prisma db push --accept-data-loss",
+    "db:railway": "node scripts/migrate-railway.js",
     "deploy": "shopify app deploy",
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
