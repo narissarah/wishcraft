@@ -1,6 +1,6 @@
 {
   "name": "wishcraft",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "WishCraft - Shopify Gift Registry App - Deploy Ready",
   "scripts": {
     "build": "NODE_NO_WARNINGS=1 CI=false npx prisma generate --no-hints && NODE_NO_WARNINGS=1 CI=false remix build",
