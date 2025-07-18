@@ -1,17 +1,20 @@
-# Railway Optimized Dockerfile - Node 22 Alpine for 2025 best practices
-FROM node:22-alpine
+# Railway Optimized Dockerfile - Node 22 Debian Slim for maximum reliability
+FROM node:22-slim
 
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
-# Install system dependencies (minimal Alpine packages)
-RUN apk add --no-cache \
+# Install system dependencies (Debian packages for better compatibility)
+RUN apt-get update && apt-get install -y \
     openssl \
     ca-certificates \
     curl \
-    && rm -rf /var/cache/apk/*
+    python3 \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create app directory
 WORKDIR /app
@@ -26,15 +29,16 @@ RUN npm ci --only=production --no-audit --no-fund
 # Copy source code
 COPY . .
 
-# Generate Prisma client (simple approach)
+# Generate Prisma client with Debian target
+RUN sed -i 's/binaryTargets = \["native"\]/binaryTargets = ["native", "debian-openssl-3.0.x"]/' ./prisma/schema.prisma
 RUN npx prisma generate
 
 # Build the application
 RUN npm run build
 
-# Create non-root user (Alpine commands)
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S -u 1001 -G nodejs railway
+# Create non-root user (Debian commands)
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs railway
 
 # Change ownership
 RUN chown -R railway:nodejs /app
