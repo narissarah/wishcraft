@@ -1,6 +1,11 @@
 import { vitePlugin as remix } from "@remix-run/dev";
 import { defineConfig } from "vite";
 import { visualizer } from "rollup-plugin-visualizer";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export default defineConfig({
   plugins: [
@@ -136,10 +141,13 @@ export default defineConfig({
   
   // Production optimizations
   resolve: {
-    alias: process.env.NODE_ENV === 'production' ? {
-      // Use production builds of libraries
-      'react': 'react/cjs/react.production.min.js',
-      'react-dom': 'react-dom/cjs/react-dom.production.min.js',
-    } : {},
+    alias: {
+      "~": resolve(__dirname, "./app"),
+      ...(process.env.NODE_ENV === 'production' ? {
+        // Use production builds of libraries
+        'react': 'react/cjs/react.production.min.js',
+        'react-dom': 'react-dom/cjs/react-dom.production.min.js',
+      } : {}),
+    },
   },
 });

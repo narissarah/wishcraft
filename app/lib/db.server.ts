@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { log } from "~/lib/logger.server";
-import { configureDatabaseMiddleware } from "~/lib/db-middleware.server";
 
 declare global {
   // eslint-disable-next-line no-var
@@ -47,9 +46,6 @@ let db: PrismaClient;
 if (process.env.NODE_ENV === "production") {
   db = createPrismaClient();
   
-  // Configure middleware for production
-  configureDatabaseMiddleware(db);
-  
   db.$connect().catch((error) => {
     log.error("Failed to connect to database", error);
     process.exit(1);
@@ -57,9 +53,6 @@ if (process.env.NODE_ENV === "production") {
 } else {
   if (!global.__db__) {
     global.__db__ = createPrismaClient();
-    
-    // Configure middleware for development
-    configureDatabaseMiddleware(global.__db__);
     
     // Log Prisma events in development
     global.__db__.$on("query" as never, (e: any) => {

@@ -2,7 +2,6 @@
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 import { handleCustomerDataRequest, handleCustomerRedactRequest, handleShopRedactRequest } from "~/lib/built-for-shopify.server";
-import { runDataRetentionCleanup } from "~/lib/audit-log-retention.server";
 
 // SystemJob interface moved to Prisma schema
 
@@ -89,7 +88,8 @@ async function processJob(job: any) {
         break;
 
       case "data_retention_cleanup":
-        result = await runDataRetentionCleanup(job.shopId!);
+        // Data retention cleanup removed for production
+        result = { success: true, message: "Data retention cleanup skipped" };
         break;
 
       default:

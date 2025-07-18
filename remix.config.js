@@ -13,6 +13,7 @@ export default {
     "@shopify/app-bridge",
     "@shopify/app-bridge-react",
     "date-fns",
+    /^~/,  // Bundle all ~ imports
   ],
   future: {
     // v3 flags for React Router v7 compatibility
