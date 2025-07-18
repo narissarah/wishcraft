@@ -102,9 +102,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         // Create purchase record with encrypted gift message
         const purchase = await db.registryPurchase.create({
           data: {
-            registryId,
-            productId: item.product_id?.toString() || '',
-            variantId: item.variant_id?.toString(),
+            registryItemId: item.id || '',
             quantity: item.quantity || 1,
             unitPrice: parseFloat(item.price) || 0,
             totalAmount: (parseFloat(item.price) || 0) * (item.quantity || 1),

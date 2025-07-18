@@ -226,6 +226,7 @@ model AuditLog {
   ipAddress  String?
   userAgent  String?
   requestId  String?
+  metadata   String?
   timestamp  DateTime @default(now())
 
   @@index([shopId])

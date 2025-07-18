@@ -66,6 +66,7 @@ export interface CacheEntry<T> {
 export const cacheKeys = {
   // Versioned keys for easy cache busting
   registry: (id: string, version = 1) => `v${version}:registry:${id}`,
+  registryBySlug: (slug: string, version = 1) => `v${version}:registry_slug:${slug}`,
   registryList: (shopId: string, page: number, version = 1) => `v${version}:registry_list:${shopId}:${page}`,
   product: (productId: string, version = 1) => `v${version}:product:${productId}`,
   customer: (customerId: string, version = 1) => `v${version}:customer:${customerId}`,
@@ -160,10 +161,15 @@ class UnifiedCacheManager {
   
   private async initializeRedis() {
     try {
-      this.redis = await getRedisClient();
-      log.info('Unified cache manager initialized with Redis');
+      this.redis = getRedisClient();
+      if (this.redis) {
+        log.info('Unified cache manager initialized with Redis');
+      } else {
+        log.info('Redis not configured, using memory cache only');
+      }
     } catch (error) {
       log.warn('Redis not available, using memory cache only', error as Error);
+      this.redis = null;
     }
   }
   

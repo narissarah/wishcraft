@@ -55,7 +55,9 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "^1.54.1",
     "@remix-run/dev": "^2.16.8",
+    "@shopify/app-bridge-types": "^0.1.0",
     "@types/bcrypt": "^5.0.2",
     "@types/node-cron": "^3.0.11",
     "@types/react": "^18.3.17",
@@ -67,6 +69,7 @@
     "glob": "^11.0.3",
     "mkcert": "^3.2.0",
     "prisma": "^6.11.1",
+    "rollup-plugin-visualizer": "^6.0.3",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",

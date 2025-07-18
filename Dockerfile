@@ -1,8 +1,9 @@
 # Optimized Dockerfile for Railway - Fix build issues
 FROM node:20-alpine
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++ git
+# Install build dependencies and update npm
+RUN apk add --no-cache python3 make g++ git && \
+    npm install -g npm@11.4.2
 
 WORKDIR /app
 

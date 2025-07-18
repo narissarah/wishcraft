@@ -25,7 +25,7 @@ export const shopify = shopifyApp({
   appUrl: process.env.SHOPIFY_APP_URL!,
   authPathPrefix: "/auth",
   sessionStorage,
-  apiVersion: SHOPIFY_API_VERSION_2025, // FIXED: 2025-07 for compliance
+  apiVersion: SHOPIFY_API_VERSION_2025 as any, // FIXED: 2025-07 for compliance
   
   // 2025 Embedded App Strategy (MANDATORY)
   isEmbeddedApp: true,

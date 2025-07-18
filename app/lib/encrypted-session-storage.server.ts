@@ -125,6 +125,32 @@ export class EncryptedPrismaSessionStorage extends PrismaSessionStorage {
       throw error;
     }
   }
+
+  /**
+   * Delete multiple sessions by IDs (required by SessionStorage interface)
+   */
+  async deleteSessions(ids: string[]): Promise<boolean> {
+    try {
+      let allDeleted = true;
+      
+      for (const id of ids) {
+        const deleted = await this.deleteSession(id);
+        if (!deleted) {
+          allDeleted = false;
+        }
+      }
+      
+      log.info("Multiple encrypted sessions deleted", {
+        sessionIds: ids,
+        allDeleted
+      });
+      
+      return allDeleted;
+    } catch (error) {
+      log.error("Failed to delete multiple sessions", error as Error);
+      throw error;
+    }
+  }
 }
 
 /**
