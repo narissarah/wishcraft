@@ -5,10 +5,44 @@
  */
 
 import { LRUCache } from 'lru-cache';
-import { getRedisClient } from '~/lib/cache/redis.server';
+import Redis from 'ioredis';
 import { log } from '~/lib/logger.server';
 import { CircuitBreaker } from './circuit-breaker.server';
 import crypto from 'crypto';
+
+// Redis client singleton
+let redisClient: Redis | null = null;
+
+function getRedisClient(): Redis | null {
+  if (redisClient) return redisClient;
+  
+  const redisUrl = process.env.REDIS_URL;
+  if (!redisUrl) {
+    log.warn('Redis URL not configured, using memory-only cache');
+    return null;
+  }
+
+  try {
+    redisClient = new Redis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      enableOfflineQueue: false,
+      retryStrategy: (times) => Math.min(times * 100, 3000),
+    });
+
+    redisClient.on('error', (error) => {
+      log.error('Redis connection error', { error });
+    });
+
+    redisClient.on('connect', () => {
+      log.info('Redis connected successfully');
+    });
+
+    return redisClient;
+  } catch (error) {
+    log.error('Failed to initialize Redis client', { error });
+    return null;
+  }
+}
 
 export interface CacheOptions {
   ttl?: number;          // Time to live in milliseconds
@@ -390,6 +424,3 @@ export class RegistryCache {
     return await cache.delete(cacheKeys.registry(registryId));
   }
 }
-
-// Export everything for migration
-export * from './cache/redis.server';

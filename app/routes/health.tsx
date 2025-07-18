@@ -1,7 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
-import { db } from "~/lib/db.server";
+import { db, checkDatabaseConnection } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { checkDatabaseConnection } from "~/lib/db-utils.server";
 import { healthResponse, createHealthResult, aggregateHealthResults } from "~/lib/health-utils.server";
 import { cache } from "~/lib/cache-unified.server";
 import os from "os";

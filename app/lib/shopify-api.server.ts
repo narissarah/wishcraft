@@ -1,7 +1,7 @@
 import { authenticate } from "~/shopify.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { shopifyRetry } from "./retry.server";
-import { ShopifyErrorHandler, withErrorHandling } from "./shopify-error-handler.server";
+import { errorHandler as ShopifyErrorHandler, retryShopifyOperation as withErrorHandling } from "./error-handling-unified.server";
 import { log } from "~/lib/logger.server";
 
 // ============================================================================

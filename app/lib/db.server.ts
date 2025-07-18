@@ -447,3 +447,28 @@ export const dbHealth = {
     }
   }
 };
+
+/**
+ * Check database connection health
+ */
+export async function checkDatabaseConnection(): Promise<{
+  isConnected: boolean;
+  responseTime: number;
+  error?: string;
+}> {
+  const startTime = Date.now();
+  
+  try {
+    await db.$queryRaw`SELECT 1`;
+    return {
+      isConnected: true,
+      responseTime: Date.now() - startTime
+    };
+  } catch (error) {
+    return {
+      isConnected: false,
+      responseTime: Date.now() - startTime,
+      error: error instanceof Error ? error.message : 'Unknown database error'
+    };
+  }
+}
