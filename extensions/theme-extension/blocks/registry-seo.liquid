@@ -37,12 +37,12 @@
   <meta property="og:locale" content="{{ shop.locale }}">
   
   {% if block.settings.registry_image != blank %}
-    <meta property="og:image" content="{{ block.settings.registry_image | img_url: '1200x630' }}">
+    <meta property="og:image" content="{{ block.settings.registry_image | image_url: width: 1200, height: 630 }}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="{{ page_title | escape }}">
   {% elsif shop.brand.logo %}
-    <meta property="og:image" content="{{ shop.brand.logo | img_url: '1200x630' }}">
+    <meta property="og:image" content="{{ shop.brand.logo | image_url: width: 1200, height: 630 }}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="{{ shop.name }} Logo">
@@ -55,9 +55,9 @@
   <meta name="twitter:description" content="{{ page_description | escape }}">
   
   {% if block.settings.registry_image != blank %}
-    <meta name="twitter:image" content="{{ block.settings.registry_image | img_url: '1200x630' }}">
+    <meta name="twitter:image" content="{{ block.settings.registry_image | image_url: width: 1200, height: 630 }}">
   {% elsif shop.brand.logo %}
-    <meta name="twitter:image" content="{{ shop.brand.logo | img_url: '1200x630' }}">
+    <meta name="twitter:image" content="{{ shop.brand.logo | image_url: width: 1200, height: 630 }}">
   {% endif %}
   
   {% comment %} Additional Meta Tags {% endcomment %}
@@ -90,7 +90,7 @@
         {% if shop.brand.logo %},
         "logo": {
           "@type": "ImageObject",
-          "url": {{ shop.brand.logo | img_url: '600x600' | json }}
+          "url": {{ shop.brand.logo | image_url: width: 600, height: 600 | json }}
         }
         {% endif %}
       }{% if block.settings.event_date != blank %},

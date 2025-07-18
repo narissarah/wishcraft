@@ -96,8 +96,8 @@ async function startServer() {
         frameSrc: ["'self'", "https://*.shopify.com"],
         // Production-aware frame ancestors
         frameAncestors: process.env.NODE_ENV === 'production' 
-          ? ["https://*.myshopify.com", "https://admin.shopify.com"]
-          : ["https://*.myshopify.com", "https://admin.shopify.com", "http://localhost:*", "https://localhost:*"]
+          ? ["https://*.myshopify.com", "https://admin.shopify.com", "https://partners.shopify.com"]
+          : ["https://*.myshopify.com", "https://admin.shopify.com", "https://partners.shopify.com", "http://localhost:*", "https://localhost:*"]
       }
     },
     crossOriginEmbedderPolicy: false, // Required for Shopify embedded apps

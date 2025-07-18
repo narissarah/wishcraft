@@ -108,7 +108,7 @@
         data-product-id="{{ product.id }}"
         data-product-title="{{ product.title | escape }}"
         data-product-handle="{{ product.handle }}"
-        data-product-image="{{ product.featured_image | img_url: 'medium' }}"
+        data-product-image="{{ product.featured_image | image_url: width: 480 }}"
         data-product-url="{{ product.url }}"
         aria-label="Add {{ product.title }} to registry">
         
