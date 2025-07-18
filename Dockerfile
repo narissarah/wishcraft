@@ -14,7 +14,8 @@ COPY prisma ./prisma/
 # Install ALL dependencies (including dev) for build
 RUN npm ci --legacy-peer-deps
 
-# Generate Prisma client
+# Generate Prisma client with offline environment variable
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 RUN npx prisma generate
 
 # Copy all source files
