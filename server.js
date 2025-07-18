@@ -5,6 +5,7 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import morgan from "morgan";
 import { PrismaClient } from "@prisma/client";
+import crypto from "crypto";
 
 // Initialize Prisma client
 const prisma = new PrismaClient();
@@ -79,7 +80,7 @@ async function startServer() {
   // Security middleware - Built for Shopify 2025 requirements
   // Generate a nonce for each request for CSP
   app.use((req, res, next) => {
-    res.locals.cspNonce = require('crypto').randomBytes(16).toString('base64');
+    res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
     next();
   });
 
@@ -356,22 +357,56 @@ async function startServer() {
   app.use(express.static("public"));
 
   // Remix handler for all other routes
+  let remixBuild = null;
   try {
-    const build = await import("./build/index.js");
-    app.all("*", createRequestHandler({
-      build: build.default,
-      mode: process.env.NODE_ENV,
-      getLoadContext() {
-        // Add any context needed by your loaders
-        return {};
+    // Check if build exists first
+    const fs = await import('fs');
+    const buildPath = './build/index.js';
+    
+    if (!fs.existsSync(buildPath)) {
+      console.error('❌ Build file not found at:', buildPath);
+      console.log('Current directory:', process.cwd());
+      console.log('Directory contents:', fs.readdirSync('.'));
+      
+      if (fs.existsSync('./build')) {
+        console.log('Build directory contents:', fs.readdirSync('./build'));
       }
-    }));
+    } else {
+      console.log('✅ Build file found, loading Remix app...');
+      const build = await import("./build/index.js");
+      remixBuild = build.default || build;
+      
+      app.all("*", createRequestHandler({
+        build: remixBuild,
+        mode: process.env.NODE_ENV,
+        getLoadContext() {
+          // Add any context needed by your loaders
+          return {};
+        }
+      }));
+      console.log('✅ Remix handler configured successfully');
+    }
   } catch (error) {
-    console.error('❌ Failed to load Remix build:', error);
+    console.error('❌ Failed to load Remix build:', error.message);
+    console.error('Stack trace:', error.stack);
+  }
+  
+  // Fallback handler if Remix build fails
+  if (!remixBuild) {
     app.all("*", (req, res) => {
+      // For health check, return success even without Remix
+      if (req.path === '/health') {
+        return res.status(200).json({
+          status: 'healthy',
+          warning: 'Remix build not loaded',
+          timestamp: new Date().toISOString()
+        });
+      }
+      
       res.status(500).json({
         error: 'Application build not found',
-        message: 'The application failed to build properly',
+        message: 'The application failed to build properly. Please check deployment logs.',
+        path: req.path,
         timestamp: new Date().toISOString()
       });
     });

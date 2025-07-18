@@ -1,0 +1,23 @@
+# Simple test Dockerfile for Railway debugging
+FROM node:22-slim
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --omit=dev --no-audit --no-fund
+
+# Copy test server
+COPY test-server.js ./
+
+# Expose port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1))"
+
+# Start server
+CMD ["node", "test-server.js"]
