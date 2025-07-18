@@ -69,7 +69,6 @@ COPY --from=builder /app/build ./build
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/app ./app
 COPY --from=builder /app/server.js ./server.js
-COPY --from=builder /app/server-production.js ./server-production.js
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
@@ -81,9 +80,9 @@ COPY vite.config.ts ./
 # Generate Prisma client for production - suppress hints
 RUN NODE_NO_WARNINGS=1 npx prisma generate --no-hints 2>/dev/null || npx prisma generate
 
-# Create non-root user with --no-log-init to avoid useradd warnings
-RUN groupadd -r -g 1001 nodejs && \
-    useradd --no-log-init -r -u 1001 -g nodejs -s /bin/sh -c "Railway App User" railway
+# Create non-root user - suppress all warnings
+RUN groupadd -r -g 1001 nodejs 2>/dev/null && \
+    useradd --no-log-init -r -u 1001 -g nodejs -s /bin/sh -c "Railway App User" railway 2>/dev/null || true
 
 # Change ownership
 RUN chown -R railway:nodejs /app
@@ -94,9 +93,9 @@ USER railway
 # Expose port
 EXPOSE 3000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+# Health check - longer start period for database connection
+HEALTHCHECK --interval=30s --timeout=30s --start-period=60s --retries=5 \
   CMD curl -f http://localhost:3000/health || exit 1
 
-# Start command - use production wrapper
-CMD ["node", "server-production.js"]
+# Start command
+CMD ["npm", "run", "start:production"]

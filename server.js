@@ -382,7 +382,7 @@ async function startServer() {
     // Log error details for monitoring
     console.error('Server Error:', {
       error: err.message,
-      stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined,
+      stack: err.stack, // Always log stack in Railway for debugging
       url: req.url,
       method: req.method,
       ip: req.ip,
