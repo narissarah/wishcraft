@@ -1,42 +1,80 @@
-# Railway Optimized Dockerfile - Node 22 Debian Slim for maximum reliability
-FROM node:22-slim
+# Railway Optimized Multi-Stage Dockerfile - Shopify 2025 Compliant
+# Stage 1: Build stage with all dependencies
+FROM node:22-slim AS builder
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-ENV HOST=0.0.0.0
-
-# Install system dependencies (Debian packages for better compatibility)
+# Install system dependencies for build
 RUN apt-get update && apt-get install -y \
     openssl \
     ca-certificates \
-    curl \
     python3 \
     make \
     g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Create app directory
+# Set build environment
+ENV NODE_ENV=development
+ENV CI=false
+
 WORKDIR /app
 
-# Copy package files for better caching
+# Copy package files
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Install dependencies (production only for faster build)
-RUN npm ci --only=production --no-audit --no-fund
+# Install ALL dependencies (including devDependencies) for build
+RUN npm ci --no-audit --no-fund
 
 # Copy source code
 COPY . .
 
-# Generate Prisma client with Debian target
-RUN sed -i 's/binaryTargets = \["native"\]/binaryTargets = ["native", "debian-openssl-3.0.x"]/' ./prisma/schema.prisma
+# Generate Prisma client with proper targets
 RUN npx prisma generate
 
 # Build the application
 RUN npm run build
 
-# Create non-root user (Debian commands)
+# Stage 2: Production runtime
+FROM node:22-slim AS runtime
+
+# Set production environment
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOST=0.0.0.0
+ENV CI=false
+
+# Install only production system dependencies
+RUN apt-get update && apt-get install -y \
+    openssl \
+    ca-certificates \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Install only production dependencies using modern flag
+RUN npm ci --omit=dev --no-audit --no-fund
+
+# Copy built application from builder stage
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/app ./app
+COPY --from=builder /app/server.js ./server.js
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+
+# Copy other necessary files
+COPY shopify.app.toml ./
+COPY remix.config.js ./
+COPY vite.config.ts ./
+
+# Generate Prisma client for production
+RUN npx prisma generate
+
+# Create non-root user
 RUN groupadd -g 1001 nodejs && \
     useradd -r -u 1001 -g nodejs railway
 
@@ -49,7 +87,7 @@ USER railway
 # Expose port
 EXPOSE 3000
 
-# Simple health check
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3000/health || exit 1
 

@@ -9,7 +9,7 @@ CI = "false"
 
 [phases.build]
 cmds = [
-    "npm ci --only=production --no-audit --no-fund",
+    "npm ci --no-audit --no-fund",
     "npx prisma generate",
     "npm run build"
 ]
