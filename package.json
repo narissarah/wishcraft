@@ -82,6 +82,9 @@
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-musl": "^4.45.1"
   },
+  "overrides": {
+    "@shopify/network": "3.3.0"
+  },
   "type": "module",
   "keywords": [
     "shopify",
