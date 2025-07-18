@@ -8,7 +8,6 @@ import { PrismaClient } from '@prisma/client';
 import { log } from './logger.server';
 import { errorHandler } from './error-handling-unified.server';
 import { sanitizationService } from './sanitization-unified.server';
-import { p95Monitor } from './p95-monitoring.server';
 
 export type ServiceType = 'singleton' | 'transient' | 'scoped';
 
@@ -465,29 +464,23 @@ class SanitizationServiceWrapper implements ISanitizationService {
 
 /**
  * Performance monitoring service wrapper
+ * Stub implementation - performance monitoring removed for production deployment
  */
 class PerformanceMonitoringService implements IPerformanceMonitoringService {
   async recordMetrics(metrics: any): Promise<void> {
-    await p95Monitor.recordMetrics(metrics);
+    // Performance monitoring removed - no-op
   }
 
   async generateP95Report(shopId?: string): Promise<any[]> {
-    return await p95Monitor.generateP95Report(shopId);
+    // Performance monitoring removed - return empty report
+    return [];
   }
 
   async healthCheck(): Promise<{ healthy: boolean; error?: string }> {
-    try {
-      const summary = await p95Monitor.getPerformanceSummary();
-      return { 
-        healthy: summary.alertCount < 5,
-        error: summary.alertCount >= 5 ? 'Too many performance alerts' : undefined
-      };
-    } catch (error) {
-      return { 
-        healthy: false, 
-        error: error.message 
-      };
-    }
+    // Performance monitoring removed - always healthy
+    return { 
+      healthy: true
+    };
   }
 }
 

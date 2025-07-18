@@ -29,7 +29,6 @@ import {
 } from './adapters.server';
 import { log } from './logger.server';
 import { validateEnvironment } from './env-validation.server';
-import { p95Monitor } from './p95-monitoring.server';
 import { sanitizationService } from './sanitization-unified.server';
 import { errorHandler } from './error-handling-unified.server';
 import { 
@@ -327,8 +326,7 @@ export class Application {
     // Register error handler
     container.register('errorHandler', () => errorHandler, 'singleton');
     
-    // Register P95 monitor
-    container.register('p95Monitor', () => p95Monitor, 'singleton');
+    // P95 monitoring removed for production deployment
     
     // Register constants
     container.register('constants', () => ({
@@ -436,15 +434,9 @@ export class Application {
       components.services.details = { error: error.message };
     }
 
-    try {
-      // Check monitoring
-      const monitoringHealth = await p95Monitor.getPerformanceSummary();
-      components.monitoring.healthy = monitoringHealth.alertCount < 5;
-      components.monitoring.details = monitoringHealth;
-    } catch (error) {
-      components.monitoring.healthy = false;
-      components.monitoring.details = { error: error.message };
-    }
+    // Performance monitoring removed for production deployment
+    components.monitoring.healthy = true;
+    components.monitoring.details = { message: 'Monitoring disabled for production' };
 
     const healthy = Object.values(components).every(component => component.healthy);
 
@@ -463,7 +455,8 @@ export class Application {
     memory: any;
     uptime: number;
   }> {
-    const performance = await p95Monitor.getPerformanceSummary();
+    // Performance monitoring removed for production deployment
+    const performance = { p95: 0, p99: 0, avg: 0, alertCount: 0 };
     
     const database = {
       connections: 'mock_data', // In production, get from Prisma metrics

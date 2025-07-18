@@ -3,7 +3,6 @@ import { json } from "@remix-run/node";
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
 import "@shopify/polaris/build/esm/styles.css";
-import { generateResourceHints, generateCriticalCSS } from "~/lib/unified-monitoring.server";
 import { generateNonce } from "~/lib/security-headers.server";
 import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/rate-limiter.server";
 import { useEffect } from "react";
@@ -51,16 +50,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const nonce = generateNonce();
   
   return json({
-    resourceHints: generateResourceHints(),
-    criticalCSS: generateCriticalCSS(pathname),
+    resourceHints: [], // Removed performance monitoring
+    criticalCSS: '', // Removed performance monitoring
     pathname,
     nonce,
     ENV: {
       NODE_ENV: process.env.NODE_ENV,
       GA_MEASUREMENT_ID: process.env.GA_MEASUREMENT_ID,
       SHOPIFY_APP_URL: process.env.SHOPIFY_APP_URL,
-      WEB_VITALS_ENDPOINT: process.env.WEB_VITALS_ENDPOINT || '/api/performance/vitals',
-      PERFORMANCE_SAMPLE_RATE: process.env.PERFORMANCE_SAMPLE_RATE || '0.1',
     }
   });
 }

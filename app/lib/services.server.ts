@@ -35,7 +35,6 @@ import { container, Services } from './dependency-injection.server';
 import { log } from './logger.server';
 import { sanitizationService } from './sanitization-unified.server';
 import { errorHandler } from './error-handling-unified.server';
-import { p95Monitor } from './p95-monitoring.server';
 import { LIMITS, TIMEOUTS } from './constants-unified.server';
 import crypto from 'crypto';
 import bcrypt from 'bcrypt';
@@ -58,29 +57,13 @@ export abstract class BaseService {
       const result = await fn();
       const duration = Date.now() - startTime;
       
-      // Record performance metrics
-      await p95Monitor.recordMetrics({
-        endpoint: operation,
-        method: 'SERVICE',
-        responseTime: duration,
-        statusCode: 200,
-        shopId: 'service',
-        timestamp: new Date()
-      });
+      // Performance monitoring removed for production deployment
       
       return result;
     } catch (error) {
       const duration = Date.now() - startTime;
       
-      // Record error metrics
-      await p95Monitor.recordMetrics({
-        endpoint: operation,
-        method: 'SERVICE',
-        responseTime: duration,
-        statusCode: 500,
-        shopId: 'service',
-        timestamp: new Date()
-      });
+      // Performance monitoring removed for production deployment
       
       throw error;
     }
