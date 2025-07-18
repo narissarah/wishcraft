@@ -1,7 +1,7 @@
 // Utility functions for WishCraft app
 
 import type { GraphQLResponse } from "./types";
-import DOMPurify from "isomorphic-dompurify";
+import { default as DOMPurify } from "isomorphic-dompurify";
 
 export function generateSlug(title: string): string {
   return title

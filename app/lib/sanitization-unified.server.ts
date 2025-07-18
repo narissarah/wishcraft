@@ -4,7 +4,7 @@
  * Eliminates duplicate sanitization logic across the codebase
  */
 
-import DOMPurify from "isomorphic-dompurify";
+import { default as DOMPurify } from "isomorphic-dompurify";
 import { log } from "./logger.server";
 
 export interface SanitizationOptions {
