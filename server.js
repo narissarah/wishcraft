@@ -15,6 +15,8 @@ async function startServer() {
   console.log('🔧 Environment:', process.env.NODE_ENV);
   console.log('🔧 Port:', process.env.PORT || 3000);
   
+  // Prisma client should be generated at build time
+  
   // Verify database connection with retry logic
   let dbConnected = false;
   let retryCount = 0;
