@@ -4,7 +4,7 @@
  * Eliminates duplicate sanitization logic across the codebase
  */
 
-import { default as DOMPurify } from "isomorphic-dompurify";
+// Server-side sanitization utilities
 import { log } from "./logger.server";
 
 export interface SanitizationOptions {
@@ -66,7 +66,7 @@ export class SanitizationService {
     const original = text;
     
     // Remove HTML tags and decode entities
-    let cleaned = DOMPurify.sanitize(text, { ALLOWED_TAGS: [] });
+    let cleaned = text.replace(/<[^>]*>/g, '');
     
     // Normalize whitespace
     cleaned = cleaned.trim().replace(/\s+/g, ' ');
@@ -111,7 +111,14 @@ export class SanitizationService {
       USE_PROFILES: { html: true }
     };
 
-    let cleaned = DOMPurify.sanitize(html, config);
+    // Basic HTML entity encoding for security
+    let cleaned = html
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#x27;')
+      .replace(/\//g, '&#x2F;');
 
     // Apply length limit
     if (cleaned.length > maxLength) {

@@ -12,7 +12,6 @@ export default {
     "@shopify/polaris",
     "@shopify/app-bridge",
     "@shopify/app-bridge-react",
-    "isomorphic-dompurify",
     "date-fns",
     "web-vitals",
   ],
@@ -44,7 +43,7 @@ export default {
         vendor: ['react', 'react-dom'],
         polaris: ['@shopify/polaris'],
         shopify: ['@shopify/shopify-app-remix', '@shopify/app-bridge', '@shopify/app-bridge-react'],
-        utils: ['date-fns', 'isomorphic-dompurify']
+        utils: ['date-fns']
       }
     }
   }
