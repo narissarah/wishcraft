@@ -1,7 +1,7 @@
 {
   "name": "wishcraft",
-  "version": "1.1.2",
-  "description": "WishCraft - Shopify Gift Registry App - CSP Fixed",
+  "version": "1.1.3",
+  "description": "WishCraft - Shopify Gift Registry App - 500 Errors Fixed",
   "scripts": {
     "build": "NODE_NO_WARNINGS=1 CI=false npx prisma generate --no-hints && NODE_NO_WARNINGS=1 CI=false remix build",
     "dev": "shopify app dev --use-localhost",
