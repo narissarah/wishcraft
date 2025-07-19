@@ -31,8 +31,7 @@ export function getSecurityHeaders(requestOrOptions: Request | SecurityHeadersOp
     // Content Security Policy
     'Content-Security-Policy': generateCSP({ nonce, shop, development }),
     
-    // Security headers
-    'X-Frame-Options': 'DENY',
+    // Security headers (X-Frame-Options removed to avoid conflict with CSP frame-ancestors)
     'X-Content-Type-Options': 'nosniff',
     'X-XSS-Protection': '1; mode=block',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
@@ -52,9 +51,9 @@ function generateCSP({ nonce, shop, development }: SecurityHeadersOptions): stri
   const directives = [
     "default-src 'self'",
     // Script sources with nonce-based CSP (2025 compliant)
-    `script-src 'self' ${nonce ? `'nonce-${nonce}'` : "'strict-dynamic'"} https://cdn.shopify.com https://js.shopifycs.com`,
+    `script-src 'self' ${nonce ? `'nonce-${nonce}'` : ''} https://cdn.shopify.com https://js.shopifycs.com 'strict-dynamic'`,
     // Style sources with nonce-based CSP (removes unsafe-inline)
-    `style-src 'self' ${nonce ? `'nonce-${nonce}'` : "'strict-dynamic'"} https://cdn.shopify.com https://fonts.googleapis.com`,
+    `style-src 'self' ${nonce ? `'nonce-${nonce}'` : ''} https://cdn.shopify.com https://fonts.googleapis.com`,
     // Font sources for Polaris and Google Fonts
     "font-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com https://cdn.shopify.com",
     // Image sources including Shopify CDN
@@ -72,18 +71,22 @@ function generateCSP({ nonce, shop, development }: SecurityHeadersOptions): stri
     "worker-src 'self' blob:"
   ];
   
+  // Frame ancestors for Shopify embedded apps
   if (shop) {
     // Frame ancestors for specific shop domain
-    directives.push(`frame-ancestors https://${shop}.myshopify.com https://admin.shopify.com`);
+    directives.push(`frame-ancestors 'self' https://${shop}.myshopify.com https://admin.shopify.com https://partners.shopify.com`);
   } else {
     // General frame ancestors for all Shopify domains
-    directives.push("frame-ancestors https://*.myshopify.com https://admin.shopify.com");
+    directives.push("frame-ancestors 'self' https://*.myshopify.com https://admin.shopify.com https://partners.shopify.com");
   }
   
   if (development) {
     // Additional development sources
-    directives.push("connect-src 'self' ws: wss: https://*.myshopify.com http://localhost:* https://localhost:*");
+    directives[4] = "connect-src 'self' ws: wss: https://*.myshopify.com https://*.shopifycs.com wss://*.myshopify.com http://localhost:* https://localhost:*";
   }
+  
+  // Add CSP violation reporting
+  directives.push("report-uri /api/csp-violation-report");
   
   return directives.join('; ');
 }

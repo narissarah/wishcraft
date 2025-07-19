@@ -31,9 +31,11 @@ export const shopify = shopifyApp({
   isEmbeddedApp: true,
   useOnlineTokens: true,
   
-  // Enable 2025 features
+  // Enable 2025 features for session tokens
   future: {
-    unstable_newEmbeddedAuthStrategy: true, // Required for 2025
+    v3_webhookAdminContext: true,
+    v3_authenticatePublic: true,
+    v3_lineItemBilling: true,
   },
   
   // Enhanced webhook configuration (2025 GDPR Compliant)

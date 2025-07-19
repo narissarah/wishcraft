@@ -46,8 +46,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   }
   
-  // Generate CSP nonce for this request
-  const nonce = generateNonce();
+  // Get nonce from server middleware (same nonce used in CSP headers)
+  const nonce = (request as any).nonce || generateNonce();
   
   return json({
     resourceHints: [], // Removed performance monitoring

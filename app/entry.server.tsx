@@ -16,12 +16,21 @@ export default function handleRequest(
   // Add performance timing
   const startTime = Date.now();
   
+  // Get nonce from server middleware
+  const nonce = (request as any).nonce;
+  
   const markup = renderToString(
     <RemixServer context={remixContext} url={request.url} />
   );
   
-  // Set security headers
-  const securityHeaders = getSecurityHeaders(request);
+  // Set security headers with the same nonce from server
+  const url = new URL(request.url);
+  const securityHeaders = getSecurityHeaders({
+    nonce: nonce,
+    shop: url.searchParams.get('shop') || undefined,
+    development: process.env.NODE_ENV !== 'production'
+  });
+  
   Object.entries(securityHeaders).forEach(([key, value]) => {
     if (value) responseHeaders.set(key, value);
   });

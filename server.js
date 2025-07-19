@@ -80,26 +80,14 @@ async function startServer() {
   // Security middleware - Built for Shopify 2025 requirements
   // Generate a nonce for each request for CSP
   app.use((req, res, next) => {
-    res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
+    req.nonce = nonce; // Pass to request for Remix
     next();
   });
 
   app.use(helmet({
-    contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`, "https://cdn.shopify.com"],
-        styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.cspNonce}'`, "https://cdn.shopify.com"],
-        imgSrc: ["'self'", "data:", "https:"],
-        connectSrc: ["'self'", "https://*.shopify.com", "wss://*.shopify.com"],
-        fontSrc: ["'self'", "https://cdn.shopify.com"],
-        frameSrc: ["'self'", "https://*.shopify.com"],
-        // Production-aware frame ancestors
-        frameAncestors: process.env.NODE_ENV === 'production' 
-          ? ["https://*.myshopify.com", "https://admin.shopify.com", "https://partners.shopify.com"]
-          : ["https://*.myshopify.com", "https://admin.shopify.com", "https://partners.shopify.com", "http://localhost:*", "https://localhost:*"]
-      }
-    },
+    contentSecurityPolicy: false, // Let Remix handle CSP with proper nonce synchronization
     crossOriginEmbedderPolicy: false, // Required for Shopify embedded apps
     frameguard: false // Disable X-Frame-Options since we're setting frame-ancestors in CSP
   }));
@@ -412,17 +400,45 @@ async function startServer() {
     });
   }
 
+  // CSP violation reporting endpoint
+  app.post('/api/csp-violation-report', express.json(), (req, res) => {
+    console.warn('CSP Violation Report:', {
+      violatedDirective: req.body['violated-directive'],
+      blockedUri: req.body['blocked-uri'],
+      originalPolicy: req.body['original-policy'],
+      timestamp: new Date().toISOString(),
+      userAgent: req.get('User-Agent')
+    });
+    res.status(204).send();
+  });
+
   // Error handling middleware
   app.use((err, req, res, next) => {
-    // Log error details for monitoring
+    // Enhanced logging for Railway debugging
     console.error('Server Error:', {
       error: err.message,
-      stack: err.stack, // Always log stack in Railway for debugging
+      stack: err.stack,
       url: req.url,
       method: req.method,
       ip: req.ip,
-      timestamp: new Date().toISOString()
+      userAgent: req.get('User-Agent'),
+      shop: req.query.shop,
+      nonce: req.nonce,
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      railwayDeployment: process.env.RAILWAY_DEPLOYMENT_ID
     });
+    
+    // Check for specific error types
+    if (err.message && err.message.includes('Content Security Policy')) {
+      console.error('CSP_VIOLATION_ERROR: This is a CSP-related error');
+      return res.status(400).json({
+        error: 'CSP_VIOLATION',
+        message: 'Content Security Policy violation detected',
+        nonce: req.nonce,
+        timestamp: new Date().toISOString()
+      });
+    }
     
     // Sanitized error response
     const statusCode = err.statusCode || 500;
@@ -433,7 +449,8 @@ async function startServer() {
     res.status(statusCode).json({ 
       error: message,
       statusCode,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      requestId: req.nonce // For debugging
     });
   });
 
