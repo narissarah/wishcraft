@@ -3,6 +3,8 @@
  * Implements comprehensive security headers for Shopify 2025 compliance
  */
 
+import crypto from "crypto";
+
 export interface SecurityHeadersOptions {
   nonce?: string;
   shop?: string;
@@ -95,6 +97,5 @@ function generateCSP({ nonce, shop, development }: SecurityHeadersOptions): stri
  * Generate a cryptographic nonce for CSP
  */
 export function generateNonce(): string {
-  const crypto = require('crypto');
   return crypto.randomBytes(16).toString('base64');
 }
