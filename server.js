@@ -341,6 +341,27 @@ async function startServer() {
     }
   });
 
+  // Test route to debug 500 errors
+  app.get('/test', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>WishCraft Test</title>
+          <meta charset="utf-8">
+        </head>
+        <body>
+          <h1>WishCraft Test Route</h1>
+          <p>Version: 1.1.3</p>
+          <p>Nonce: ${req.nonce}</p>
+          <p>Environment: ${process.env.NODE_ENV}</p>
+          <p>Time: ${new Date().toISOString()}</p>
+        </body>
+      </html>
+    `);
+  });
+
   // Serve static files
   app.use(express.static("public"));
 
