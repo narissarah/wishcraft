@@ -8,7 +8,16 @@ declare global {
 
 // PERFORMANCE FIX: Enhanced database configuration with connection pooling
 const createPrismaClient = () => {
-  const databaseUrl = new URL(process.env.DATABASE_URL!);
+  // Validate DATABASE_URL exists
+  if (!process.env.DATABASE_URL) {
+    throw new Error(
+      '❌ DATABASE_URL environment variable is not set!\n' +
+      'Please set DATABASE_URL in your environment variables or .env file.\n' +
+      'Format: postgresql://user:password@host:port/database'
+    );
+  }
+  
+  const databaseUrl = new URL(process.env.DATABASE_URL);
   
   // Add connection pooling parameters
   databaseUrl.searchParams.set('connection_limit', process.env.DATABASE_POOL_MAX || '10');

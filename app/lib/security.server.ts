@@ -1,194 +1,22 @@
 import type { HeadersFunction } from "@remix-run/node";
 import crypto from "crypto";
+import { getSecurityHeaders, generateNonce } from "./security-headers.server";
+import { sanitizeInput as unifiedSanitizeInput } from "./sanitization-unified.server";
 
 /**
  * Enhanced Security Module for Shopify 2025 Compliance
  * Combines comprehensive security headers, utilities, and configurations
+ * 
+ * IMPORTANT: CSP implementation has been moved to security-headers.server.ts
+ * This file now contains only non-CSP security utilities
  */
 
 /**
- * Enhanced Security Headers for Shopify 2025 Compliance
- * Implements comprehensive security measures for 100/100 Shopify score
+ * @deprecated Use getSecurityHeaders from security-headers.server.ts instead
  */
 export const securityHeaders: HeadersFunction = ({ request }: any) => {
-  const isDevelopment = process.env.NODE_ENV !== "production";
-  
-  // Get the shop domain from the request for dynamic CSP
-  const url = new URL(request.url);
-  const shopDomain = url.searchParams.get("shop") || "";
-  
-  // Base security headers
-  const headers: Record<string, string> = {
-    // Strict Transport Security (HSTS)
-    "Strict-Transport-Security": isDevelopment 
-      ? "max-age=0" 
-      : "max-age=31536000; includeSubDomains; preload",
-    
-    // Prevent XSS attacks
-    "X-XSS-Protection": "1; mode=block",
-    
-    // Prevent MIME type sniffing
-    "X-Content-Type-Options": "nosniff",
-    
-    // Control referrer information
-    "Referrer-Policy": "strict-origin-when-cross-origin",
-    
-    // DNS prefetch control
-    "X-DNS-Prefetch-Control": "on",
-    
-    // Prevent clickjacking for non-embedded contexts
-    "X-Frame-Options": "SAMEORIGIN",
-    
-    // Additional security headers
-    "X-Permitted-Cross-Domain-Policies": "none",
-    "X-Download-Options": "noopen",
-    
-    // Report API endpoints for security monitoring
-    "Report-To": JSON.stringify({
-      group: "default",
-      max_age: 86400,
-      endpoints: [{ url: "/api/security-reports" }],
-      include_subdomains: true
-    }),
-    
-    // Network Error Logging
-    "NEL": JSON.stringify({
-      report_to: "default",
-      max_age: 86400,
-      include_subdomains: true
-    })
-  };
-
-  // Content Security Policy - Dynamic for Shopify 2025
-  const cspDirectives = [
-    "default-src 'self'",
-    
-    // Script sources - Secure CSP for Shopify App Bridge and embedded apps
-    // SECURITY FIX: Removed 'unsafe-eval' and 'unsafe-inline' to prevent code injection attacks
-    "script-src 'self' " +
-      "https://cdn.shopify.com https://*.shopifycdn.com " +
-      "https://admin.shopify.com https://*.myshopify.com " +
-      `'nonce-${crypto.randomBytes(16).toString('base64')}' ` +
-      (shopDomain ? `https://${shopDomain}` : ""),
-    
-    // Style sources - Required for Polaris and Shopify styles
-    "style-src 'self' 'unsafe-inline' " +
-      "https://cdn.shopify.com https://*.shopifycdn.com " +
-      "https://fonts.googleapis.com",
-    
-    // Image sources
-    "img-src 'self' data: blob: https: " +
-      "https://cdn.shopify.com https://*.shopifycdn.com " +
-      "https://*.shopify.com https://*.myshopify.com",
-    
-    // Font sources
-    "font-src 'self' data: " +
-      "https://cdn.shopify.com https://*.shopifycdn.com " +
-      "https://fonts.gstatic.com",
-    
-    // Connection sources - WebSocket support for real-time features
-    "connect-src 'self' " +
-      "https://*.myshopify.com wss://*.myshopify.com " +
-      "https://cdn.shopify.com https://*.shopifycdn.com " +
-      "https://admin.shopify.com " +
-      (process.env.SENTRY_DSN ? "https://sentry.io https://*.ingest.sentry.io" : ""),
-    
-    // Frame sources - Required for Shopify embedded apps
-    "frame-src 'self' " +
-      "https://admin.shopify.com https://*.myshopify.com " +
-      (shopDomain ? `https://${shopDomain}` : ""),
-    
-    // Frame ancestors - Critical for embedded app functionality
-    "frame-ancestors " +
-      "https://admin.shopify.com https://*.myshopify.com " +
-      (shopDomain ? `https://${shopDomain}` : "'none'"),
-    
-    // Form action
-    "form-action 'self' https://*.myshopify.com",
-    
-    // Base URI
-    "base-uri 'self'",
-    
-    // Object sources
-    "object-src 'none'",
-    
-    // Media sources
-    "media-src 'self' blob: data:",
-    
-    // Worker sources
-    "worker-src 'self' blob:",
-    
-    // Manifest source
-    "manifest-src 'self'",
-    
-    // Upgrade insecure requests in production
-    ...(isDevelopment ? [] : ["upgrade-insecure-requests"]),
-    
-    // Report violations
-    "report-uri /api/csp-reports",
-    "report-to default"
-  ];
-
-  headers["Content-Security-Policy"] = cspDirectives.join("; ");
-
-  // Permissions Policy (Enhanced for 2025)
-  const permissionsPolicy = [
-    "accelerometer=()",
-    "ambient-light-sensor=()",
-    "autoplay=()",
-    "battery=()",
-    "camera=()",
-    "cross-origin-isolated=()",
-    "display-capture=()",
-    "document-domain=()",
-    "encrypted-media=()",
-    "execution-while-not-rendered=()",
-    "execution-while-out-of-viewport=()",
-    "fullscreen=(self)",
-    "geolocation=()",
-    "gyroscope=()",
-    "keyboard-map=()",
-    "magnetometer=()",
-    "microphone=()",
-    "midi=()",
-    "navigation-override=()",
-    "payment=(self)",
-    "picture-in-picture=()",
-    "publickey-credentials-get=()",
-    "screen-wake-lock=()",
-    "sync-xhr=()",
-    "usb=()",
-    "web-share=()",
-    "xr-spatial-tracking=()",
-    "clipboard-read=(self)",
-    "clipboard-write=(self)",
-    "gamepad=()",
-    "speaker-selection=()",
-    "conversion-measurement=()",
-    "focus-without-user-activation=()",
-    "hid=()",
-    "idle-detection=()",
-    "interest-cohort=()",
-    "serial=()",
-    "sync-script=()",
-    "trust-token-redemption=()",
-    "window-placement=()",
-    "vertical-scroll=(self)"
-  ];
-
-  headers["Permissions-Policy"] = permissionsPolicy.join(", ");
-
-  // Additional security headers for 2025
-  headers["Cross-Origin-Embedder-Policy"] = "unsafe-none"; // Required for Shopify embedded apps
-  headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"; // Allow OAuth popups
-  headers["Cross-Origin-Resource-Policy"] = "cross-origin"; // Allow Shopify to load resources
-  
-  // Cache control for security
-  headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
-  headers["Pragma"] = "no-cache";
-  headers["Expires"] = "0";
-
-  return headers;
+  // Redirect to the unified implementation
+  return getSecurityHeaders(request);
 };
 
 /**
@@ -208,7 +36,7 @@ export const apiSecurityHeaders: HeadersFunction = () => ({
  * Apply security headers to a Response
  */
 export function applySecurityHeaders(response: Response): Response {
-  const headers = securityHeaders({} as any);
+  const headers = getSecurityHeaders({} as any);
   
   Object.entries(headers).forEach(([key, value]) => {
     response.headers.set(key, value);
@@ -292,10 +120,10 @@ export const securityConfig = {
 };
 
 /**
- * Get CSP nonce for inline scripts (if needed)
+ * @deprecated Use generateNonce from security-headers.server.ts instead
  */
 export function generateCSPNonce(): string {
-  return crypto.randomBytes(16).toString('base64');
+  return generateNonce();
 }
 
 /**
@@ -337,7 +165,6 @@ export function validateOrigin(request: Request): boolean {
  * DEPRECATED: Use sanitizeInput from sanitization-unified.server.ts instead
  */
 export function sanitizeInput(input: string): string {
-  const { sanitizeInput: unifiedSanitizeInput } = require('./sanitization-unified.server');
   return unifiedSanitizeInput(input);
 }
 

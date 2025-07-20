@@ -16,6 +16,16 @@ async function startServer() {
   console.log('🔧 Environment:', process.env.NODE_ENV);
   console.log('🔧 Port:', process.env.PORT || 3000);
   
+  // Validate environment variables early
+  try {
+    const { validateEnvironment } = await import('./build/server/app/lib/env-validation.server.js');
+    await validateEnvironment();
+    console.log('✅ Environment variables validated');
+  } catch (error) {
+    console.error('❌ Environment validation failed:', error.message);
+    // Continue without validation in case build files are missing
+  }
+  
   // Railway deployment debugging
   console.log('=== RAILWAY DEPLOYMENT DEBUG ===');
   console.log('Node version:', process.version);

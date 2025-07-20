@@ -4,6 +4,7 @@ import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 import crypto from "crypto";
+import { verifyWebhookHMAC } from "~/lib/webhook-security.server";
 
 // ============================================================================
 // SESSION MANAGEMENT (2025 SECURITY STANDARDS)
@@ -399,9 +400,6 @@ export function isValidShopDomain(shop: string): boolean {
 // Deprecated: Use verifyWebhookRequest from webhook-security.server.ts instead
 export function validateWebhookSignature(hmac: string, params: URLSearchParams): boolean {
   log.warn('validateWebhookSignature is deprecated. Use verifyWebhookRequest from webhook-security.server.ts');
-  
-  // Import the consolidated implementation
-  const { verifyWebhookHMAC } = require('~/lib/webhook-security.server');
   
   // Convert params to string for the new implementation
   const queryString = params.toString();

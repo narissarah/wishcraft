@@ -169,9 +169,44 @@ export function validateWebhookTopic(topic: string | null | undefined, expectedT
 }
 
 /**
- * Rate limit webhook requests (basic implementation)
+ * Rate limit webhook requests with automatic cleanup
  */
 const webhookRateLimit = new Map<string, { count: number; resetAt: number }>();
+
+// Cleanup expired entries every 5 minutes
+const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+let cleanupTimer: NodeJS.Timeout | null = null;
+
+function cleanupExpiredEntries() {
+  const now = Date.now();
+  let cleaned = 0;
+  
+  for (const [key, limit] of webhookRateLimit.entries()) {
+    if (now > limit.resetAt) {
+      webhookRateLimit.delete(key);
+      cleaned++;
+    }
+  }
+  
+  if (cleaned > 0) {
+    log.debug(`Cleaned up ${cleaned} expired webhook rate limit entries`);
+  }
+}
+
+// Start cleanup timer
+if (!cleanupTimer && typeof setInterval !== 'undefined') {
+  cleanupTimer = setInterval(cleanupExpiredEntries, CLEANUP_INTERVAL);
+  
+  // Ensure cleanup on process exit
+  if (typeof process !== 'undefined') {
+    process.on('exit', () => {
+      if (cleanupTimer) {
+        clearInterval(cleanupTimer);
+        cleanupTimer = null;
+      }
+    });
+  }
+}
 
 export function checkWebhookRateLimit(shop: string | null | undefined, maxRequests = 10, windowMs = 60000): boolean {
   if (!shop) return true; // Allow if no shop is provided
@@ -187,6 +222,11 @@ export function checkWebhookRateLimit(shop: string | null | undefined, maxReques
 
   limit.count++;
   webhookRateLimit.set(key, limit);
+
+  // Opportunistic cleanup - every 100 requests
+  if (webhookRateLimit.size > 100 && Math.random() < 0.1) {
+    cleanupExpiredEntries();
+  }
 
   if (limit.count > maxRequests) {
     log.warn(`Webhook rate limit exceeded for shop: ${shop}`);
