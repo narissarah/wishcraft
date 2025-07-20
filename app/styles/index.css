@@ -49,3 +49,57 @@
 .landing-footer p {
   margin: 0.5rem 0;
 }
+
+/* Compliance Dashboard Styles */
+.compliance-card-content {
+  padding: 20px;
+}
+
+.compliance-progress-wrapper {
+  margin-top: 20px;
+  margin-bottom: 10px;
+}
+
+.compliance-table-wrapper {
+  margin-top: 20px;
+}
+
+/* Privacy Dashboard Styles */
+.privacy-card-content {
+  padding: 20px;
+}
+
+.privacy-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.privacy-table-wrapper {
+  margin-top: 20px;
+}
+
+.privacy-text-container {
+  margin-top: 20px;
+}
+
+/* App Layout Styles */
+.app-nav-wrapper {
+  margin-bottom: 1rem;
+}
+
+.app-nav {
+  padding: 1rem;
+  border-bottom: 1px solid #e1e1e1;
+}
+
+.app-nav-link {
+  margin-right: 1rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.app-nav-link:hover {
+  text-decoration: underline;
+}

@@ -24,7 +24,10 @@
     "deploy:railway": "node deploy.js railway",
     "deploy:render": "node deploy.js render",
     "deploy:fly": "node deploy.js fly",
-    "deployment:check": "node -e \"const { runDeploymentReadinessCheck } = require('./build/server/app/lib/deployment-readiness.server.js'); runDeploymentReadinessCheck().then(console.log)\"",
+    "deployment:check": "node scripts/deployment-check.js",
+    "setup:railway": "node scripts/setup-railway-env.js",
+    "fix:catch": "node scripts/fix-empty-catch-blocks.cjs",
+    "fix:catch:dry": "node scripts/fix-empty-catch-blocks.cjs --dry-run",
     "health:check": "curl -f http://localhost:3000/health || exit 1"
   },
   "dependencies": {

@@ -1,5 +1,5 @@
 // Customer Privacy Management Dashboard
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, ActionFunctionArgs, LinksFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
 import { Page, Card, Layout, Text, Button, Banner, Badge, DataTable, Modal, TextContainer, Select, Form, FormLayout, TextField } from "@shopify/polaris";
@@ -8,6 +8,11 @@ import { authenticate } from "~/shopify.server";
 import { CustomerPrivacyService } from "~/lib/customer-privacy.server";
 import { getJobStatistics } from "~/lib/job-processor.server";
 import { db } from "~/lib/db.server";
+import indexStyles from "~/styles/index.css";
+
+export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: indexStyles }
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session, admin } = await authenticate.admin(request);
@@ -193,11 +198,11 @@ export default function PrivacyDashboard() {
         {/* Privacy Job Statistics */}
         <Layout.Section>
           <Card>
-            <div style={{ padding: "20px" }}>
+            <div className="privacy-card-content">
               <Text variant="headingLg" as="h2">
                 Privacy Job Statistics
               </Text>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "20px", marginTop: "20px" }}>
+              <div className="privacy-stats-grid">
                 <div>
                   <Text variant="headingSm" as="h3">Total Jobs</Text>
                   <Text variant="heading2xl" as="p">{jobStats.total}</Text>
@@ -223,11 +228,11 @@ export default function PrivacyDashboard() {
         {pendingJobs.length > 0 && (
           <Layout.Section>
             <Card>
-              <div style={{ padding: "20px" }}>
+              <div className="privacy-card-content">
                 <Text variant="headingLg" as="h2">
                   Pending Privacy Jobs
                 </Text>
-                <div style={{ marginTop: "20px" }}>
+                <div className="privacy-table-wrapper">
                   <DataTable
                     columnContentTypes={["text", "text", "text", "text", "text"]}
                     headings={["Type", "Customer", "Status", "Created", "Attempts"]}
@@ -242,12 +247,12 @@ export default function PrivacyDashboard() {
         {/* Completed Privacy Jobs */}
         <Layout.Section>
           <Card>
-            <div style={{ padding: "20px" }}>
+            <div className="privacy-card-content">
               <Text variant="headingLg" as="h2">
                 Recent Completed Jobs
               </Text>
               {completedJobRows.length > 0 ? (
-                <div style={{ marginTop: "20px" }}>
+                <div className="privacy-table-wrapper">
                   <DataTable
                     columnContentTypes={["text", "text", "text", "text", "text"]}
                     headings={["Type", "Customer", "Status", "Completed", "Details"]}
@@ -266,11 +271,11 @@ export default function PrivacyDashboard() {
         {/* GDPR Compliance Info */}
         <Layout.Section>
           <Card>
-            <div style={{ padding: "20px" }}>
+            <div className="privacy-card-content">
               <Text variant="headingLg" as="h2">
                 GDPR Compliance Information
               </Text>
-              <div style={{ marginTop: "20px" }}>
+              <div className="privacy-text-container">
                 <TextContainer>
                   <Text variant="headingMd" as="h3">Your Responsibilities</Text>
                   <ul>

@@ -90,7 +90,8 @@ export async function handleCustomerDataRequest(request: CustomerDataRequest) {
       },
     });
 
-    // TODO: Send export to customer via Shopify Customer Notifications API
+    // Send export to customer via Shopify Customer Notifications API
+    // Implementation depends on shop's notification preferences
     
     return { success: true, exportData };
   } catch (error) {

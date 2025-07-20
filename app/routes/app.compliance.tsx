@@ -1,12 +1,17 @@
 // Built for Shopify Compliance Dashboard
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, LinksFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
 import { Page, Card, Layout, Text, Badge, ProgressBar, DataTable, Icon, Banner, List } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, InfoIcon } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
 import { checkBuiltForShopifyCompliance, getWebhookReliabilityMetrics } from "~/lib/built-for-shopify.server";
+import indexStyles from "~/styles/index.css";
 // Circuit breaker monitoring removed for 2025 GraphQL-only compliance
+
+export const links: LinksFunction = () => [
+  { rel: "stylesheet", href: indexStyles }
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
@@ -68,11 +73,11 @@ export default function ComplianceDashboard() {
         {/* Overall Compliance Score */}
         <Layout.Section>
           <Card>
-            <div style={{ padding: "20px" }}>
+            <div className="compliance-card-content">
               <Text variant="headingLg" as="h2">
                 Overall Compliance Score
               </Text>
-              <div style={{ marginTop: "20px", marginBottom: "10px" }}>
+              <div className="compliance-progress-wrapper">
                 <ProgressBar 
                   progress={compliance.complianceScore} 
                   tone={compliance.complianceScore >= 90 ? "success" : "critical"}
@@ -97,11 +102,11 @@ export default function ComplianceDashboard() {
         {/* Compliance Checklist */}
         <Layout.Section>
           <Card>
-            <div style={{ padding: "20px" }}>
+            <div className="compliance-card-content">
               <Text variant="headingLg" as="h2">
                 Compliance Checklist
               </Text>
-              <div style={{ marginTop: "20px" }}>
+              <div className="compliance-table-wrapper">
                 <DataTable
                   columnContentTypes={["text", "text"]}
                   headings={["Requirement", "Status"]}
@@ -115,11 +120,11 @@ export default function ComplianceDashboard() {
         {/* Webhook Reliability */}
         <Layout.Section>
           <Card>
-            <div style={{ padding: "20px" }}>
+            <div className="compliance-card-content">
               <Text variant="headingLg" as="h2">
                 Webhook Reliability (Last 24 Hours)
               </Text>
-              <div style={{ marginTop: "20px" }}>
+              <div className="compliance-table-wrapper">
                 {webhookRows.length > 0 ? (
                   <DataTable
                     columnContentTypes={["text", "numeric", "numeric", "numeric", "numeric", "numeric"]}
@@ -139,11 +144,11 @@ export default function ComplianceDashboard() {
         {/* Circuit Breaker Health */}
         <Layout.Section>
           <Card>
-            <div style={{ padding: "20px" }}>
+            <div className="compliance-card-content">
               <Text variant="headingLg" as="h2">
                 API Circuit Breaker Health
               </Text>
-              <div style={{ marginTop: "20px" }}>
+              <div className="compliance-table-wrapper">
                 <DataTable
                   columnContentTypes={["text", "text", "numeric", "numeric", "numeric", "text"]}
                   headings={["Service", "State", "Requests", "Errors", "Error Rate", "Health"]}
@@ -158,11 +163,11 @@ export default function ComplianceDashboard() {
         {!compliance.isCompliant && (
           <Layout.Section>
             <Card>
-              <div style={{ padding: "20px" }}>
+              <div className="compliance-card-content">
                 <Text variant="headingLg" as="h2">
                   Recommendations
                 </Text>
-                <div style={{ marginTop: "20px" }}>
+                <div className="compliance-table-wrapper">
                   <List type="bullet">
                     {!compliance.checks.performanceCompliant && (
                       <List.Item>
