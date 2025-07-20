@@ -88,7 +88,8 @@ function generateCSP({ nonce, shop, development }: SecurityHeadersOptions): stri
   }
   
   // Add CSP violation reporting
-  directives.push("report-uri /api/csp-violation-report");
+  directives.push("report-uri /api/csp-report");
+  directives.push("report-to csp-endpoint");
   
   return directives.join('; ');
 }

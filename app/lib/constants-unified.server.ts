@@ -357,7 +357,7 @@ export const MONITORING_CONFIGS = {
 export const SHOPIFY_CONFIGS = {
   // API configuration
   API: {
-    VERSION: '2025-07',
+    VERSION: '2024-10',
     TIMEOUT: 30000,
     RETRIES: 3,
     RATE_LIMIT: 40 // requests per 2 seconds

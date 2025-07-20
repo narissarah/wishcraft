@@ -1,6 +1,7 @@
 import { shopify } from "~/shopify.server";
 import { log } from "~/lib/logger.server";
 import { cache } from './cache-unified.server';
+import { GraphQLCache } from './graphql-optimizations.server';
 
 /**
  * GraphQL Client for Shopify 2025 Compliance
@@ -121,8 +122,8 @@ export async function graphqlQuery<T = any>(
     
     // Note: Using direct GraphQL client instead of shopify.api.clients.Graphql
     // which may not be available in current Shopify App Remix version
-    // FIXED: Explicit 2025-07 API version for Built for Shopify compliance
-    const apiVersion = '2025-07'; // MANDATORY 2025 API version
+    // FIXED: Explicit 2024-10 API version for Built for Shopify compliance
+    const apiVersion = '2024-10'; // MANDATORY 2025 API version
     const response = await fetch(`https://${shop}.myshopify.com/admin/api/${apiVersion}/graphql.json`, {
       method: 'POST',
       headers: {

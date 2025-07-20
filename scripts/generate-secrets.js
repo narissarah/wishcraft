@@ -39,8 +39,11 @@ function generateAllSecrets() {
     // JWT signing (32 bytes base64)
     JWT_SECRET: generateSecureSecret(32, 'base64'),
     
-    // Data encryption key (32 bytes hex)
-    ENCRYPTION_KEY: generateHexKey(32),
+    // Data encryption key (32 bytes base64)
+    ENCRYPTION_KEY: generateSecureSecret(32, 'base64'),
+    
+    // Encryption salt (32 bytes hex) - for consistent key derivation
+    ENCRYPTION_SALT: generateHexKey(32),
     
     // Hash salt (32 bytes hex)
     HASH_SALT: generateHexKey(32),
@@ -97,6 +100,7 @@ SHOPIFY_APP_URL=https://localhost:3000
 SESSION_SECRET=${secrets.SESSION_SECRET}
 JWT_SECRET=${secrets.JWT_SECRET}
 ENCRYPTION_KEY=${secrets.ENCRYPTION_KEY}
+ENCRYPTION_SALT=${secrets.ENCRYPTION_SALT}
 HASH_SALT=${secrets.HASH_SALT}
 SHOPIFY_WEBHOOK_SECRET=${secrets.SHOPIFY_WEBHOOK_SECRET}
 CSRF_SECRET=${secrets.CSRF_SECRET}

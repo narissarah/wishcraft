@@ -251,8 +251,8 @@ export async function makeCustomerAPIRequest(
   query: string,
   variables?: any
 ) {
-  // FIXED: Explicit 2025-07 API version for Customer Account API compliance
-  const apiVersion = '2025-07'; // MANDATORY 2025 API version
+  // FIXED: Explicit 2024-10 API version for Customer Account API compliance
+  const apiVersion = '2024-10'; // MANDATORY 2025 API version
   const response = await fetch(
     `https://shopify.com/${session.shop}/account/customer/api/${apiVersion}/graphql`,
     {
@@ -540,7 +540,7 @@ export async function verifyAdminToken(token: string, shop: string): Promise<any
   try {
     // Use GraphQL Admin API with latest stable version
     const shopDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
-    const apiVersion = '2025-07'; // FIXED: Explicit 2025 compliance
+    const apiVersion = '2024-10'; // FIXED: Explicit 2025 compliance
     const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
       method: 'POST',
       headers: {

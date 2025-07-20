@@ -37,7 +37,7 @@ export class ShopifyAdapter implements IShopifyAdapter {
   }) {
     this.apiKey = config.apiKey;
     this.apiSecret = config.apiSecret;
-    this.apiVersion = config.apiVersion || '2025-07';
+    this.apiVersion = config.apiVersion || '2024-10';
     this.shopDomain = config.shopDomain;
     this.accessToken = config.accessToken;
     this.client = this.createClient();
@@ -853,7 +853,7 @@ export function initializeAdapters(): void {
   const shopifyAdapter = AdapterFactory.createShopifyAdapter({
     apiKey: process.env.SHOPIFY_API_KEY || '',
     apiSecret: process.env.SHOPIFY_API_SECRET || '',
-    apiVersion: '2025-07'
+    apiVersion: '2024-10'
   });
   adapterRegistry.register('shopify', shopifyAdapter);
 

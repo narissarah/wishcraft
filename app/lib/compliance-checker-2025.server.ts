@@ -65,8 +65,8 @@ export class Compliance2025Checker {
       {
         id: 'api-version-2025',
         category: 'critical',
-        name: 'API Version 2025-07 Usage',
-        description: 'Verify all API calls use 2025-07 version',
+        name: 'API Version 2024-10 Usage',
+        description: 'Verify all API calls use 2024-10 version',
         check: this.checkApiVersion2025.bind(this)
       },
       {
@@ -243,16 +243,16 @@ export class Compliance2025Checker {
       const shopifyConfigPath = path.join(process.cwd(), 'app/shopify.server.ts');
       const configContent = fs.readFileSync(shopifyConfigPath, 'utf-8');
       
-      if (configContent.includes('2025-07')) {
+      if (configContent.includes('2024-10')) {
         return {
           passed: true,
-          message: 'API version 2025-07 is correctly configured'
+          message: 'API version 2024-10 is correctly configured'
         };
       } else {
         return {
           passed: false,
-          message: 'API version 2025-07 not found in configuration',
-          recommendations: ['Update API version to 2025-07 in shopify.server.ts']
+          message: 'API version 2024-10 not found in configuration',
+          recommendations: ['Update API version to 2024-10 in shopify.server.ts']
         };
       }
     } catch (error) {
@@ -600,9 +600,53 @@ export class Compliance2025Checker {
    * Helper methods
    */
   private async searchForRestApiCalls(directory: string): Promise<boolean> {
-    // Simple implementation - would need more sophisticated scanning
-    // This is a placeholder for actual REST API detection
-    return false;
+    try {
+      const files = this.getAllFiles(directory, ['.ts', '.tsx', '.js', '.jsx']);
+      const restApiPatterns = [
+        /\/admin\/api\//,
+        /\.json["'`]\s*[,)]/,
+        /shopify\.rest\./,
+        /RestClient/,
+        /fetch\(["'`][^"'`]*\/admin\/api\//
+      ];
+      
+      for (const file of files) {
+        const content = fs.readFileSync(file, 'utf-8');
+        for (const pattern of restApiPatterns) {
+          if (pattern.test(content)) {
+            log.warn(`REST API usage found in ${file}`);
+            return true;
+          }
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      log.error('Error searching for REST API calls', error);
+      return true; // Assume non-compliance on error
+    }
+  }
+  
+  private getAllFiles(dir: string, extensions: string[]): string[] {
+    const files: string[] = [];
+    
+    try {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+          files.push(...this.getAllFiles(fullPath, extensions));
+        } else if (entry.isFile() && extensions.some(ext => entry.name.endsWith(ext))) {
+          files.push(fullPath);
+        }
+      }
+    } catch (error) {
+      log.error(`Error reading directory ${dir}`, error);
+    }
+    
+    return files;
   }
 
   private generateRecommendations(results: any[]): string[] {

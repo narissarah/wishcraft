@@ -1,5 +1,5 @@
 // 2025 API Version - MANDATORY for Built for Shopify compliance
-const SHOPIFY_API_VERSION_2025 = "2025-07";
+const SHOPIFY_API_VERSION_2025 = "2024-10";
 import { shopifyApp } from "@shopify/shopify-app-remix/server";
 import { EncryptedPrismaSessionStorage } from "~/lib/encrypted-session-storage.server";
 
@@ -25,7 +25,7 @@ export const shopify = shopifyApp({
   appUrl: process.env.SHOPIFY_APP_URL!,
   authPathPrefix: "/auth",
   sessionStorage,
-  apiVersion: SHOPIFY_API_VERSION_2025 as any, // FIXED: 2025-07 for compliance
+  apiVersion: SHOPIFY_API_VERSION_2025 as any, // FIXED: 2024-10 for compliance
   
   // 2025 Embedded App Strategy (MANDATORY)
   isEmbeddedApp: true,
