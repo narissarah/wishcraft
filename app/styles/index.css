@@ -1,0 +1,51 @@
+.landing-container {
+  font-family: system-ui, sans-serif;
+  line-height: 1.8;
+  padding: 2rem;
+  max-width: 600px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.landing-title {
+  color: #004c3f;
+  margin-bottom: 1rem;
+}
+
+.landing-description {
+  font-size: 1.1rem;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.landing-install-box {
+  background: #f8f9fa;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.landing-install-title {
+  color: #004c3f;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.landing-install-text {
+  color: #666;
+  margin-bottom: 1rem;
+}
+
+.landing-install-instructions {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.landing-footer {
+  font-size: 0.8rem;
+  color: #999;
+}
+
+.landing-footer p {
+  margin: 0.5rem 0;
+}
