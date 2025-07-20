@@ -53,7 +53,7 @@ export default function Index() {
       </div>
       
       <div className="landing-footer">
-        <p>WishCraft v1.1.4 | Built for Shopify 2025</p>
+        <p>WishCraft v1.1.6 | Built for Shopify 2025</p>
         <p>Deployed on Railway | Status: Healthy ✅</p>
       </div>
     </div>
