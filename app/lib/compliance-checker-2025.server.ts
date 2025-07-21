@@ -65,8 +65,8 @@ export class Compliance2025Checker {
       {
         id: 'api-version-2025',
         category: 'critical',
-        name: 'API Version 2024-10 Usage',
-        description: 'Verify all API calls use 2024-10 version',
+        name: 'API Version 2025-01 Usage',
+        description: 'Verify all API calls use current stable 2025-01 version',
         check: this.checkApiVersion2025.bind(this)
       },
       {
@@ -192,14 +192,14 @@ export class Compliance2025Checker {
 
         log.debug(`Check ${check.name}: ${result.passed ? 'PASSED' : 'FAILED'}`);
       } catch (error) {
-        log.error(`Compliance check failed: ${check.name}`, error);
+        log.error(`Compliance check failed: ${check.name}`, error instanceof Error ? error : new Error(String(error)));
         results.push({
           id: check.id,
           category: check.category,
           name: check.name,
           passed: false,
-          message: `Check failed with error: ${error.message}`,
-          details: { error: error.message }
+          message: `Check failed with error: ${error instanceof Error ? error.message : String(error)}`,
+          details: { error: error instanceof Error ? error.message : String(error) }
         });
         categoryCounts[check.category].failed++;
       }
@@ -243,23 +243,23 @@ export class Compliance2025Checker {
       const shopifyConfigPath = path.join(process.cwd(), 'app/shopify.server.ts');
       const configContent = fs.readFileSync(shopifyConfigPath, 'utf-8');
       
-      if (configContent.includes('2024-10')) {
+      if (configContent.includes('2025-01')) {
         return {
           passed: true,
-          message: 'API version 2024-10 is correctly configured'
+          message: 'API version 2025-01 is correctly configured'
         };
       } else {
         return {
           passed: false,
-          message: 'API version 2024-10 not found in configuration',
-          recommendations: ['Update API version to 2024-10 in shopify.server.ts']
+          message: 'API version 2025-01 not found in configuration',
+          recommendations: ['Update API version to 2025-01 for current stable release compatibility']
         };
       }
     } catch (error) {
       return {
         passed: false,
         message: 'Failed to check API version configuration',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -286,7 +286,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check GraphQL-only implementation',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -326,7 +326,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check App Bridge version',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -362,7 +362,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to test webhook HMAC verification',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -395,7 +395,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check OAuth configuration',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -429,7 +429,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check CSP configuration',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -466,7 +466,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check GDPR webhooks',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -502,22 +502,72 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check Polaris version',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
 
   private async checkPerformanceMonitoring(): Promise<ComplianceResult> {
-    // Performance monitoring removed for production deployment
-    return {
-      passed: true,
-      message: 'Performance monitoring disabled for production'
-    };
+    try {
+      // Check if PerformanceMonitor component exists and is properly implemented
+      const perfMonitorPath = path.join(process.cwd(), 'app/components/PerformanceMonitor.tsx');
+      const perfMonitorExists = fs.existsSync(perfMonitorPath);
+      
+      if (!perfMonitorExists) {
+        return {
+          passed: false,
+          message: 'PerformanceMonitor component not found',
+          recommendations: ['Implement PerformanceMonitor component for 2025 compliance']
+        };
+      }
+      
+      // Check if web-vitals dependency is installed
+      const packagePath = path.join(process.cwd(), 'package.json');
+      const packageContent = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
+      const hasWebVitals = packageContent.dependencies?.['web-vitals'];
+      
+      if (!hasWebVitals) {
+        return {
+          passed: false,
+          message: 'web-vitals dependency not found',
+          recommendations: ['Install web-vitals package for Core Web Vitals tracking']
+        };
+      }
+      
+      // Check if PerformanceMonitor is imported in root.tsx
+      const rootPath = path.join(process.cwd(), 'app/root.tsx');
+      const rootContent = fs.readFileSync(rootPath, 'utf-8');
+      const hasPerformanceMonitor = rootContent.includes('PerformanceMonitor');
+      
+      if (!hasPerformanceMonitor) {
+        return {
+          passed: false,
+          message: 'PerformanceMonitor not integrated in app root',
+          recommendations: ['Add PerformanceMonitor component to app/root.tsx']
+        };
+      }
+      
+      return {
+        passed: true,
+        message: 'Performance monitoring properly implemented with Core Web Vitals tracking',
+        details: {
+          webVitalsVersion: hasWebVitals,
+          componentExists: perfMonitorExists,
+          integratedInRoot: hasPerformanceMonitor
+        }
+      };
+    } catch (error) {
+      return {
+        passed: false,
+        message: 'Failed to check performance monitoring implementation',
+        details: { error: (error as Error).message }
+      };
+    }
   }
 
   private async checkErrorHandling(): Promise<ComplianceResult> {
     try {
-      const errorPath = path.join(process.cwd(), 'app/lib/error-handling-unified.server.ts');
+      const errorPath = path.join(process.cwd(), 'app/lib/errors.server.ts');
       const errorExists = fs.existsSync(errorPath);
       
       if (errorExists) {
@@ -536,7 +586,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check error handling',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -562,7 +612,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check caching strategy',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -591,7 +641,7 @@ export class Compliance2025Checker {
       return {
         passed: false,
         message: 'Failed to check database optimization',
-        details: { error: error.message }
+        details: { error: (error as Error).message }
       };
     }
   }
@@ -643,7 +693,7 @@ export class Compliance2025Checker {
         }
       }
     } catch (error) {
-      log.error(`Error reading directory ${dir}`, error);
+      log.error(`Error reading directory ${dir}`, error instanceof Error ? error : new Error(String(error)));
     }
     
     return files;

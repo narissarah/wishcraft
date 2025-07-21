@@ -67,8 +67,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       await tx.registryPurchase.updateMany({
         where: {
           purchaserEmail: customerEmail,
-          registry: {
-            shopId: shop
+          registry_items: {
+            registry: {
+              shopId: shop
+            }
           }
         },
         data: {

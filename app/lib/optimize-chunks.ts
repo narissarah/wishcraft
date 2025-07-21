@@ -233,7 +233,12 @@ export class BundleLoader {
     
     // Preload in background
     requestIdleCallback(() => {
-      chunks.forEach(chunk => this.loadChunk(chunk).catch(() => {}));
+      chunks.forEach(chunk => this.loadChunk(chunk).catch((error) => {
+        // Silent failure for preloading - track for monitoring only
+        if (typeof window !== 'undefined' && window.performance?.mark) {
+          window.performance.mark(`chunk-load-error-${chunk}`);
+        }
+      }));
     });
   }
 }
@@ -246,10 +251,10 @@ export function registerServiceWorker() {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('/sw.js').then(
         registration => {
-          console.log('ServiceWorker registered:', registration);
+          // ServiceWorker registered successfully - silent for production
         },
         error => {
-          console.log('ServiceWorker registration failed:', error);
+          // ServiceWorker registration failed - silent for production
         }
       );
     });

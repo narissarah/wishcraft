@@ -7,6 +7,31 @@ import { db } from "~/lib/db.server";
 import { decryptPII } from "~/lib/encryption.server";
 
 /**
+ * SECURITY: Validate that admin has access to registry's shop
+ */
+async function validateRegistryAccess(registryId: string, adminShop: string) {
+  const registry = await db.registry.findUnique({
+    where: { id: registryId },
+    select: { shopId: true, id: true }
+  });
+
+  if (!registry) {
+    return { error: json({ error: "Registry not found" }, { status: 404 }), registry: null };
+  }
+
+  if (adminShop !== registry.shopId) {
+    log.error("Unauthorized registry access attempt", {
+      adminShop,
+      registryShop: registry.shopId,
+      registryId
+    });
+    return { error: json({ error: "Unauthorized access to registry" }, { status: 403 }), registry: null };
+  }
+
+  return { error: null, registry };
+}
+
+/**
  * Registry Collaborators API
  * 
  * GET /api/registries/:id/collaborators - Get collaborators for registry
@@ -35,14 +60,27 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       select: { 
         id: true, 
         title: true, 
+        shopId: true,   // CRITICAL: Add shop validation
         customerEmail: true, 
         collaborationEnabled: true,
-        collaborationSettings: true
+        collaborationSettings: true,
+        metadata: true   // CRITICAL: Fix undefined metadata
       }
     });
 
     if (!registry) {
       return json({ error: "Registry not found" }, { status: 404 });
+    }
+
+    // CRITICAL SECURITY FIX: Validate shop access
+    if (admin.shop !== registry.shopId) {
+      log.error("Unauthorized access attempt to registry", {
+        adminShop: admin.shop,
+        registryShop: registry.shopId,
+        registryId,
+        adminSession: admin.session?.id
+      });
+      return json({ error: "Unauthorized access to registry" }, { status: 403 });
     }
 
     if (!registry.collaborationEnabled) {
@@ -55,13 +93,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // Get activity feed
     const activities = await CollaborativeRegistryManager.getActivityFeed(registryId, 10);
 
+    // Parse metadata safely
+    const metadata = registry.metadata ? JSON.parse(registry.metadata) : {};
+
     return json({
       registry: {
         id: registry.id,
         title: registry.title,
         ownerEmail: decryptPII(registry.customerEmail),
         collaborationEnabled: registry.collaborationEnabled,
-        collaborationSettings: registry.collaborationSettings
+        collaborationSettings: registry.collaborationSettings || metadata.collaborationSettings || {}
       },
       collaborators: collaborators.map(c => ({
         id: c.id,
@@ -70,10 +111,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         role: c.role,
         permissions: c.permissions,
         status: c.status,
-        invitedBy: c.invitedBy,
         invitedAt: c.invitedAt,
         acceptedAt: c.acceptedAt,
-        expiresAt: c.expiresAt,
+        expiresAt: c.inviteExpiresAt,
         roleDisplayName: CollaborationUtils.getRoleDisplayName(c.role as CollaboratorRole),
         permissionDisplayName: CollaborationUtils.getPermissionDisplayName(c.permissions as CollaboratorPermission)
       })),
@@ -108,12 +148,18 @@ export async function action({ request, params }: ActionFunctionArgs) {
     return json({ error: "Registry ID required" }, { status: 400 });
   }
 
+  // CRITICAL SECURITY: Validate registry access before any operations
+  const { error: accessError } = await validateRegistryAccess(registryId, admin.shop);
+  if (accessError) {
+    return accessError;
+  }
+
   if (method === "POST") {
-    return handleInviteCollaborator(request, registryId);
+    return handleInviteCollaborator(request, registryId, admin.shop);
   } else if (method === "PUT") {
-    return handleUpdateCollaborator(request, registryId);
+    return handleUpdateCollaborator(request, registryId, admin.shop);
   } else if (method === "DELETE") {
-    return handleRemoveCollaborator(request, registryId);
+    return handleRemoveCollaborator(request, registryId, admin.shop);
   } else {
     return json({ error: "Method not allowed" }, { status: 405 });
   }
@@ -122,7 +168,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
 /**
  * Invite new collaborator
  */
-async function handleInviteCollaborator(request: Request, registryId: string) {
+async function handleInviteCollaborator(request: Request, registryId: string, adminShop: string) {
   try {
     const formData = await request.formData();
     const email = formData.get("email") as string;
@@ -194,7 +240,7 @@ async function handleInviteCollaborator(request: Request, registryId: string) {
 /**
  * Update collaborator role/permissions
  */
-async function handleUpdateCollaborator(request: Request, registryId: string) {
+async function handleUpdateCollaborator(request: Request, registryId: string, adminShop: string) {
   try {
     const url = new URL(request.url);
     const collaboratorId = url.searchParams.get("collaboratorId");
@@ -262,7 +308,7 @@ async function handleUpdateCollaborator(request: Request, registryId: string) {
 /**
  * Remove collaborator
  */
-async function handleRemoveCollaborator(request: Request, registryId: string) {
+async function handleRemoveCollaborator(request: Request, registryId: string, adminShop: string) {
   try {
     const url = new URL(request.url);
     const collaboratorId = url.searchParams.get("collaboratorId");

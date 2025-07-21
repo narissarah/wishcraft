@@ -24,14 +24,18 @@ export function AppBridgeWrapper({ children, config }: AppBridgeWrapperProps) {
     // No manual script loading needed - handled by Shopify's admin framework
     
     // Set up contextual navigation for 2025 compliance
-    if (typeof window !== 'undefined' && window.shopify) {
-      // Enable contextual navigation features
-      window.shopify.features = {
-        ...window.shopify.features,
-        contextualNavigation: true,
-        improvedCheckout: true,
-        builtForShopify: true
-      };
+    if (typeof window !== 'undefined' && (window as any).shopify) {
+      // Enable contextual navigation features safely
+      const shopify = (window as any).shopify;
+      if (shopify.config) {
+        const features = shopify.config.features || {};
+        shopify.config.features = {
+          ...features,
+          contextualNavigation: true,
+          improvedCheckout: true,
+          builtForShopify: true
+        };
+      }
     }
   }, [config]);
 

@@ -3,8 +3,9 @@ import { createCookieSessionStorage } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import crypto from "crypto";
 import { verifyWebhookHMAC } from "~/lib/webhook-security.server";
+import { generateRandomBytes, createSHA256HashBase64URL, generateRandomString, generateRandomBase64 } from "~/lib/crypto-utils.server";
+import crypto from "crypto";
 
 // ============================================================================
 // SESSION MANAGEMENT (2025 SECURITY STANDARDS)
@@ -251,8 +252,8 @@ export async function makeCustomerAPIRequest(
   query: string,
   variables?: any
 ) {
-  // FIXED: Explicit 2024-10 API version for Customer Account API compliance
-  const apiVersion = '2024-10'; // MANDATORY 2025 API version
+  // FIXED: Updated to 2025-01 API version for proper 2025 compliance
+  const apiVersion = '2025-01'; // Current stable Shopify API version
   const response = await fetch(
     `https://shopify.com/${session.shop}/account/customer/api/${apiVersion}/graphql`,
     {
@@ -308,28 +309,33 @@ export async function getCustomerProfile(session: CustomerSession) {
 
 // SECURITY FIX: Secure encryption key generation
 function getEncryptionKey(): Buffer {
-  const encryptionKey = process.env.ENCRYPTION_KEY || process.env.SESSION_SECRET;
+  // SECURITY FIX: Only use dedicated ENCRYPTION_KEY - never fallback to SESSION_SECRET
+  const encryptionKey = process.env.ENCRYPTION_KEY;
   
   if (!encryptionKey) {
     throw new Error(
-      '🚨 CRITICAL: ENCRYPTION_KEY environment variable is required in all environments.\n' +
-      'Generate a secure key with: `openssl rand -base64 32`'
+      'CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is required for session encryption.\n' +
+      'Do NOT use SESSION_SECRET as encryption key - use dedicated key.\n' + 
+      'Generate with: `openssl rand -base64 32`'
     );
   }
   
-  // SECURITY FIX: Use proper random salt from environment or generate cryptographically secure salt
-  const saltHex = process.env.ENCRYPTION_SALT;
-  let salt: Buffer;
-  
-  if (saltHex) {
-    // Use provided salt from environment
-    salt = Buffer.from(saltHex, 'hex');
-  } else {
-    // Generate cryptographically secure salt for this session
-    salt = crypto.randomBytes(16);
-    log.warn('Generated temporary salt. Set ENCRYPTION_SALT environment variable for production.');
+  if (encryptionKey.length < 32) {
+    throw new Error('CRITICAL SECURITY ERROR: ENCRYPTION_KEY must be at least 32 characters long for proper security.');
   }
   
+  // SECURITY FIX: ENCRYPTION_SALT is REQUIRED for session security
+  const saltHex = process.env.ENCRYPTION_SALT;
+  
+  if (!saltHex) {
+    throw new Error('CRITICAL SECURITY ERROR: ENCRYPTION_SALT environment variable is required for session encryption. Sessions cannot be recovered without consistent salt. Cannot start application.');
+  }
+  
+  if (saltHex.length < 32) {
+    throw new Error('CRITICAL SECURITY ERROR: ENCRYPTION_SALT must be at least 32 characters (hex) for proper security.');
+  }
+  
+  const salt = Buffer.from(saltHex, 'hex');
   return crypto.scryptSync(encryptionKey, salt, 32);
 }
 
@@ -337,7 +343,7 @@ const encryptionKey = getEncryptionKey();
 
 function encryptSession(data: string): string {
   const algorithm = 'aes-256-gcm';
-  const iv = crypto.randomBytes(16);
+  const iv = generateRandomBytes(16);
   
   const cipher = crypto.createCipheriv(algorithm, encryptionKey, iv);
   cipher.setAAD(Buffer.from('wishcraft-session'));
@@ -368,19 +374,19 @@ function decryptSession(encryptedData: string): string {
 }
 
 export function generateState(): string {
-  return crypto.randomBytes(32).toString('hex');
+  return generateRandomString(32);
 }
 
 export function generateCodeVerifier(): string {
-  return crypto.randomBytes(32).toString('base64url');
+  return generateRandomBase64(32).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 export function generateCodeChallenge(verifier: string): string {
-  return crypto.createHash('sha256').update(verifier).digest('base64url');
+  return createSHA256HashBase64URL(verifier);
 }
 
 export function generateSessionSecret(): string {
-  return crypto.randomBytes(32).toString('base64');
+  return generateRandomBase64(32);
 }
 
 export function isValidShopDomain(shop: string): boolean {
@@ -397,14 +403,6 @@ export function isValidShopDomain(shop: string): boolean {
   return shopifyDomainRegex.test(shop);
 }
 
-// Deprecated: Use verifyWebhookRequest from webhook-security.server.ts instead
-export function validateWebhookSignature(hmac: string, params: URLSearchParams): boolean {
-  log.warn('validateWebhookSignature is deprecated. Use verifyWebhookRequest from webhook-security.server.ts');
-  
-  // Convert params to string for the new implementation
-  const queryString = params.toString();
-  return verifyWebhookHMAC(queryString, hmac, process.env.SHOPIFY_API_SECRET!);
-}
 
 // ============================================================================
 // SCOPE MANAGEMENT
@@ -540,7 +538,7 @@ export async function verifyAdminToken(token: string, shop: string): Promise<any
   try {
     // Use GraphQL Admin API with latest stable version
     const shopDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
-    const apiVersion = '2024-10'; // FIXED: Explicit 2025 compliance
+    const apiVersion = '2025-01'; // FIXED: Updated to current stable version for 2025 compliance
     const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
       method: 'POST',
       headers: {

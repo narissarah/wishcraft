@@ -9,29 +9,36 @@ datasource db {
 }
 
 model Session {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        String?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id                  String    @id @default(cuid())
+  shop                String
+  state               String
+  isOnline            Boolean   @default(false)
+  scope               String?
+  expires             DateTime?
+  accessTokenEncrypted String?  // Encrypted access token (REQUIRED when tokenEncrypted=true)
+  accessTokenIV       String?   // Initialization vector for encryption (REQUIRED when tokenEncrypted=true)
+  accessTokenTag      String?   // Authentication tag for AES-GCM (REQUIRED when tokenEncrypted=true)
+  tokenEncrypted      Boolean   @default(true)  // All new tokens must be encrypted
+  userId              String?
+  firstName           String?
+  lastName            String?
+  email               String?
+  accountOwner        Boolean   @default(false)
+  locale              String?
+  collaborator        Boolean?  @default(false)
+  emailVerified       Boolean?  @default(false)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
+  @@index([shop])
+  @@index([tokenEncrypted])
+  @@index([shop, tokenEncrypted])
+  @@index([expires])
   @@map("sessions")
 }
 
 model Shop {
-  id               String             @id
+  id               String             @id @default(cuid())
   domain           String             @unique
   name             String
   email            String?
@@ -98,10 +105,11 @@ model Registry {
   requiresApproval     Boolean                @default(false)
   shopId               String
   customerId           String
-  customerEmail        String
-  customerFirstName    String?
-  customerLastName     String?
-  customerPhone        String?
+  customerEmail        String                 // Encrypted via application layer
+  customerFirstName    String?                // Encrypted via application layer
+  customerLastName     String?                // Encrypted via application layer
+  customerPhone        String?                // Encrypted via application layer
+  customerEmailHash    String?                // Searchable hash for queries
   views                Int                    @default(0)
   uniqueViews          Int                    @default(0)
   totalValue           Float                  @default(0)
@@ -123,6 +131,13 @@ model Registry {
   @@index([status])
   @@index([eventType])
   @@index([visibility])
+  @@index([customerEmail])
+  @@index([customerEmailHash])
+  @@index([eventDate])
+  @@index([createdAt])
+  @@index([shopId, status])
+  @@index([shopId, customerId])
+  @@index([shopId, eventType])
   @@map("registries")
 }
 
@@ -167,6 +182,10 @@ model RegistryItem {
   @@index([status])
   @@index([priority])
   @@index([variantId])
+  @@index([createdAt])
+  @@index([price])
+  @@index([registryId, status])
+  @@index([registryId, productId])
   @@map("registry_items")
 }
 
@@ -209,6 +228,10 @@ model RegistryPurchase {
   @@index([groupGiftId])
   @@index([purchaserEmail])
   @@index([registryItemId])
+  @@index([createdAt])
+  @@index([paymentStatus])
+  @@index([purchaserType])
+  @@index([registryItemId, status])
   @@map("registry_purchases")
 }
 
@@ -233,6 +256,8 @@ model AuditLog {
   @@index([action])
   @@index([timestamp])
   @@index([resource])
+  @@index([resourceId])
+  @@index([shopId, timestamp])
   @@map("audit_logs")
 }
 
@@ -258,6 +283,8 @@ model SystemJob {
   @@index([type])
   @@index([runAt])
   @@index([priority])
+  @@index([priority, status])
+  @@index([status, runAt])
   @@map("system_jobs")
 }
 
@@ -310,7 +337,7 @@ model RegistryActivity {
 }
 
 model analytics_events {
-  id         String   @id
+  id         String   @id @default(cuid())
   shopId     String
   event      String
   category   String
@@ -335,7 +362,7 @@ model analytics_events {
 }
 
 model group_gift_contributions {
-  id                 String           @id
+  id                 String           @id @default(cuid())
   purchaseId         String
   contributorEmail   String
   contributorName    String?
@@ -347,7 +374,7 @@ model group_gift_contributions {
   isAnonymous        Boolean          @default(false)
   showAmount         Boolean          @default(true)
   createdAt          DateTime         @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime         @updatedAt
   registry_purchases RegistryPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
   @@index([contributorEmail])
@@ -356,7 +383,7 @@ model group_gift_contributions {
 }
 
 model metafield_syncs {
-  id           String    @id
+  id           String    @id @default(cuid())
   shopId       String
   namespace    String
   key          String
@@ -372,7 +399,7 @@ model metafield_syncs {
   value        String?
   valueType    String?
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime
+  updatedAt    DateTime  @updatedAt
   shops        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
   @@unique([shopId, namespace, key, ownerId])
@@ -381,7 +408,7 @@ model metafield_syncs {
 }
 
 model registry_addresses {
-  id                 String             @id
+  id                 String             @id @default(cuid())
   registryId         String
   type               String             @default("shipping")
   isDefault          Boolean            @default(false)
@@ -399,7 +426,7 @@ model registry_addresses {
   isVerified         Boolean            @default(false)
   verificationData   String?
   createdAt          DateTime           @default(now())
-  updatedAt          DateTime
+  updatedAt          DateTime           @updatedAt
   registries         Registry           @relation(fields: [registryId], references: [id], onDelete: Cascade)
   registry_purchases RegistryPurchase[]
 
@@ -408,7 +435,7 @@ model registry_addresses {
 }
 
 model registry_invitations {
-  id             String    @id
+  id             String    @id @default(cuid())
   registryId     String
   email          String
   name           String?
@@ -424,7 +451,7 @@ model registry_invitations {
   reminderSent   Boolean   @default(false)
   reminderAt     DateTime?
   createdAt      DateTime  @default(now())
-  updatedAt      DateTime
+  updatedAt      DateTime  @updatedAt
   registries     Registry  @relation(fields: [registryId], references: [id], onDelete: Cascade)
 
   @@index([deliveryStatus])
@@ -433,7 +460,7 @@ model registry_invitations {
 }
 
 model performance_metrics {
-  id          String   @id
+  id          String   @id @default(cuid())
   shopId      String
   metricType  String
   metricValue Float

@@ -50,8 +50,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const nonce = (request as any).nonce || generateNonce();
   
   return json({
-    resourceHints: [], // Removed performance monitoring
-    criticalCSS: '', // Removed performance monitoring
+    resourceHints: [],
+    criticalCSS: '',
     pathname,
     nonce,
     ENV: {
@@ -93,7 +93,6 @@ export default function App() {
   // Initialize Core Web Vitals monitoring on client
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Performance monitoring removed for production deployment
       
       import("~/lib/global-error-handler.client").then(({ initializeGlobalErrorHandlers }) => {
         initializeGlobalErrorHandlers();

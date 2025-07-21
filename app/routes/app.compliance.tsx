@@ -2,7 +2,7 @@
 import type { LoaderFunctionArgs, LinksFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { Page, Card, Layout, Text, Badge, ProgressBar, DataTable, Icon, Banner, List } from "@shopify/polaris";
+import { Page, Card, Layout, Text, Badge, ProgressBar, DataTable, Icon, Banner, List , InlineStack, BlockStack } from "@shopify/polaris";
 import { CheckCircleIcon, AlertCircleIcon, InfoIcon } from "@shopify/polaris-icons";
 import { authenticate } from "~/shopify.server";
 import { checkBuiltForShopifyCompliance, getWebhookReliabilityMetrics } from "~/lib/built-for-shopify.server";
@@ -74,7 +74,7 @@ export default function ComplianceDashboard() {
         <Layout.Section>
           <Card>
             <div className="compliance-card-content">
-              <Text variant="headingLg" as="h2">
+              <Text as="h2" variant="headingLg">
                 Overall Compliance Score
               </Text>
               <div className="compliance-progress-wrapper">
@@ -83,7 +83,7 @@ export default function ComplianceDashboard() {
                   tone={compliance.complianceScore >= 90 ? "success" : "critical"}
                 />
               </div>
-              <Text variant="headingXl" as="p">
+              <Text as="p" variant="headingXl">
                 {compliance.complianceScore.toFixed(0)}%
               </Text>
               {compliance.isCompliant ? (
@@ -103,7 +103,7 @@ export default function ComplianceDashboard() {
         <Layout.Section>
           <Card>
             <div className="compliance-card-content">
-              <Text variant="headingLg" as="h2">
+              <Text as="h2" variant="headingLg">
                 Compliance Checklist
               </Text>
               <div className="compliance-table-wrapper">
@@ -121,7 +121,7 @@ export default function ComplianceDashboard() {
         <Layout.Section>
           <Card>
             <div className="compliance-card-content">
-              <Text variant="headingLg" as="h2">
+              <Text as="h2" variant="headingLg">
                 Webhook Reliability (Last 24 Hours)
               </Text>
               <div className="compliance-table-wrapper">
@@ -145,7 +145,7 @@ export default function ComplianceDashboard() {
         <Layout.Section>
           <Card>
             <div className="compliance-card-content">
-              <Text variant="headingLg" as="h2">
+              <Text as="h2" variant="headingLg">
                 API Circuit Breaker Health
               </Text>
               <div className="compliance-table-wrapper">
@@ -164,7 +164,7 @@ export default function ComplianceDashboard() {
           <Layout.Section>
             <Card>
               <div className="compliance-card-content">
-                <Text variant="headingLg" as="h2">
+                <Text as="h2" variant="headingLg">
                   Recommendations
                 </Text>
                 <div className="compliance-table-wrapper">

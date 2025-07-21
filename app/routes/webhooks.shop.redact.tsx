@@ -43,13 +43,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       // Count records before deletion for logging
       const registryCount = await tx.registry.count({ where: { shopId: shop } });
       const purchaseCount = await tx.registryPurchase.count({ 
-        where: { registry: { shopId: shop } } 
+        where: { registry_items: { registry: { shopId: shop } } } 
       });
       const auditLogCount = await tx.auditLog.count({ where: { shopId: shop } });
       
       // Delete in correct order (respecting foreign key constraints)
       await tx.registryPurchase.deleteMany({
-        where: { registry: { shopId: shop } }
+        where: { registry_items: { registry: { shopId: shop } } }
       });
       
       await tx.registryItem.deleteMany({

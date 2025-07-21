@@ -1,20 +1,32 @@
 // SECURITY FIX: CVE-004 - Database field-level encryption for PII compliance
 import crypto from 'crypto';
 import { log } from '~/lib/logger.server';
+import { generateRandomBytes, createSHA256Hash } from '~/lib/crypto-utils.server';
 
 // Get encryption key from environment or throw error
 function getDataEncryptionKey(): Buffer {
-  const key = process.env.DATA_ENCRYPTION_KEY || process.env.ENCRYPTION_KEY;
+  // SECURITY FIX: Never reuse encryption keys - DATA_ENCRYPTION_KEY must be dedicated
+  const key = process.env.DATA_ENCRYPTION_KEY;
   
   if (!key) {
     throw new Error(
-      '🚨 CRITICAL: DATA_ENCRYPTION_KEY environment variable is required for PII encryption.\n' +
-      'Generate a secure key with: `openssl rand -base64 32`'
+      'CRITICAL SECURITY ERROR: DATA_ENCRYPTION_KEY environment variable is required for PII encryption.\n' +
+      'Do NOT reuse ENCRYPTION_KEY - PII encryption must use dedicated key for security isolation.\n' +
+      'Generate a dedicated key with: `openssl rand -base64 32`'
     );
   }
   
-  // Use a static salt for data encryption (different from session salt)
-  const salt = process.env.DATA_ENCRYPTION_SALT || 'wishcraft-data-encryption-v1';
+  // SECURITY: DATA_ENCRYPTION_SALT is REQUIRED in production
+  const salt = process.env.DATA_ENCRYPTION_SALT;
+  
+  if (!salt) {
+    throw new Error('CRITICAL SECURITY ERROR: DATA_ENCRYPTION_SALT environment variable is required for PII encryption. Cannot start application without proper encryption salt.');
+  }
+  
+  if (salt.length < 32) {
+    throw new Error('CRITICAL SECURITY ERROR: DATA_ENCRYPTION_SALT must be at least 32 characters long for proper security.');
+  }
+  
   return crypto.scryptSync(key, salt, 32);
 }
 
@@ -24,7 +36,7 @@ const dataEncryptionKey = getDataEncryptionKey();
 export function encryptPII(data: string): string {
   if (!data) return data;
   
-  const iv = crypto.randomBytes(16);
+  const iv = generateRandomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-gcm', dataEncryptionKey, iv);
   
   let encrypted = cipher.update(data, 'utf8', 'hex');
@@ -78,15 +90,28 @@ export async function verifyAccessCode(accessCode: string, hashedCode: string): 
 // Utility functions for safe PII handling
 export function sanitizeEmailForSearch(email: string): string {
   // Create a searchable hash of email (one-way)
-  return crypto.createHash('sha256').update(email.toLowerCase()).digest('hex');
+  return createSHA256Hash(email.toLowerCase());
 }
 
 // Create a searchable hash with a secret key for database indexing
 export function createSearchableEmailHash(email: string): string {
   if (!email) return '';
   
-  // Use HMAC with a secret key for searchable hashes
-  const searchKey = process.env.SEARCH_HASH_KEY || process.env.ENCRYPTION_KEY || 'default-search-key';
+  // SECURITY FIX: Use dedicated search key - never reuse encryption keys
+  const searchKey = process.env.SEARCH_HASH_KEY;
+  
+  if (!searchKey) {
+    throw new Error(
+      'CRITICAL SECURITY ERROR: SEARCH_HASH_KEY environment variable is required for searchable hashes.\n' +
+      'Do NOT reuse ENCRYPTION_KEY - search hashing must use dedicated key.\n' +
+      'Generate with: `openssl rand -hex 32`'
+    );
+  }
+  
+  if (searchKey.length < 32) {
+    throw new Error('CRITICAL SECURITY ERROR: SEARCH_HASH_KEY must be at least 32 characters for secure hashing.');
+  }
+  
   return crypto.createHmac('sha256', searchKey).update(email.toLowerCase()).digest('hex');
 }
 
@@ -129,7 +154,7 @@ export function encryptGiftMessage(
   const additionalData = `gift:${purchaserId}:${registryId}`;
   const timestamp = Date.now().toString();
   
-  const iv = crypto.randomBytes(16);
+  const iv = generateRandomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-gcm', dataEncryptionKey, iv);
   
   // Add authenticated data to prevent tampering

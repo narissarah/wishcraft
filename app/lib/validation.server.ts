@@ -1,92 +1,72 @@
 /**
- * Validation Utilities
- * Common validation functions for Shopify app
+ * Essential Validation for WishCraft
+ * Simplified from 713-line validation-unified.server.ts
  */
 
-import crypto from "crypto";
+import { z } from "zod";
 
-/**
- * Validate Shopify domain format
- */
-export function isValidShopDomain(shop: string): boolean {
-  if (!shop || typeof shop !== 'string') {
-    return false;
+// Basic Shopify ID validation
+export const shopifyIdSchema = z.string().min(1);
+
+// Registry validation schemas
+export const registryCreateSchema = z.object({
+  title: z.string().min(1).max(255),
+  description: z.string().max(1000).optional(),
+  eventType: z.enum(['wedding', 'birthday', 'baby_shower', 'anniversary', 'graduation', 'housewarming', 'holiday', 'other']),
+  eventDate: z.string().datetime().optional(),
+  privacy: z.enum(['public', 'private', 'shared']).default('private')
+});
+
+export const registryUpdateSchema = registryCreateSchema.partial();
+
+// Registry item validation
+export const registryItemSchema = z.object({
+  productId: shopifyIdSchema,
+  variantId: shopifyIdSchema.optional(),
+  quantity: z.number().int().min(1).max(100),
+  priority: z.enum(['high', 'medium', 'low']).default('medium')
+});
+
+// Purchase validation
+export const purchaseSchema = z.object({
+  registryItemId: shopifyIdSchema,
+  quantity: z.number().int().min(1),
+  giftMessage: z.string().max(500).optional(),
+  purchaserEmail: z.string().email(),
+  purchaserName: z.string().min(1).max(255)
+});
+
+// Collaborator validation
+export const collaboratorSchema = z.object({
+  email: z.string().email(),
+  role: z.enum(['viewer', 'editor']).default('viewer')
+});
+
+// Basic sanitization
+export function sanitizeString(input: string): string {
+  return input.trim().slice(0, 1000);
+}
+
+export function sanitizeEmail(email: string): string {
+  return email.toLowerCase().trim();
+}
+
+// Validation helper
+export function validateData<T>(schema: z.ZodSchema<T>, data: unknown): T {
+  const result = schema.safeParse(data);
+  if (!result.success) {
+    throw new Error(`Validation failed: ${result.error.issues.map(i => i.message).join(', ')}`);
   }
-  
-  // Remove protocol if present
-  shop = shop.replace(/^https?:\/\//, '');
-  
-  // Check if it's a valid myshopify.com domain
-  const shopifyDomainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
-  
-  return shopifyDomainRegex.test(shop);
+  return result.data;
 }
 
-/**
- * Validate request origin for CSRF protection
- */
-export function validateOrigin(request: Request): boolean {
-  const origin = request.headers.get("origin");
-  const referer = request.headers.get("referer");
-  
-  if (!origin && !referer) {
-    return false;
-  }
-  
-  const allowedOrigins = [
-    process.env.SHOPIFY_APP_URL,
-    "https://admin.shopify.com",
-    /^https:\/\/.*\.myshopify\.com$/,
-  ].filter(Boolean) as (string | RegExp)[];
-  
-  const requestOrigin = origin || new URL(referer!).origin;
-  
-  return allowedOrigins.some(allowed => {
-    if (typeof allowed === "string") {
-      return requestOrigin === allowed;
-    }
-    return allowed.test(requestOrigin);
-  });
-}
-
-/**
- * Generate secure random tokens
- */
-export function generateSecureToken(length: number = 32): string {
-  return crypto.randomBytes(length).toString("base64url");
-}
-
-/**
- * Validate email format
- */
-export function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
-
-/**
- * Validate URL format
- */
-export function isValidUrl(url: string): boolean {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Validate Shopify webhook HMAC
- */
-export function isValidWebhookHmac(rawBody: string, hmacHeader: string, secret: string): boolean {
-  const hash = crypto
-    .createHmac('sha256', secret)
-    .update(rawBody, 'utf8')
-    .digest('base64');
-  
-  return crypto.timingSafeEqual(
-    Buffer.from(hash),
-    Buffer.from(hmacHeader)
-  );
+// Simple slug creation
+export function createSlug(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9 -]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .slice(0, 50);
 }

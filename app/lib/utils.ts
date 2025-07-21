@@ -2,12 +2,7 @@
 
 import type { GraphQLResponse } from "./types";
 
-export function generateSlug(title: string): string {
-  return title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+// Removed duplicate generateSlug - use createSlug from sanitization-unified.server.ts
 
 export function formatPrice(price: string | number, currencyCode = "USD"): string {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -31,29 +26,11 @@ export function truncateText(text: string, maxLength: number): string {
   return text.substring(0, maxLength).trim() + "...";
 }
 
-export function isValidEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
-}
+// Removed duplicate isValidEmail - use BaseSchemas.email from validation-unified.server.ts
 
-export function generatePassword(length = 12): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return password;
-}
+// Removed duplicate generatePassword - use generateSecurePassword from crypto-utils.server.ts
 
-export function generateId(length = 13): string {
-  // More secure ID generation for client-side use (replace removed utils.server.ts version)
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let id = "";
-  for (let i = 0; i < length; i++) {
-    id += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return id;
-}
+// Removed duplicate generateId - use generateSecureId from crypto-utils.server.ts
 
 export function extractShopifyId(gid: string): string {
   return gid.split("/").pop() || "";
@@ -159,52 +136,3 @@ export function getRegistryShareUrl(slug: string, domain: string): string {
   return `https://${domain}/registry/${slug}`;
 }
 
-/**
- * Sanitize HTML input to prevent XSS attacks
- * Production-grade sanitization with configurable options
- */
-export function sanitizeHtml(html: string, options: {
-  allowedTags?: string[];
-  allowedAttributes?: string[];
-  allowData?: boolean;
-} = {}): string {
-  const {
-    allowedTags = ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'blockquote'],
-    allowedAttributes = ['href', 'title', 'target'],
-    allowData = false
-  } = options;
-
-  // Basic HTML entity encoding for security
-  // In production, consider using a server-side sanitization library
-  let result = html
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
-    
-  return result;
-}
-
-/**
- * Strict HTML sanitization for user-generated content
- */
-export function sanitizeUserContent(content: string): string {
-  return sanitizeHtml(content, {
-    allowedTags: ['b', 'i', 'em', 'strong', 'p', 'br'],
-    allowedAttributes: [],
-    allowData: false
-  });
-}
-
-/**
- * Sanitize rich text content (for gift messages, descriptions)
- */
-export function sanitizeRichText(content: string): string {
-  return sanitizeHtml(content, {
-    allowedTags: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'blockquote', 'h3', 'h4'],
-    allowedAttributes: ['href', 'title', 'target', 'rel'],
-    allowData: false
-  });
-}

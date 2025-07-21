@@ -1,6 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "ac161e228a6b078fcdd3fa14586ded14"
+# SECURITY: Set via environment variable - DO NOT hardcode
+# client_id = "YOUR_NEW_SHOPIFY_API_KEY"
 name = "wishcraft"
 handle = "wishcraft"
 application_url = "https://wishcraft-production.up.railway.app"

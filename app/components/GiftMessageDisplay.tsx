@@ -48,8 +48,8 @@ export function GiftMessageDisplay({ purchase, readonly = false }: GiftMessageDi
   };
 
   const handleEditClick = () => {
-    setEditMessage(purchase.giftMessage || '');
     setIsEditing(true);
+    setEditMessage(purchase.giftMessage || '');
     setShowModal(true);
   };
 
@@ -61,11 +61,15 @@ export function GiftMessageDisplay({ purchase, readonly = false }: GiftMessageDi
   if (!hasGiftMessage && readonly) {
     return (
       <Card>
-        <TextContainer>
-          <Text variant="bodyMd" tone="subdued">
-            No gift message
+        <BlockStack gap="200">
+          <InlineStack gap="200" align="center">
+            <Icon source={EmailIcon} tone="base" />
+            <Text as="h3" variant="headingSm">Gift Message</Text>
+          </InlineStack>
+          <Text as="p" variant="bodyMd" tone="subdued">
+            No gift message provided
           </Text>
-        </TextContainer>
+        </BlockStack>
       </Card>
     );
   }
@@ -73,84 +77,79 @@ export function GiftMessageDisplay({ purchase, readonly = false }: GiftMessageDi
   return (
     <>
       <Card>
-        <Stack spacing="tight">
-          <Stack distribution="equalSpacing" alignment="center">
-            <Stack spacing="tight" alignment="center">
+        <BlockStack gap="200">
+          <InlineStack gap="400" align="space-between">
+            <InlineStack gap="200" align="center">
               <Icon source={EmailIcon} tone="base" />
-              <Text variant="headingSm">Gift Message</Text>
+              <Text as="h3" variant="headingSm">Gift Message</Text>
               {hasGiftMessage && (
                 <Badge tone="info" size="small">
-                  <Stack spacing="extraTight" alignment="center">
-                    <Icon source={LockIcon} tone="base" />
-                    <span>Encrypted</span>
-                  </Stack>
+                  Encrypted
                 </Badge>
               )}
-            </Stack>
+            </InlineStack>
             
             {!readonly && (
               <ButtonGroup>
                 {hasGiftMessage && (
                   <Tooltip content="View gift message">
                     <Button
-                      plain
+                      variant="plain"
                       icon={ViewIcon}
                       onClick={handleViewClick}
                       loading={isSubmitting}
                     />
                   </Tooltip>
                 )}
-                
-                <Tooltip content={hasGiftMessage ? "Edit gift message" : "Add gift message"}>
+                <Tooltip content="Edit gift message">
                   <Button
-                    plain
+                    variant="plain"
                     icon={EditIcon}
                     onClick={handleEditClick}
                     loading={isSubmitting}
                   />
                 </Tooltip>
-                
                 {hasGiftMessage && (
                   <Tooltip content="Delete gift message">
                     <Button
-                      plain
+                      variant="plain"
                       icon={DeleteIcon}
                       onClick={handleDeleteMessage}
                       loading={isSubmitting}
-                      destructive
+                      tone="critical"
                     />
                   </Tooltip>
                 )}
               </ButtonGroup>
             )}
-          </Stack>
+          </InlineStack>
           
           <Box>
             {hasGiftMessage ? (
-              <TextContainer>
-                <Text variant="bodyMd" tone="subdued">
+              <BlockStack gap="400">
+                <Text as="p" variant="bodyMd" tone="subdued">
                   From: {purchase.purchaserName || 'Anonymous'}
                 </Text>
-                <Text variant="bodySm" tone="subdued">
+                <Text as="p" variant="bodySm" tone="subdued">
                   {purchase.purchaserEmail}
                 </Text>
                 <Box paddingBlockStart="200">
-                  <Text variant="bodyMd">
+                  <Text as="p" variant="bodyMd">
                     {purchase.giftMessage!.length > 100
                       ? `${purchase.giftMessage!.substring(0, 100)}...`
                       : purchase.giftMessage}
                   </Text>
                 </Box>
-              </TextContainer>
+              </BlockStack>
             ) : (
-              <TextContainer>
-                <Text variant="bodyMd" tone="subdued">
+              <BlockStack gap="400">
+                <Text as="p" variant="bodyMd" tone="subdued">
                   No gift message provided
                 </Text>
-              </TextContainer>
+              </BlockStack>
             )}
           </Box>
-        </Stack>
+        </BlockStack>
       </Card>
 
       <Modal
@@ -175,30 +174,31 @@ export function GiftMessageDisplay({ purchase, readonly = false }: GiftMessageDi
         ]}
       >
         <Modal.Section>
-          <Stack vertical spacing="loose">
-            <Stack spacing="tight">
-              <Text variant="headingSm">From:</Text>
-              <Stack vertical spacing="extraTight">
-                <Text variant="bodyMd">
+          <BlockStack gap="400">
+            <BlockStack gap="200">
+              <Text as="h3" variant="headingSm">From:</Text>
+              <BlockStack gap="200">
+                <Text as="p" variant="bodyMd">
                   {purchase.purchaserName || 'Anonymous'}
                 </Text>
-                <Text variant="bodySm" tone="subdued">
+                <Text as="p" variant="bodySm" tone="subdued">
                   {purchase.purchaserEmail}
                 </Text>
-              </Stack>
-            </Stack>
+              </BlockStack>
+            </BlockStack>
 
-            <Stack spacing="tight">
-              <Text variant="headingSm">Order:</Text>
-              <Text variant="bodyMd">
+            <BlockStack gap="200">
+              <Text as="h3" variant="headingSm">Order:</Text>
+              <Text as="p" variant="bodyMd">
                 {purchase.orderName || purchase.orderId}
               </Text>
-            </Stack>
+            </BlockStack>
 
-            <Stack spacing="tight">
-              <Text variant="headingSm">Message:</Text>
+            <BlockStack gap="200">
+              <Text as="h3" variant="headingSm">Message:</Text>
               {isEditing ? (
                 <TextField
+                  label="Gift Message"
                   value={editMessage}
                   onChange={setEditMessage}
                   multiline={4}
@@ -214,76 +214,15 @@ export function GiftMessageDisplay({ purchase, readonly = false }: GiftMessageDi
                   background="bg-surface-secondary"
                   borderRadius="200"
                 >
-                  <Text variant="bodyMd">
+                  <Text as="p" variant="bodyMd">
                     {purchase.giftMessage || 'No gift message provided'}
                   </Text>
                 </Box>
               )}
-            </Stack>
-          </Stack>
+            </BlockStack>
+          </BlockStack>
         </Modal.Section>
       </Modal>
     </>
-  );
-}
-
-/**
- * Compact version for displaying in lists
- */
-export function GiftMessagePreview({ purchase }: { purchase: RegistryPurchase & { giftMessage?: string | null } }) {
-  const hasGiftMessage = purchase.giftMessage && purchase.giftMessage.trim() !== '';
-  
-  if (!hasGiftMessage) {
-    return (
-      <Text variant="bodySm" tone="subdued">
-        No gift message
-      </Text>
-    );
-  }
-
-  return (
-    <Stack spacing="tight" alignment="center">
-      <Icon source={EmailIcon} tone="base" />
-      <Text variant="bodySm">
-        {purchase.giftMessage!.length > 50
-          ? `${purchase.giftMessage!.substring(0, 50)}...`
-          : purchase.giftMessage}
-      </Text>
-      <Badge tone="info" size="small">
-        <Stack spacing="extraTight" alignment="center">
-          <Icon source={LockIcon} tone="base" />
-          <span>Encrypted</span>
-        </Stack>
-      </Badge>
-    </Stack>
-  );
-}
-
-/**
- * Gift message statistics component
- */
-export function GiftMessageStats({ 
-  purchases 
-}: { 
-  purchases: Array<RegistryPurchase & { giftMessage?: string | null }> 
-}) {
-  const totalPurchases = purchases.length;
-  const purchasesWithMessages = purchases.filter(p => p.giftMessage && p.giftMessage.trim() !== '').length;
-  const percentage = totalPurchases > 0 ? Math.round((purchasesWithMessages / totalPurchases) * 100) : 0;
-
-  return (
-    <Card>
-      <TextContainer>
-        <Text variant="headingSm">Gift Messages</Text>
-        <Stack spacing="tight">
-          <Text variant="bodyMd">
-            {purchasesWithMessages} of {totalPurchases} purchases include gift messages
-          </Text>
-          <Badge tone={percentage > 50 ? 'success' : 'attention'}>
-            {percentage}%
-          </Badge>
-        </Stack>
-      </TextContainer>
-    </Card>
   );
 }

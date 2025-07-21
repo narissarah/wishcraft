@@ -49,8 +49,8 @@ export default function Index() {
               </Text>
               <InlineStack gap="200">
                 <Badge tone="success">{`Connected to ${shop?.name || sessionShop}`}</Badge>
-                <Badge>{shop?.myshopifyDomain || sessionShop}</Badge>
-                {shop?.currencyCode && <Badge tone="info">{shop.currencyCode}</Badge>}
+                <Badge>shop?.myshopifyDomain || sessionShop</Badge>
+                {shop?.currencyCode && <Badge tone="info">shop.currencyCode</Badge>}
               </InlineStack>
             </BlockStack>
           </Card>

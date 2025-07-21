@@ -16,6 +16,7 @@ import {
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 import { cache } from "~/lib/cache-unified.server";
+import { log } from "~/lib/logger.server";
 
 interface WebVitalMetric {
   metric: string;
@@ -206,9 +207,7 @@ export default function PerformanceDashboard() {
                           <Badge tone="attention">Primary 2025 Metric</Badge>
                         )}
                       </Text>
-                      <Badge tone={getToneForRating(vital.rating)}>
-                        {vital.rating}
-                      </Badge>
+                      <Badge tone={getToneForRating(vital.rating)}>{vital.rating}</Badge>
                     </InlineStack>
                     <Text as="p" variant="bodyMd">
                       P75: {formatMetricValue(vital.metric, vital.p75)}
@@ -302,9 +301,7 @@ export default function PerformanceDashboard() {
                 
                 <BlockStack gap="200">
                   <Text as="p" variant="bodyMd">Cache Status</Text>
-                  <Badge tone={data.systemHealth.cacheStatus ? "success" : "critical"}>
-                    {data.systemHealth.cacheStatus ? "Healthy" : "Unhealthy"}
-                  </Badge>
+                  <Badge tone={data.systemHealth.cacheStatus ? "success" : "critical"}>{data.systemHealth.cacheStatus ? "Healthy" : "Unhealthy"}</Badge>
                 </BlockStack>
                 
                 <BlockStack gap="200">
@@ -373,7 +370,8 @@ async function getActiveDbConnections(): Promise<number> {
       WHERE state = 'active'
     `;
     return Number(result[0]?.count || 0);
-  } catch {
+  } catch (error) {
+    log.warn('Failed to get database connections count', { error: (error as Error).message });
     return 0;
   }
 }

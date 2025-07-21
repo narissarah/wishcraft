@@ -4,9 +4,17 @@ import { json } from "@remix-run/node";
 import { CollaborativeRegistryManager } from "~/lib/collaboration.server";
 import { db } from "~/lib/db.server";
 import { decryptPII } from "~/lib/encryption.server";
+import { authenticate } from "~/shopify.server";
+import { validateRequest } from "~/lib/validation-unified.server";
+import { verifyInvitationToken } from "~/lib/crypto-utils.server";
+import crypto from "crypto";
 
 /**
  * Collaboration Invitation Acceptance API
+ * 
+ * SECURITY: This endpoint requires either:
+ * 1. Valid Shopify admin authentication (for admins)
+ * 2. Valid invitation token (for external collaborators)
  * 
  * GET /api/collaborate/accept/:id - Get invitation details
  * POST /api/collaborate/accept/:id - Accept invitation
@@ -17,6 +25,34 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   
   if (!collaboratorId) {
     return json({ error: "Collaborator ID required" }, { status: 400 });
+  }
+
+  // SECURITY: Validate request and check authentication
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
+  
+  let isAuthenticated = false;
+  let shopId: string | null = null;
+  
+  try {
+    // Try admin authentication first
+    const { admin, session } = await authenticate.admin(request);
+    if (admin && session) {
+      isAuthenticated = true;
+      shopId = session.shop;
+    }
+  } catch {
+    // Not authenticated as admin, check for valid invitation token
+    if (token) {
+      const tokenData = await verifyInvitationToken(token, collaboratorId);
+      if (tokenData && tokenData.valid) {
+        isAuthenticated = true;
+      }
+    }
+  }
+  
+  if (!isAuthenticated) {
+    return json({ error: "Unauthorized: Valid authentication or invitation token required" }, { status: 401 });
   }
 
   try {
@@ -35,6 +71,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             eventType: true,
             eventDate: true,
             totalValue: true,
+            shopId: true,
             shop: {
               select: {
                 domain: true,
@@ -48,6 +85,16 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 
     if (!collaborator) {
       return json({ error: "Invitation not found" }, { status: 404 });
+    }
+
+    // SECURITY: Verify shop context if authenticated as admin
+    if (shopId && collaborator.registry.shopId !== shopId) {
+      log.warn("Cross-shop access attempt detected", {
+        requestedShopId: collaborator.registry.shopId,
+        authenticatedShopId: shopId,
+        collaboratorId
+      });
+      return json({ error: "Access denied: Invalid shop context" }, { status: 403 });
     }
 
     // Check if invitation is still valid
@@ -106,6 +153,34 @@ export async function action({ request, params }: ActionFunctionArgs) {
   
   if (!collaboratorId) {
     return json({ error: "Collaborator ID required" }, { status: 400 });
+  }
+
+  // SECURITY: Validate request and check authentication
+  const url = new URL(request.url);
+  const token = url.searchParams.get('token');
+  
+  let isAuthenticated = false;
+  let authenticatedShopId: string | null = null;
+  
+  try {
+    // Try admin authentication first
+    const { admin, session } = await authenticate.admin(request);
+    if (admin && session) {
+      isAuthenticated = true;
+      authenticatedShopId = session.shop;
+    }
+  } catch {
+    // Not authenticated as admin, check for valid invitation token
+    if (token) {
+      const tokenData = await verifyInvitationToken(token, collaboratorId);
+      if (tokenData && tokenData.valid) {
+        isAuthenticated = true;
+      }
+    }
+  }
+  
+  if (!isAuthenticated) {
+    return json({ error: "Unauthorized: Valid authentication or invitation token required" }, { status: 401 });
   }
 
   try {
@@ -193,10 +268,41 @@ export async function action({ request, params }: ActionFunctionArgs) {
  */
 export async function getInvitationByToken(token: string) {
   try {
-    // In a real implementation, you'd use a signed token
-    // For now, we'll use the collaborator ID directly
+    // SECURITY FIX: Use proper cryptographic token verification
+    // Token format: base64url(collaboratorId.signature)
+    const [collaboratorId, signature] = token.split('.');
+    
+    if (!collaboratorId || !signature) {
+      return null; // Invalid token format
+    }
+    
+    // SECURITY FIX: Verify the token signature with proper secret validation
+    const secret = process.env.COLLABORATION_TOKEN_SECRET || process.env.SESSION_SECRET;
+    
+    if (!secret) {
+      log.error('CRITICAL SECURITY ERROR: No collaboration token secret available', { collaboratorId });
+      throw new Error('Server configuration error: Missing required security secrets');
+    }
+    
+    if (secret.length < 32) {
+      log.error('CRITICAL SECURITY ERROR: Collaboration token secret too short', { 
+        collaboratorId,
+        secretLength: secret.length 
+      });
+      throw new Error('Server configuration error: Inadequate security configuration');
+    }
+    
+    const expectedSignature = crypto.createHmac('sha256', secret)
+      .update(collaboratorId)
+      .digest('base64url');
+      
+    if (signature !== expectedSignature) {
+      log.error('Invalid collaboration token signature', { collaboratorId });
+      return null; // Invalid signature
+    }
+    
     const collaborator = await db.registryCollaborator.findUnique({
-      where: { id: token },
+      where: { id: collaboratorId },
       include: {
         registry: {
           select: {

@@ -56,7 +56,6 @@ export class CustomerPrivacyService {
         },
         include: {
           items: true,
-          purchases: true,
         },
       });
       
@@ -64,16 +63,22 @@ export class CustomerPrivacyService {
       const purchases = await db.registryPurchase.findMany({
         where: {
           purchaserEmail: email,
-          registry: {
-            shopId: this.shopId,
+          registry_items: {
+            registry: {
+              shopId: this.shopId,
+            }
           },
         },
         include: {
-          registry: {
+          registry_items: {
             select: {
-              title: true,
-              slug: true,
-            },
+              registry: {
+                select: {
+                  title: true,
+                  slug: true,
+                }
+              }
+            }
           },
         },
       });
@@ -124,8 +129,8 @@ export class CustomerPrivacyService {
           purchasedValue: registry.purchasedValue,
         })),
         purchases: purchases.map(purchase => ({
-          registryTitle: purchase.registry.title,
-          productId: purchase.productId,
+          registryTitle: purchase.registry_items.registry.title,
+          registrySlug: purchase.registry_items.registry.slug,
           quantity: purchase.quantity,
           totalAmount: purchase.totalAmount,
           giftMessage: purchase.giftMessage,
@@ -184,8 +189,10 @@ export class CustomerPrivacyService {
       const purchaseResult = await db.registryPurchase.updateMany({
         where: {
           purchaserEmail: email,
-          registry: {
-            shopId: this.shopId,
+          registry_items: {
+            registry: {
+              shopId: this.shopId,
+            }
           },
         },
         data: {
@@ -237,7 +244,13 @@ export class CustomerPrivacyService {
         
         // Delete in correct order
         await tx.registryPurchase.deleteMany({
-          where: { registryId: { in: registryIds } },
+          where: { 
+            registry_items: {
+              registry: {
+                id: { in: registryIds }
+              }
+            }
+          },
         });
         
         await tx.registryItem.deleteMany({

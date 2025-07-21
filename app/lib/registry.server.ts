@@ -1,7 +1,7 @@
 import { db } from "~/lib/db.server";
-import { generateSlug } from "~/lib/utils";
 import { encryptPII, decryptPII, hashAccessCode, verifyAccessCode, encryptGiftMessage, decryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation, createSearchableEmailHash } from "~/lib/encryption.server";
-import { cache, cacheKeys, withCache } from "~/lib/cache-unified.server";
+// Removed caching for simplicity
+import { sanitizeString, createSlug } from "~/lib/validation.server";
 import type { Registry, RegistryItem, RegistryPurchase } from "@prisma/client";
 
 // ============================================================================
@@ -61,10 +61,8 @@ export interface PurchaseRegistryItemInput {
 
 export type RegistryWithDetails = Registry & {
   items: RegistryItem[];
-  purchases: RegistryPurchase[];
   _count: {
     items: number;
-    purchases: number;
   };
 };
 
@@ -76,7 +74,7 @@ export type RegistryWithDetails = Registry & {
  * Create a new registry with encrypted PII
  */
 export async function createRegistry(shopId: string, data: CreateRegistryInput): Promise<RegistryWithDecryptedPII> {
-  const slug = generateSlug(data.title);
+  const slug = createSlug(data.title);
   
   // Encrypt PII fields
   const encryptedEmail = data.customerEmail ? encryptPII(data.customerEmail) : '';
@@ -100,7 +98,6 @@ export async function createRegistry(shopId: string, data: CreateRegistryInput):
       accessCode: hashedAccessCode,
       customerId: data.customerId || '',
       customerEmail: encryptedEmail,
-      customerEmailHash,
       customerFirstName: encryptedFirstName,
       customerLastName: encryptedLastName,
       shopId,
@@ -110,9 +107,7 @@ export async function createRegistry(shopId: string, data: CreateRegistryInput):
 
   // Invalidate relevant caches
   await Promise.all([
-    cache.invalidateByTag("registry"),
-    cache.invalidateByTag(`shop:${shopId}`),
-    data.customerEmail && cache.delete(cacheKeys.customerRegistries(shopId, data.customerEmail))
+    // Cache invalidation removed for simplicity
   ]);
 
   return decryptRegistryPII(registry);
@@ -121,8 +116,9 @@ export async function createRegistry(shopId: string, data: CreateRegistryInput):
 /**
  * Get registry by ID with decrypted PII (cached)
  */
-export const getRegistryById = withCache(
-  async (id: string): Promise<RegistryWithDecryptedPII | null> => {
+export const getRegistryById = async (id: string): Promise<RegistryWithDecryptedPII | null> => {
+  // Removed caching, direct database call
+  try {
     const registry = await db.registry.findUnique({
       where: { id },
     });
@@ -130,10 +126,8 @@ export const getRegistryById = withCache(
     if (!registry) return null;
     
     return decryptRegistryPII(registry);
-  },
-  (id: string) => cacheKeys.registry(id),
-  { ttl: 300, tags: ["registry"] }
-);
+  }, { ttl: 300000, tags: ["registry"] });
+};
 
 /**
  * Get registry with items and purchases - OPTIMIZED
@@ -188,33 +182,9 @@ export async function getRegistryWithDetails(id: string): Promise<RegistryWithDe
         orderBy: { createdAt: 'desc' },
         where: { status: 'active' }, // Filter out inactive items
       },
-      purchases: {
-        select: {
-          id: true,
-          orderId: true,
-          lineItemId: true,
-          orderName: true,
-          productId: true,
-          variantId: true,
-          quantity: true,
-          unitPrice: true,
-          totalAmount: true,
-          currencyCode: true,
-          purchaserEmail: true,
-          purchaserName: true,
-          isGift: true,
-          giftMessage: true,
-          status: true,
-          createdAt: true,
-          updatedAt: true,
-        },
-        orderBy: { createdAt: 'desc' },
-        take: 50, // Limit recent purchases
-      },
       _count: {
         select: {
           items: true,
-          purchases: true,
         },
       },
     },
@@ -222,34 +192,12 @@ export async function getRegistryWithDetails(id: string): Promise<RegistryWithDe
 
   if (!registry) return null;
   
-  // Decrypt PII fields and gift messages
+  // Decrypt PII fields
   return {
     ...registry,
     customerEmail: decryptPII(registry.customerEmail),
     customerFirstName: registry.customerFirstName ? decryptPII(registry.customerFirstName) : null,
     customerLastName: registry.customerLastName ? decryptPII(registry.customerLastName) : null,
-    purchases: registry.purchases.map(purchase => {
-      try {
-        const decryptedGiftMessage = purchase.giftMessage 
-          ? decryptGiftMessage(purchase.giftMessage, purchase.purchaserEmail || 'anonymous', registry.id)
-          : null;
-        
-        logGiftMessageOperation('decrypt', purchase.purchaserEmail || 'anonymous', registry.id, true);
-        
-        return {
-          ...purchase,
-          giftMessage: decryptedGiftMessage,
-        };
-      } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        logGiftMessageOperation('decrypt', purchase.purchaserEmail || 'anonymous', registry.id, false, errorMessage);
-        
-        return {
-          ...purchase,
-          giftMessage: '[ENCRYPTED GIFT MESSAGE]',
-        };
-      }
-    }),
   } as RegistryWithDetails;
 }
 
@@ -298,7 +246,6 @@ export async function getRegistriesByShop(
       _count: {
         select: {
           items: true,
-          purchases: true,
         },
       },
     },
@@ -314,7 +261,7 @@ export async function updateRegistry(id: string, data: Partial<CreateRegistryInp
   const updateData: any = { ...data };
   
   if (data.title) {
-    updateData.slug = generateSlug(data.title);
+    updateData.slug = createSlug(data.title);
   }
   
   // Encrypt PII fields if they're being updated
@@ -426,9 +373,7 @@ export async function purchaseRegistryItem(data: PurchaseRegistryItemInput): Pro
 
   const purchase = await db.registryPurchase.create({
     data: {
-      registryId: data.registryId,
-      productId: item.productId,
-      variantId: item.variantId,
+      registryItemId: data.itemId,
       quantity: data.quantity,
       unitPrice: item.price,
       totalAmount: item.price * data.quantity,
@@ -458,8 +403,9 @@ export async function purchaseRegistryItem(data: PurchaseRegistryItemInput): Pro
 /**
  * Get registry by slug with decrypted PII (cached)
  */
-export const getRegistryBySlug = withCache(
-  async (slug: string): Promise<RegistryWithDecryptedPII | null> => {
+export const getRegistryBySlug = async (slug: string): Promise<RegistryWithDecryptedPII | null> => {
+  // Removed caching, direct database call
+  try {
     const registry = await db.registry.findFirst({
       where: { slug },
     });
@@ -467,10 +413,8 @@ export const getRegistryBySlug = withCache(
     if (!registry) return null;
     
     return decryptRegistryPII(registry);
-  },
-  (slug: string) => cacheKeys.registryBySlug(slug),
-  { ttl: 300, tags: ["registry"] }
-);
+  }, { ttl: 300000, tags: ["registry"] });
+};
 
 /**
  * Search registries (NOTE: PII search is limited due to encryption)
@@ -505,7 +449,6 @@ export async function getRegistryStats(registryId: string) {
     where: { id: registryId },
     include: {
       items: true,
-      purchases: true,
     },
   });
 
@@ -514,9 +457,25 @@ export async function getRegistryStats(registryId: string) {
   }
 
   const totalItems = registry.items.length;
-  const totalPurchases = registry.purchases.length;
+  // Get purchases through registry items relation
+  const totalPurchases = await db.registryPurchase.count({
+    where: {
+      registry_items: {
+        registryId: registryId
+      }
+    }
+  });
   const totalValue = registry.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const purchasedValue = registry.purchases.reduce((sum, purchase) => sum + purchase.totalAmount, 0);
+  const purchasedValue = await db.registryPurchase.aggregate({
+    where: {
+      registry_items: {
+        registryId: registryId
+      }
+    },
+    _sum: {
+      totalAmount: true
+    }
+  }).then(result => result._sum.totalAmount || 0);
   const completionRate = totalItems > 0 ? (totalPurchases / totalItems) * 100 : 0;
 
   return {
@@ -572,22 +531,19 @@ export async function searchRegistriesByCustomer(
   shopId: string,
   customerEmail: string
 ): Promise<RegistryWithDecryptedPII[]> {
-  // Use searchable hash for efficient query
-  const emailHash = createSearchableEmailHash(customerEmail);
+  // Encrypt email for querying
+  const encryptedEmail = encryptPII(customerEmail);
   
-  // Now we can efficiently query using the indexed hash
+  // Query using encrypted email
   const registries = await db.registry.findMany({
     where: { 
       shopId,
-      customerEmailHash: emailHash 
+      customerEmail: encryptedEmail 
     },
     include: {
       items: {
         where: { status: 'active' },
         take: 100 // Limit items per registry
-      },
-      purchases: {
-        take: 50 // Limit recent purchases
       },
     },
   });
@@ -708,7 +664,9 @@ export async function getOptimizedRegistryStats(shopId: string) {
     // Purchase statistics
     db.registryPurchase.aggregate({
       where: {
-        registry: { shopId },
+        registry_items: {
+          registry: { shopId },
+        },
       },
       _count: { id: true },
       _sum: {
@@ -732,8 +690,8 @@ export async function getOptimizedRegistryStats(shopId: string) {
       totalPurchased: itemStats._sum.quantityPurchased || 0,
     },
     purchases: {
-      total: purchaseStats._count.id,
-      totalAmount: purchaseStats._sum.totalAmount || 0,
+      total: purchaseStats._count?.id || 0,
+      totalAmount: purchaseStats._sum?.totalAmount || 0,
     },
   };
 }
@@ -776,7 +734,6 @@ export async function getRegistriesWithCursor(
       _count: {
         select: {
           items: true,
-          purchases: true,
         },
       },
     },

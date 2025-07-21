@@ -1,3 +1,4 @@
+import { generateRandomString } from "~/lib/crypto-utils.server";
 import crypto from "crypto";
 import { json } from "@remix-run/node";
 import { sessionStorage } from "~/lib/auth.server";
@@ -16,7 +17,7 @@ const CSRF_TOKEN_LENGTH = 32;
  * Generate a cryptographically secure CSRF token
  */
 export function generateCSRFToken(): string {
-  return crypto.randomBytes(CSRF_TOKEN_LENGTH).toString("hex");
+  return generateRandomString(CSRF_TOKEN_LENGTH);
 }
 
 /**

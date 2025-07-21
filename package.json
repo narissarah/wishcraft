@@ -36,6 +36,7 @@
     "@remix-run/node": "^2.16.8",
     "@remix-run/react": "^2.16.8",
     "@remix-run/serve": "^2.16.8",
+    "@rollup/rollup-darwin-x64": "4.45.1",
     "@sentry/node": "^9.38.0",
     "@sentry/profiling-node": "^9.38.0",
     "@shopify/app-bridge-react": "^4.1.6",
@@ -57,6 +58,7 @@
     "react-dom": "^18.3.1",
     "remix-utils": "^7.7.0",
     "rimraf": "^5.0.10",
+    "web-vitals": "^4.2.4",
     "winston": "^3.16.0",
     "zod": "^3.25.76"
   },
@@ -88,11 +90,15 @@
     "@rollup/rollup-linux-x64-musl": "^4.45.1"
   },
   "overrides": {
-    "@shopify/network": "3.3.0"
+    "@shopify/network": "3.3.0",
+    "esbuild": "^0.25.8",
+    "estree-util-value-to-estree": "^3.3.3"
   },
   "pnpm": {
     "overrides": {
-      "@shopify/network": "3.3.0"
+      "@shopify/network": "3.3.0",
+      "esbuild": "^0.25.8",
+      "estree-util-value-to-estree": "^3.3.3"
     }
   },
   "type": "module",

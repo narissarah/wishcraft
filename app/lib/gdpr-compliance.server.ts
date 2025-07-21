@@ -13,7 +13,7 @@
 
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { cache, cacheKeys } from "~/lib/cache-unified.server";
+import { cache } from "~/lib/cache.server";
 import { decryptPII, createSearchableEmailHash } from "~/lib/encryption.server";
 import { z } from "zod";
 
@@ -102,7 +102,7 @@ export class GDPRComplianceService {
     });
     
     // Invalidate consent cache
-    await cache.delete(this.getConsentCacheKey(data.shopId, data.customerEmail));
+    await cache.del(this.getConsentCacheKey(data.shopId, data.customerEmail));
     
     log.info("Consent recorded", {
       shopId: data.shopId,
@@ -137,7 +137,6 @@ export async function exportCustomerData(customerId: string): Promise<{
       },
       include: {
         items: true,
-        purchases: true,
         shop: {
           select: {
             domain: true,
@@ -185,7 +184,7 @@ export async function exportCustomerData(customerId: string): Promise<{
           status: item.status,
           createdAt: item.createdAt
         })),
-        totalPurchases: registry.purchases.length
+        itemsCount: registry.items.length
       })),
       auditTrail: auditLogs.map(log => ({
         action: log.action,
@@ -253,7 +252,9 @@ export async function deleteCustomerData(customerId: string): Promise<{
       // Delete purchases
       await tx.registryPurchase.deleteMany({
         where: {
-          registry: { customerId }
+          registry_items: {
+            registry: { customerId }
+          }
         }
       });
 
@@ -340,7 +341,11 @@ export async function generatePrivacyReport(shopId: string): Promise<{
     });
 
     const totalPurchases = await db.registryPurchase.count({
-      where: { registry: { shopId } }
+      where: {
+        registry_items: {
+          registry: { shopId }
+        }
+      }
     });
 
     const auditLogCount = await db.auditLog.count({

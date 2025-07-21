@@ -4,7 +4,7 @@ import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { authenticate } from "~/shopify.server";
 import { AppBridgeWrapper } from "~/components/AppBridgeProvider";
-import { Page, Card, Layout, Navigation } from "@shopify/polaris";
+import { Page, Card, Layout, Navigation , InlineStack, BlockStack } from "@shopify/polaris";
 import indexStyles from "~/styles/index.css";
 
 export const links: LinksFunction = () => [

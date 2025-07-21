@@ -74,8 +74,8 @@ export async function verifyWebhookRequest(request: Request): Promise<{
     }
   }
   
-  // Validate API version - FIXED: Explicit 2024-10 for compliance
-  const expectedApiVersion = '2024-10'; // MANDATORY 2025 API version
+  // Validate API version - FIXED: Updated to 2025-01 for current stable compliance
+  const expectedApiVersion = '2025-01'; // Current stable API version
   if (apiVersionHeader && apiVersionHeader !== expectedApiVersion) {
     log.error(`Invalid API version: ${apiVersionHeader}, expected: ${expectedApiVersion}`);
     return { isValid: false, payload: "" };
@@ -223,9 +223,12 @@ export function checkWebhookRateLimit(shop: string | null | undefined, maxReques
   limit.count++;
   webhookRateLimit.set(key, limit);
 
-  // Opportunistic cleanup - every 100 requests
-  if (webhookRateLimit.size > 100 && Math.random() < 0.1) {
-    cleanupExpiredEntries();
+  // Opportunistic cleanup - every 100 requests with 10% probability
+  if (webhookRateLimit.size > 100) {
+    const { shouldExecuteWithProbability } = require('./crypto-utils.server');
+    if (shouldExecuteWithProbability(0.1)) {
+      cleanupExpiredEntries();
+    }
   }
 
   if (limit.count > maxRequests) {

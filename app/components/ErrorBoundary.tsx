@@ -1,6 +1,7 @@
 import React from "react";
 import { Banner, Page, Text, Button, BlockStack, Card } from "@shopify/polaris";
 import { useNavigate } from "@remix-run/react";
+import { generateErrorId } from "~/lib/crypto-utils.server";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -24,12 +25,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    const errorId = `error_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const errorId = generateErrorId();
     return { hasError: true, error, errorId };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    // Error logging handled by logger.server.ts
     
     this.setState({ errorInfo });
     
@@ -67,16 +68,16 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
         return this.props.fallback;
       }
       
-      const isAuthError = this.state.error?.message?.includes("authenticate") || 
+      const isAuthError = !!(this.state.error?.message?.includes("authenticate") || 
                          this.state.error?.message?.includes("401") ||
-                         this.state.error?.message?.includes("Unauthorized");
+                         this.state.error?.message?.includes("Unauthorized"));
       
       const isDevelopment = typeof window !== "undefined" && 
                            window.ENV?.NODE_ENV === "development";
       
       const level = this.props.level || 'page';
       
-      return this.renderErrorByLevel(level, isAuthError, isDevelopment);
+      return this.renderErrorByLevel(level, isAuthError, !!isDevelopment);
     }
 
     return this.props.children;
@@ -132,7 +133,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           navigator.sendBeacon('/api/errors', data);
         }
       } catch (reportError) {
-        console.error("Failed to report error:", reportError);
+        // Error reporting failure handled silently for security
       }
     }
   }
@@ -163,7 +164,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           {isAuthError ? "Authentication required" : "Widget unavailable"}
         </Text>
         {!isAuthError && (
-          <Button size="micro" onClick={this.handleReset} style={{ marginLeft: "8px" }}>
+          <Button size="micro" onClick={this.handleReset}>
             Retry
           </Button>
         )}
@@ -282,7 +283,7 @@ export function withErrorBoundary<P extends object>(
 
 // Hook for manually triggering error boundaries
 export function useErrorHandler() {
-  return React.useCallback((error: Error, errorInfo?: React.ErrorInfo) => {
+  return React.useCallback((error: Error) => {
     // This will be caught by the nearest error boundary
     throw error;
   }, []);

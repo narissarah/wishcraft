@@ -108,7 +108,7 @@ export function CollaborationManager({
     setEditingCollaborator(collaborator.id);
     setEditForm({
       role: collaborator.role,
-      permissions: collaborator.permissions
+      permissions: collaborator.permissions || ''
     });
   }, []);
 
@@ -121,12 +121,13 @@ export function CollaborationManager({
       case 'revoked':
         return <Badge tone="critical" icon={AlertCircleIcon}>Revoked</Badge>;
       default:
-        return <Badge>{collaborator.status}</Badge>;
+        return <Badge>collaborator.status</Badge>;
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const formatDate = (date: string | Date) => {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -138,11 +139,11 @@ export function CollaborationManager({
   const collaboratorRows = collaborators.map((collaborator) => [
     <InlineStack gap="200" align="start">
       <div>
-        <Text variant="bodyMd" fontWeight="semibold" as="span">
+        <Text as="p" variant="bodyMd" fontWeight="semibold">
           {collaborator.name || collaborator.email}
         </Text>
         {collaborator.name && (
-          <Text variant="bodySm" tone="subdued" as="div">
+          <Text as="p" variant="bodySm" tone="subdued">
             {collaborator.email}
           </Text>
         )}
@@ -151,7 +152,7 @@ export function CollaborationManager({
     collaborator.roleDisplayName,
     collaborator.permissionDisplayName,
     getStatusBadge(collaborator),
-    <Text variant="bodySm" tone="subdued" as="span">
+    <Text as="p" variant="bodySm" tone="subdued">
       {formatDate(collaborator.invitedAt)}
     </Text>,
     <ButtonGroup>
@@ -183,10 +184,10 @@ export function CollaborationManager({
           tone={activity.isSystem ? 'subdued' : 'base'}
         />
         <Box>
-          <Text variant="bodyMd" as="div">
+          <Text as="p" variant="bodyMd">
             {activity.description}
           </Text>
-          <Text variant="bodySm" tone="subdued" as="div">
+          <Text as="p" variant="bodySm" tone="subdued">
             {activity.actorName || activity.actorEmail} • {formatDate(activity.createdAt)}
           </Text>
         </Box>
@@ -201,10 +202,10 @@ export function CollaborationManager({
         <BlockStack gap="400">
           <InlineStack align="space-between">
             <div>
-              <Text variant="headingMd" as="h2">
+              <Text as="h3" variant="headingMd">
                 Collaboration
               </Text>
-              <Text variant="bodyMd" tone="subdued" as="p">
+              <Text as="p" variant="bodyMd" tone="subdued">
                 Manage who can access and edit this registry
               </Text>
             </div>
@@ -231,7 +232,7 @@ export function CollaborationManager({
       {/* Collaborators Table */}
       <Card>
         <BlockStack gap="400">
-          <Text variant="headingSm" as="h3">
+          <Text as="h3" variant="headingSm">
             Collaborators ({collaborators.length})
           </Text>
           
@@ -257,12 +258,12 @@ export function CollaborationManager({
       {/* Recent Activity */}
       <Card>
         <BlockStack gap="400">
-          <Text variant="headingSm" as="h3">
+          <Text as="h3" variant="headingSm">
             Recent Activity
           </Text>
           
           {activities.length === 0 ? (
-            <Text variant="bodyMd" tone="subdued" as="p">
+            <Text as="p" variant="bodyMd" tone="subdued">
               No recent activity
             </Text>
           ) : (
@@ -333,6 +334,7 @@ export function CollaborationManager({
               multiline={3}
               placeholder="Add a personal message to the invitation..."
               helpText="This message will be included in the invitation email"
+              autoComplete="off"
             />
           </BlockStack>
         </Modal.Section>
@@ -417,16 +419,16 @@ export function CollaborationSettings({
   return (
     <Card>
       <BlockStack gap="400">
-        <Text variant="headingSm" as="h3">
+        <Text as="h3" variant="headingSm">
           Collaboration Settings
         </Text>
         
         <InlineStack align="space-between">
           <div>
-            <Text variant="bodyMd" as="div">
+            <Text as="p" variant="bodyMd">
               Enable Collaboration
             </Text>
-            <Text variant="bodySm" tone="subdued" as="div">
+            <Text as="p" variant="bodySm" tone="subdued">
               Allow others to help manage this registry
             </Text>
           </div>
@@ -443,7 +445,7 @@ export function CollaborationSettings({
           <Box>
             <Divider />
             <BlockStack gap="300">
-              <Text variant="bodySm" fontWeight="semibold" as="div">
+              <Text as="p" variant="bodySm" fontWeight="semibold">
                 Collaboration Limits
               </Text>
               <List>

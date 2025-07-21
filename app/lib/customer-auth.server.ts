@@ -20,7 +20,7 @@ interface CustomerAccountConfig {
 }
 
 function getCustomerAccountConfig(shop: string): CustomerAccountConfig {
-  const apiVersion = '2024-10'; // FIXED: Explicit 2025 compliance
+  const apiVersion = '2025-01'; // FIXED: Updated to current stable version for 2025 compliance
   return {
     authorizationEndpoint: `https://shopify.com/${shop}/account/oauth/authorize`,
     tokenEndpoint: `https://shopify.com/${shop}/account/oauth/token`,
@@ -271,11 +271,9 @@ export async function getCustomerRegistries(customerId: string, shop: string) {
       },
       include: {
         items: true,
-        purchases: true,
         _count: {
           select: {
             items: true,
-            purchases: true
           }
         }
       },

@@ -2,6 +2,7 @@
  * Server-side utility functions
  */
 import bcrypt from 'bcrypt';
+import { log } from '~/lib/logger.server';
 
 const SALT_ROUNDS = 10;
 
@@ -13,29 +14,8 @@ export async function validatePassword(password: string, hash: string): Promise<
   return bcrypt.compare(password, hash);
 }
 
-// DEPRECATED: Use sanitizeInput from sanitization-unified.server.ts instead
-export function sanitizeInput(input: string): string {
-  const { sanitizeInput: unifiedSanitizeInput } = require('./sanitization-unified.server');
-  return unifiedSanitizeInput(input);
-}
+// Removed duplicate parseJSON - use JSON.parse with try/catch or Zod parsing
 
-// Removed duplicate formatCurrency - use formatPrice from utils.ts instead
-
-// Removed duplicate generateSlug - use generateSlug from utils.ts instead
-
-// Removed duplicate truncateString - use truncateText from utils.ts instead
-
-export function parseJSON<T>(jsonString: string, fallback: T): T {
-  try {
-    return JSON.parse(jsonString);
-  } catch {
-    return fallback;
-  }
-}
-
-// Removed insecure generateId - use generatePassword or generateSecureToken from security.server.ts for secure ID generation
-
-// Removed duplicate generateSlug - use generateSlug from utils.ts instead
 
 export function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));

@@ -183,7 +183,8 @@ export const json = {
     if (!value) return null;
     try {
       return JSON.parse(value) as T;
-    } catch {
+    } catch (error) {
+      log.warn('JSON parse failed', { value: value?.substring(0, 100), error: (error as Error).message });
       return null;
     }
   },
@@ -192,7 +193,8 @@ export const json = {
     if (value === null || value === undefined) return null;
     try {
       return JSON.stringify(value);
-    } catch {
+    } catch (error) {
+      log.warn('JSON stringify failed', { value: typeof value, error: (error as Error).message });
       return null;
     }
   }
@@ -209,7 +211,6 @@ export const registryDb = {
           items: {
             orderBy: { createdAt: "asc" }
           },
-          purchases: true,
           shop: {
             include: {
               settings: true

@@ -2,7 +2,7 @@
 import type { LoaderFunctionArgs, ActionFunctionArgs, LinksFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
-import { Page, Card, Layout, Text, Button, Banner, Badge, DataTable, Modal, TextContainer, Select, Form, FormLayout, TextField } from "@shopify/polaris";
+import { Page, Card, Layout, Text, Button, Banner, Badge, DataTable, Modal, TextContainer, Select, Form, FormLayout, TextField , InlineStack, BlockStack } from "@shopify/polaris";
 import { useState, useCallback } from "react";
 import { authenticate } from "~/shopify.server";
 import { CustomerPrivacyService } from "~/lib/customer-privacy.server";
@@ -160,9 +160,7 @@ export default function PrivacyDashboard() {
     return [
       formatJobType(job.type),
       payload.customerEmail || payload.shopDomain || "N/A",
-      <Badge tone={job.status === "running" ? "info" : "attention"}>
-        {job.status}
-      </Badge>,
+      <Badge tone={job.status === "running" ? "info" : "attention"}>job.status</Badge>,
       new Date(job.createdAt).toLocaleString(),
       job.attempts + "/" + job.maxAttempts,
     ];
@@ -199,25 +197,25 @@ export default function PrivacyDashboard() {
         <Layout.Section>
           <Card>
             <div className="privacy-card-content">
-              <Text variant="headingLg" as="h2">
+              <Text as="h3" variant="headingLg">
                 Privacy Job Statistics
               </Text>
               <div className="privacy-stats-grid">
                 <div>
-                  <Text variant="headingSm" as="h3">Total Jobs</Text>
-                  <Text variant="heading2xl" as="p">{jobStats.total}</Text>
+                  <Text as="h3" variant="headingSm">Total Jobs</Text>
+                  <Text as="h3" variant="heading2xl">{jobStats.total}</Text>
                 </div>
                 <div>
-                  <Text variant="headingSm" as="h3">Pending</Text>
-                  <Text variant="heading2xl" as="p" tone="caution">{jobStats.pending}</Text>
+                  <Text as="h3" variant="headingSm">Pending</Text>
+                  <Text as="h3" variant="heading2xl" tone="caution">{jobStats.pending}</Text>
                 </div>
                 <div>
-                  <Text variant="headingSm" as="h3">Running</Text>
-                  <Text variant="heading2xl" as="p">{jobStats.running}</Text>
+                  <Text as="h3" variant="headingSm">Running</Text>
+                  <Text as="h3" variant="heading2xl">{jobStats.running}</Text>
                 </div>
                 <div>
-                  <Text variant="headingSm" as="h3">Success Rate</Text>
-                  <Text variant="heading2xl" as="p" tone="success">{jobStats.successRate.toFixed(1)}%</Text>
+                  <Text as="h3" variant="headingSm">Success Rate</Text>
+                  <Text as="h3" variant="heading2xl" tone="success">{jobStats.successRate.toFixed(1)}%</Text>
                 </div>
               </div>
             </div>
@@ -229,7 +227,7 @@ export default function PrivacyDashboard() {
           <Layout.Section>
             <Card>
               <div className="privacy-card-content">
-                <Text variant="headingLg" as="h2">
+                <Text as="h3" variant="headingLg">
                   Pending Privacy Jobs
                 </Text>
                 <div className="privacy-table-wrapper">
@@ -248,7 +246,7 @@ export default function PrivacyDashboard() {
         <Layout.Section>
           <Card>
             <div className="privacy-card-content">
-              <Text variant="headingLg" as="h2">
+              <Text as="h3" variant="headingLg">
                 Recent Completed Jobs
               </Text>
               {completedJobRows.length > 0 ? (
@@ -272,12 +270,12 @@ export default function PrivacyDashboard() {
         <Layout.Section>
           <Card>
             <div className="privacy-card-content">
-              <Text variant="headingLg" as="h2">
+              <Text as="h3" variant="headingLg">
                 GDPR Compliance Information
               </Text>
               <div className="privacy-text-container">
-                <TextContainer>
-                  <Text variant="headingMd" as="h3">Your Responsibilities</Text>
+                <BlockStack gap="400">
+                  <Text as="h3" variant="headingMd">Your Responsibilities</Text>
                   <ul>
                     <li>Respond to data export requests within 30 days</li>
                     <li>Delete customer data upon request (right to erasure)</li>
@@ -285,14 +283,14 @@ export default function PrivacyDashboard() {
                     <li>Ensure data is encrypted and secure</li>
                   </ul>
                   
-                  <Text variant="headingMd" as="h3">Automated Compliance</Text>
+                  <Text as="h3" variant="headingMd">Automated Compliance</Text>
                   <ul>
                     <li>All PII data is encrypted at rest</li>
                     <li>Automatic webhook handling for GDPR requests</li>
                     <li>Audit logging for all customer data access</li>
                     <li>Automated data retention policies</li>
                   </ul>
-                </TextContainer>
+                </BlockStack>
               </div>
             </div>
           </Card>

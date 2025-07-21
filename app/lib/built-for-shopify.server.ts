@@ -121,7 +121,7 @@ export async function handleCustomerRedactRequest(request: CustomerRedactRequest
       await db.registryPurchase.updateMany({
         where: {
           orderId: { in: request.ordersToRedact },
-          registry: { shopId: request.shopId },
+          registry_items: { registry: { shopId: request.shopId } },
         },
         data: {
           purchaserEmail: "[REDACTED]",
@@ -191,7 +191,7 @@ export async function handleShopRedactRequest(request: ShopRedactRequest) {
     await db.$transaction(async (tx) => {
       // Delete all registries and related data
       await tx.registryPurchase.deleteMany({
-        where: { registry: { shopId: request.shopId } },
+        where: { registry_items: { registry: { shopId: request.shopId } } },
       });
       
       await tx.registryItem.deleteMany({

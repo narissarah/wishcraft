@@ -4,6 +4,8 @@
  */
 
 import { z } from 'zod';
+import { log } from './logger.server';
+import { generateRandomString } from './crypto-utils.server';
 
 const envSchema = z.object({
   // Database
@@ -16,9 +18,18 @@ const envSchema = z.object({
   SHOPIFY_APP_URL: z.string().url('SHOPIFY_APP_URL must be a valid URL'),
   SHOPIFY_WEBHOOK_SECRET: z.string().min(1, 'SHOPIFY_WEBHOOK_SECRET is required'),
   
-  // Security
+  // Security - CRITICAL ENVIRONMENT VARIABLES
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
-  ENCRYPTION_KEY: z.string().min(32, 'ENCRYPTION_KEY must be at least 32 characters'),
+  ENCRYPTION_KEY: z.string().min(32, 'ENCRYPTION_KEY must be at least 32 characters for AES-256'),
+  ENCRYPTION_SALT: z.string().min(32, 'ENCRYPTION_SALT must be at least 32 characters for secure key derivation'),
+  DATA_ENCRYPTION_KEY: z.string().min(32, 'DATA_ENCRYPTION_KEY must be at least 32 characters for PII encryption'),
+  DATA_ENCRYPTION_SALT: z.string().min(32, 'DATA_ENCRYPTION_SALT must be at least 32 characters for PII security'),
+  
+  // Collaboration Security
+  COLLABORATION_TOKEN_SECRET: z.string().min(32, 'COLLABORATION_TOKEN_SECRET must be at least 32 characters').optional(),
+  
+  // Search Security
+  SEARCH_HASH_KEY: z.string().min(32, 'SEARCH_HASH_KEY must be at least 32 characters for secure email indexing'),
   
   // Optional Environment Variables
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
@@ -60,21 +71,14 @@ export function validateEnvironment(): ValidatedEnv {
       validateProductionEnvironment(validatedEnv);
     }
     
-    console.log('✅ Environment variables validated successfully');
+    log.info('Environment variables validated successfully');
     return validatedEnv;
     
   } catch (error) {
     if (error instanceof z.ZodError) {
-      console.error('❌ Environment variable validation failed:');
-      console.error('='.repeat(50));
-      
-      error.errors.forEach((err) => {
-        console.error(`🔴 ${err.path.join('.')}: ${err.message}`);
+      log.error('Environment variable validation failed', error, {
+        missingVariables: error.errors.map(err => `${err.path.join('.')}: ${err.message}`)
       });
-      
-      console.error('='.repeat(50));
-      console.error('Please set the required environment variables and restart the application.');
-      console.error('See .env.example for reference.');
       
       process.exit(1);
     }
@@ -97,6 +101,22 @@ function validateProductionEnvironment(env: ValidatedEnv) {
       message: 'DATABASE_URL should not be localhost in production'
     },
     {
+      condition: !env.ENCRYPTION_SALT || env.ENCRYPTION_SALT.length < 64,
+      message: 'ENCRYPTION_SALT must be at least 64 characters in production for maximum security'
+    },
+    {
+      condition: !env.DATA_ENCRYPTION_SALT || env.DATA_ENCRYPTION_SALT.length < 64,
+      message: 'DATA_ENCRYPTION_SALT must be at least 64 characters in production for PII protection'
+    },
+    {
+      condition: env.SESSION_SECRET === env.ENCRYPTION_KEY,
+      message: 'SESSION_SECRET and ENCRYPTION_KEY must be different in production'
+    },
+    {
+      condition: env.DATA_ENCRYPTION_KEY === env.ENCRYPTION_KEY,
+      message: 'DATA_ENCRYPTION_KEY and ENCRYPTION_KEY must be different for security isolation'
+    },
+    {
       condition: env.SESSION_SECRET.length < 64,
       message: 'SESSION_SECRET should be at least 64 characters in production'
     },
@@ -109,9 +129,8 @@ function validateProductionEnvironment(env: ValidatedEnv) {
   const failures = productionChecks.filter(check => check.condition);
   
   if (failures.length > 0) {
-    console.error('❌ Production environment validation failed:');
-    failures.forEach(failure => {
-      console.error(`🔴 ${failure.message}`);
+    log.error('Production environment validation failed', {
+      failures: failures.map(f => f.message)
     });
     process.exit(1);
   }
@@ -163,7 +182,8 @@ export function validateDatabaseUrl(url: string): boolean {
   try {
     const parsed = new URL(url);
     return parsed.protocol === 'postgres:' || parsed.protocol === 'postgresql:';
-  } catch {
+  } catch (error) {
+    log.warn('Invalid database URL format', { url: url?.substring(0, 20), error: (error as Error).message });
     return false;
   }
 }
@@ -172,8 +192,7 @@ export function validateDatabaseUrl(url: string): boolean {
  * Generate secure random values for missing secrets
  */
 export function generateSecureValue(length: number = 64): string {
-  const crypto = require('crypto');
-  return crypto.randomBytes(length).toString('hex');
+  return generateRandomString(length);
 }
 
 /**
@@ -186,7 +205,7 @@ export function setupDevelopmentEnv(): void {
     if (!process.env[secret]) {
       const generated = generateSecureValue();
       process.env[secret] = generated;
-      console.log(`⚠️  Generated ${secret} for development (set in .env for persistence)`);
+      log.info(`Generated ${secret} for development`, { hint: 'Set in .env for persistence' });
     }
   });
 }
@@ -230,7 +249,7 @@ export function environmentHealthCheck(): {
   } catch (error) {
     return {
       healthy: false,
-      issues: ['Environment validation failed', error.message]
+      issues: ['Environment validation failed', error instanceof Error ? error.message : 'Unknown error']
     };
   }
 }
