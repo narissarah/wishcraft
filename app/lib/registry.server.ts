@@ -1,5 +1,6 @@
 import { db } from "~/lib/db.server";
 import { encryptPII, decryptPII, hashAccessCode, verifyAccessCode, encryptGiftMessage, decryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation, createSearchableEmailHash } from "~/lib/encryption.server";
+import { log } from "~/lib/logger.server";
 // Removed caching for simplicity
 import { sanitizeString, createSlug } from "~/lib/validation.server";
 import type { Registry, RegistryItem, RegistryPurchase } from "@prisma/client";
@@ -126,7 +127,10 @@ export const getRegistryById = async (id: string): Promise<RegistryWithDecrypted
     if (!registry) return null;
     
     return decryptRegistryPII(registry);
-  }, { ttl: 300000, tags: ["registry"] });
+  } catch (error) {
+    log.error('Failed to get registry by ID', error as Error, { id });
+    return null;
+  }
 };
 
 /**
@@ -413,7 +417,10 @@ export const getRegistryBySlug = async (slug: string): Promise<RegistryWithDecry
     if (!registry) return null;
     
     return decryptRegistryPII(registry);
-  }, { ttl: 300000, tags: ["registry"] });
+  } catch (error) {
+    log.error('Failed to get registry by slug', error as Error, { slug });
+    return null;
+  }
 };
 
 /**

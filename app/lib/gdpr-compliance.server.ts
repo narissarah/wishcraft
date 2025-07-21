@@ -156,11 +156,11 @@ export async function exportCustomerData(customerId: string): Promise<{
       take: 100 // Limit to recent activity
     });
 
+    // SECURITY FIX: Filter exported data to only include user-relevant information
     const exportData = {
-      customerId,
       exportDate: new Date().toISOString(),
       registries: registries.map(registry => ({
-        id: registry.id,
+        // Remove internal IDs, only include user-facing data
         title: registry.title,
         description: registry.description,
         eventDate: registry.eventDate,
@@ -169,10 +169,10 @@ export async function exportCustomerData(customerId: string): Promise<{
         visibility: registry.visibility,
         createdAt: registry.createdAt,
         updatedAt: registry.updatedAt,
-        shop: registry.shop,
+        // Only include shop name, not internal shop data
+        shopName: registry.shop?.name,
         items: registry.items.map(item => ({
-          id: item.id,
-          productId: item.productId,
+          // Remove internal IDs and system data
           productTitle: item.productTitle,
           productHandle: item.productHandle,
           productImage: item.productImage,
@@ -181,16 +181,18 @@ export async function exportCustomerData(customerId: string): Promise<{
           quantity: item.quantity,
           notes: item.notes,
           priority: item.priority,
-          status: item.status,
-          createdAt: item.createdAt
+          dateAdded: item.createdAt
         })),
         itemsCount: registry.items.length
       })),
-      auditTrail: auditLogs.map(log => ({
-        action: log.action,
-        timestamp: log.timestamp,
-        metadata: log.metadata
-      })),
+      // PRIVACY FIX: Remove detailed audit trails that expose internal operations
+      // Only include high-level activity summary
+      activitySummary: {
+        registriesCreated: auditLogs.filter(log => log.action === "REGISTRY_CREATED").length,
+        itemsAdded: auditLogs.filter(log => log.action === "ITEM_ADDED").length,
+        purchases: auditLogs.filter(log => log.action === "ITEM_PURCHASED").length,
+        lastActivity: auditLogs.length > 0 ? auditLogs[0].timestamp : null
+      },
       dataProcessingInfo: {
         dataController: "WishCraft App",
         legalBasis: "User consent and legitimate interest",

@@ -281,7 +281,8 @@ export async function getInvitationByToken(token: string) {
     
     if (!secret) {
       log.error('CRITICAL SECURITY ERROR: No collaboration token secret available', { collaboratorId });
-      throw new Error('Server configuration error: Missing required security secrets');
+      // SECURITY FIX: Don't expose server configuration details in error messages
+      throw new Error('Authentication failed');
     }
     
     if (secret.length < 32) {
@@ -289,7 +290,8 @@ export async function getInvitationByToken(token: string) {
         collaboratorId,
         secretLength: secret.length 
       });
-      throw new Error('Server configuration error: Inadequate security configuration');
+      // SECURITY FIX: Don't expose server configuration details in error messages
+      throw new Error('Authentication failed');
     }
     
     const expectedSignature = crypto.createHmac('sha256', secret)

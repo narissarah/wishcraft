@@ -219,34 +219,37 @@ export function generateInvitationToken(collaboratorId: string, expiresAt?: Date
  */
 export async function verifyInvitationToken(token: string, expectedCollaboratorId: string): Promise<{ valid: boolean; data?: any }> {
   try {
-    const [payload, signature] = token.split('.');
-    if (!payload || !signature) {
+    const [collaboratorId, signature] = token.split('.');
+    if (!collaboratorId || !signature) {
       return { valid: false };
     }
     
-    // Verify signature
-    const expectedSignature = crypto.createHmac('sha256', process.env.JWT_SECRET || 'default-secret')
-      .update(payload)
+    // SECURITY FIX: Use same secret as generation function
+    const secret = process.env.COLLABORATION_TOKEN_SECRET || process.env.SESSION_SECRET;
+    
+    if (!secret) {
+      throw new Error('COLLABORATION_TOKEN_SECRET or SESSION_SECRET is required for token verification');
+    }
+    
+    if (secret.length < 32) {
+      throw new Error('COLLABORATION_TOKEN_SECRET or SESSION_SECRET must be at least 32 characters for secure verification');
+    }
+    
+    // Verify signature using same method as generation
+    const expectedSignature = crypto.createHmac('sha256', secret)
+      .update(collaboratorId)
       .digest('base64url');
       
     if (signature !== expectedSignature) {
       return { valid: false };
     }
     
-    // Decode and verify payload
-    const data = JSON.parse(Buffer.from(payload, 'base64url').toString());
-    
-    // Check expiration
-    if (data.exp && data.exp < Date.now()) {
+    // Check collaborator ID matches expected value
+    if (collaboratorId !== expectedCollaboratorId) {
       return { valid: false };
     }
     
-    // Check collaborator ID matches
-    if (data.id !== expectedCollaboratorId) {
-      return { valid: false };
-    }
-    
-    return { valid: true, data };
+    return { valid: true, data: { id: collaboratorId } };
   } catch (error) {
     return { valid: false };
   }

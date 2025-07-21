@@ -212,7 +212,13 @@ async function refreshCustomerToken(session: CustomerSession): Promise<CustomerS
   }
   
   try {
-    const response = await fetch(`https://shopify.com/${session.shop}/account/oauth/token`, {
+    // SECURITY FIX: Use proper shop domain for customer auth endpoint
+    // Format: https://{shop}.myshopify.com/account/oauth/token
+    const shopDomain = session.shop.includes('.myshopify.com') 
+      ? session.shop 
+      : `${session.shop}.myshopify.com`;
+    
+    const response = await fetch(`https://${shopDomain}/account/oauth/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",

@@ -333,9 +333,26 @@ export class Compliance2025Checker {
 
   private async checkWebhookHMAC(): Promise<ComplianceResult> {
     try {
+      // SECURITY FIX: Never use insecure fallbacks
+      if (!process.env.SHOPIFY_WEBHOOK_SECRET) {
+        return {
+          passed: false,
+          message: 'CRITICAL: SHOPIFY_WEBHOOK_SECRET environment variable not set',
+          details: {
+            error: 'Required webhook secret missing',
+            impact: 'Webhook verification will fail, app security compromised'
+          },
+          recommendations: [
+            'Set SHOPIFY_WEBHOOK_SECRET environment variable',
+            'Generate secret in Shopify Partners Dashboard',
+            'Never use default or test secrets in production'
+          ]
+        };
+      }
+      
       // Test webhook verification function
       const testPayload = JSON.stringify({ test: 'data' });
-      const secret = process.env.SHOPIFY_WEBHOOK_SECRET || 'test-secret';
+      const secret = process.env.SHOPIFY_WEBHOOK_SECRET;
       
       // Generate test HMAC
       const crypto = require('crypto');

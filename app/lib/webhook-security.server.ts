@@ -223,11 +223,22 @@ export function checkWebhookRateLimit(shop: string | null | undefined, maxReques
   limit.count++;
   webhookRateLimit.set(key, limit);
 
-  // Opportunistic cleanup - every 100 requests with 10% probability
-  if (webhookRateLimit.size > 100) {
-    const { shouldExecuteWithProbability } = require('./crypto-utils.server');
-    if (shouldExecuteWithProbability(0.1)) {
-      cleanupExpiredEntries();
+  // MEMORY LEAK FIX: Deterministic cleanup when map grows too large
+  // Run cleanup immediately if we exceed safe memory limit
+  const MAX_SAFE_SIZE = 1000; // Prevent unbounded growth
+  if (webhookRateLimit.size > MAX_SAFE_SIZE) {
+    log.warn(`Webhook rate limit map size exceeded ${MAX_SAFE_SIZE}, running immediate cleanup`);
+    cleanupExpiredEntries();
+    
+    // If still too large after cleanup, remove oldest entries
+    if (webhookRateLimit.size > MAX_SAFE_SIZE) {
+      const entries = Array.from(webhookRateLimit.entries())
+        .sort((a, b) => a[1].resetAt - b[1].resetAt);
+      
+      const toRemove = entries.slice(0, Math.floor(MAX_SAFE_SIZE / 2));
+      toRemove.forEach(([key]) => webhookRateLimit.delete(key));
+      
+      log.warn(`Removed ${toRemove.length} oldest webhook rate limit entries to prevent memory leak`);
     }
   }
 

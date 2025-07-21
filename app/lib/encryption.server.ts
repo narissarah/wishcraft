@@ -230,13 +230,39 @@ export function validateGiftMessage(message: string): { isValid: boolean; error?
     return { isValid: false, error: 'Gift message too long (max 2000 characters)' };
   }
   
-  // Check for potentially malicious content
+  // SECURITY FIX: Enhanced XSS prevention patterns
   const suspiciousPatterns = [
-    /<script/i,
+    // Script tags and JavaScript
+    /<script[^>]*>.*?<\/script>/gi,
     /javascript:/i,
+    /vbscript:/i,
+    /data:text\/html/i,
+    
+    // Event handlers
     /on\w+\s*=/i,
+    /onclick|onload|onerror|onmouseover|onfocus|onblur|onkeyup|onkeydown/i,
+    
+    // Dangerous functions
     /\beval\s*\(/i,
     /\bfunction\s*\(/i,
+    /\balert\s*\(/i,
+    /\bconfirm\s*\(/i,
+    /\bprompt\s*\(/i,
+    
+    // HTML injection attempts
+    /<iframe/i,
+    /<object/i,
+    /<embed/i,
+    /<link/i,
+    /<meta/i,
+    /<style/i,
+    
+    // Protocol handlers
+    /about:|chrome:|moz-extension:|extension:|resource:/i,
+    
+    // Expression evaluations
+    /expression\s*\(/i,
+    /url\s*\(\s*['"]?javascript:/i,
   ];
   
   for (const pattern of suspiciousPatterns) {
@@ -248,17 +274,42 @@ export function validateGiftMessage(message: string): { isValid: boolean; error?
   return { isValid: true };
 }
 
-// Sanitize gift message for safe display
+// SECURITY FIX: Enhanced sanitization for safe display
 export function sanitizeGiftMessage(message: string): string {
   if (!message) return '';
   
-  // Remove potentially harmful content while preserving formatting
+  // Comprehensive sanitization to prevent XSS attacks
   return message
+    // Remove script tags and content
     .replace(/<script[^>]*>.*?<\/script>/gi, '')
+    .replace(/<\/script>/gi, '')
+    
+    // Remove dangerous protocols
     .replace(/javascript:/gi, '')
+    .replace(/vbscript:/gi, '')
+    .replace(/data:text\/html/gi, '')
+    
+    // Remove event handlers
     .replace(/on\w+\s*=/gi, '')
-    .replace(/\beval\s*\(/gi, '')
-    .replace(/\bfunction\s*\(/gi, '')
+    .replace(/(onclick|onload|onerror|onmouseover|onfocus|onblur|onkeyup|onkeydown)\s*=/gi, '')
+    
+    // Remove dangerous HTML tags
+    .replace(/<(iframe|object|embed|link|meta|style)[^>]*>/gi, '')
+    .replace(/<\/(iframe|object|embed|link|meta|style)>/gi, '')
+    
+    // Remove CSS expressions
+    .replace(/expression\s*\(/gi, '')
+    .replace(/url\s*\(\s*['"]?javascript:/gi, '')
+    
+    // Remove dangerous functions
+    .replace(/\b(eval|alert|confirm|prompt|function)\s*\(/gi, '')
+    
+    // Basic HTML entity encoding for remaining content
+    .replace(/&/g, '&amp;') // Must be first to avoid double-encoding
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
     .trim();
 }
 
