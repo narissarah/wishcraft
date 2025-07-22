@@ -1,6 +1,8 @@
 # Railway Nixpacks configuration for optimal Node.js deployment
-[providers]
-node = "22"
+providers = ["node"]
+
+[phases.setup]
+nixPkgs = ["nodejs-22_x"]
 
 [variables]
 NODE_ENV = "production"
