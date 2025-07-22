@@ -1,7 +1,19 @@
 import React from "react";
 import { Banner, Page, Text, Button, BlockStack, Card } from "@shopify/polaris";
 import { useNavigate } from "@remix-run/react";
-import { generateErrorId } from "~/lib/crypto-utils.server";
+// Removed server import to reduce bundle size
+// Generate error ID using secure crypto (fallback for client-side)
+function generateClientErrorId(): string {
+  // Use crypto.getRandomValues if available, fallback to timestamp + secure method
+  if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+    const array = new Uint8Array(6);
+    crypto.getRandomValues(array);
+    const randomString = Array.from(array, byte => byte.toString(36)).join('');
+    return `error_${Date.now()}_${randomString}`;
+  }
+  // Server-side fallback
+  return `error_${Date.now()}_${Date.now().toString(36)}`;
+}
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -25,7 +37,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   static getDerivedStateFromError(error: Error): Partial<ErrorBoundaryState> {
-    const errorId = generateErrorId();
+    const errorId = generateClientErrorId();
     return { hasError: true, error, errorId };
   }
 

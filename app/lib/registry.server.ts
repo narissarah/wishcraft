@@ -1,13 +1,10 @@
 import { db } from "~/lib/db.server";
-import { encryptPII, decryptPII, hashAccessCode, verifyAccessCode, encryptGiftMessage, decryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation, createSearchableEmailHash } from "~/lib/encryption.server";
+import { encryptPII, decryptPII, hashAccessCode, verifyAccessCode, encryptGiftMessage, decryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation, createSearchableEmailHash, encryptPurchasePII, decryptPurchasePII, encryptAddressPII, decryptAddressPII, encryptCollaboratorPII, decryptCollaboratorPII } from "~/lib/crypto.server";
 import { log } from "~/lib/logger.server";
-// Removed caching for simplicity
 import { sanitizeString, createSlug } from "~/lib/validation.server";
-import type { Registry, RegistryItem, RegistryPurchase } from "@prisma/client";
+import type { registries, registry_items, registry_purchases } from "@prisma/client";
+import crypto from "crypto";
 
-// ============================================================================
-// REGISTRY TYPES & INTERFACES
-// ============================================================================
 
 export interface CreateRegistryInput {
   title: string;
@@ -23,7 +20,7 @@ export interface CreateRegistryInput {
   customerPhone?: string;
 }
 
-export interface RegistryWithDecryptedPII extends Omit<Registry, 'customerEmail' | 'customerFirstName' | 'customerLastName'> {
+export interface RegistryWithDecryptedPII extends Omit<registries, 'customerEmail' | 'customerFirstName' | 'customerLastName'> {
   customerEmail: string;
   customerFirstName?: string;
   customerLastName?: string;
@@ -55,21 +52,19 @@ export interface PurchaseRegistryItemInput {
   quantity: number;
   purchaserEmail?: string;
   purchaserName?: string;
+  purchaserPhone?: string;
   orderId?: string;
   orderName?: string;
   giftMessage?: string;
 }
 
-export type RegistryWithDetails = Registry & {
-  items: RegistryItem[];
+export type RegistryWithDetails = registries & {
+  items: registry_items[];
   _count: {
     items: number;
   };
 };
 
-// ============================================================================
-// REGISTRY CRUD OPERATIONS
-// ============================================================================
 
 /**
  * Create a new registry with encrypted PII
@@ -88,8 +83,9 @@ export async function createRegistry(shopId: string, data: CreateRegistryInput):
   // Hash access code if provided
   const hashedAccessCode = data.accessCode ? await hashAccessCode(data.accessCode) : null;
   
-  const registry = await db.registry.create({
+  const registry = await db.registries.create({
     data: {
+      id: crypto.randomUUID(),
       title: data.title,
       description: data.description,
       slug,
@@ -98,6 +94,7 @@ export async function createRegistry(shopId: string, data: CreateRegistryInput):
       visibility: data.visibility,
       accessCode: hashedAccessCode,
       customerId: data.customerId || '',
+      updatedAt: new Date(),
       customerEmail: encryptedEmail,
       customerFirstName: encryptedFirstName,
       customerLastName: encryptedLastName,
@@ -106,10 +103,6 @@ export async function createRegistry(shopId: string, data: CreateRegistryInput):
     },
   });
 
-  // Invalidate relevant caches
-  await Promise.all([
-    // Cache invalidation removed for simplicity
-  ]);
 
   return decryptRegistryPII(registry);
 }
@@ -118,9 +111,8 @@ export async function createRegistry(shopId: string, data: CreateRegistryInput):
  * Get registry by ID with decrypted PII (cached)
  */
 export const getRegistryById = async (id: string): Promise<RegistryWithDecryptedPII | null> => {
-  // Removed caching, direct database call
   try {
-    const registry = await db.registry.findUnique({
+    const registry = await db.registries.findUnique({
       where: { id },
     });
     
@@ -138,7 +130,7 @@ export const getRegistryById = async (id: string): Promise<RegistryWithDecrypted
  */
 export async function getRegistryWithDetails(id: string): Promise<RegistryWithDetails | null> {
   // PERFORMANCE: Use select instead of include for better performance
-  const registry = await db.registry.findUnique({
+  const registry = await db.registries.findUnique({
     where: { id },
     select: {
       id: true,
@@ -161,7 +153,7 @@ export async function getRegistryWithDetails(id: string): Promise<RegistryWithDe
       createdAt: true,
       updatedAt: true,
       // Only select needed fields from relations
-      items: {
+      registry_items: {
         select: {
           id: true,
           productId: true,
@@ -188,7 +180,7 @@ export async function getRegistryWithDetails(id: string): Promise<RegistryWithDe
       },
       _count: {
         select: {
-          items: true,
+          registry_items: true,
         },
       },
     },
@@ -196,13 +188,17 @@ export async function getRegistryWithDetails(id: string): Promise<RegistryWithDe
 
   if (!registry) return null;
   
-  // Decrypt PII fields
+  // Decrypt PII fields and transform to expected structure
   return {
     ...registry,
+    items: registry.registry_items,
+    _count: {
+      items: registry._count.registry_items
+    },
     customerEmail: decryptPII(registry.customerEmail),
     customerFirstName: registry.customerFirstName ? decryptPII(registry.customerFirstName) : null,
     customerLastName: registry.customerLastName ? decryptPII(registry.customerLastName) : null,
-  } as RegistryWithDetails;
+  } as unknown as RegistryWithDetails;
 }
 
 /**
@@ -218,7 +214,7 @@ export async function getRegistriesByShop(
   }
 ): Promise<RegistryWithDecryptedPII[]> {
   // PERFORMANCE: Add pagination and filtering
-  const registries = await db.registry.findMany({
+  const registries = await db.registries.findMany({
     where: {
       shopId,
       ...(options?.status && { status: options.status }),
@@ -249,7 +245,7 @@ export async function getRegistriesByShop(
       // Count items without loading them
       _count: {
         select: {
-          items: true,
+          registry_items: true,
         },
       },
     },
@@ -285,7 +281,7 @@ export async function updateRegistry(id: string, data: Partial<CreateRegistryInp
     updateData.accessCode = await hashAccessCode(data.accessCode);
   }
 
-  const updatedRegistry = await db.registry.update({
+  const updatedRegistry = await db.registries.update({
     where: { id },
     data: updateData,
   });
@@ -297,7 +293,7 @@ export async function updateRegistry(id: string, data: Partial<CreateRegistryInp
  * Delete registry
  */
 export async function deleteRegistry(id: string): Promise<void> {
-  await db.registry.delete({
+  await db.registries.delete({
     where: { id },
   });
 }
@@ -305,9 +301,10 @@ export async function deleteRegistry(id: string): Promise<void> {
 /**
  * Add item to registry
  */
-export async function addItemToRegistry(data: AddItemToRegistryInput): Promise<RegistryItem> {
-  const item = await db.registryItem.create({
+export async function addItemToRegistry(data: AddItemToRegistryInput): Promise<registry_items> {
+  const item = await db.registry_items.create({
     data: {
+      id: crypto.randomUUID(),
       registryId: data.registryId,
       productId: data.productId,
       variantId: data.variantId,
@@ -321,6 +318,7 @@ export async function addItemToRegistry(data: AddItemToRegistryInput): Promise<R
       price: data.price,
       compareAtPrice: data.compareAtPrice,
       currencyCode: data.currencyCode || 'USD',
+      updatedAt: new Date(),
     },
   });
 
@@ -331,7 +329,7 @@ export async function addItemToRegistry(data: AddItemToRegistryInput): Promise<R
  * Remove item from registry
  */
 export async function removeItemFromRegistry(itemId: string): Promise<void> {
-  await db.registryItem.delete({
+  await db.registry_items.delete({
     where: { id: itemId },
   });
 }
@@ -339,8 +337,8 @@ export async function removeItemFromRegistry(itemId: string): Promise<void> {
 /**
  * Purchase registry item
  */
-export async function purchaseRegistryItem(data: PurchaseRegistryItemInput): Promise<RegistryPurchase> {
-  const item = await db.registryItem.findUnique({
+export async function purchaseRegistryItem(data: PurchaseRegistryItemInput): Promise<registry_purchases> {
+  const item = await db.registry_items.findUnique({
     where: { id: data.itemId },
   });
 
@@ -350,7 +348,7 @@ export async function purchaseRegistryItem(data: PurchaseRegistryItemInput): Pro
 
   // Process gift message encryption
   let encryptedGiftMessage = '';
-  let purchaserId = data.purchaserEmail || 'anonymous';
+  const purchaserId = data.purchaserEmail || 'anonymous';
   
   if (data.giftMessage) {
     try {
@@ -375,24 +373,34 @@ export async function purchaseRegistryItem(data: PurchaseRegistryItemInput): Pro
     }
   }
 
-  const purchase = await db.registryPurchase.create({
+  // CRITICAL: Encrypt all PII fields before storing
+  const encryptedPurchaseData = encryptPurchasePII({
+    purchaserEmail: data.purchaserEmail,
+    purchaserName: data.purchaserName,
+    purchaserPhone: data.purchaserPhone,
+  });
+
+  const purchase = await db.registry_purchases.create({
     data: {
+      id: crypto.randomUUID(),
       registryItemId: data.itemId,
       quantity: data.quantity,
       unitPrice: item.price,
       totalAmount: item.price * data.quantity,
       currencyCode: item.currencyCode,
-      purchaserEmail: data.purchaserEmail,
-      purchaserName: data.purchaserName,
+      purchaserEmail: encryptedPurchaseData.purchaserEmail,
+      purchaserName: encryptedPurchaseData.purchaserName,
+      purchaserPhone: encryptedPurchaseData.purchaserPhone,
       orderId: data.orderId,
       orderName: data.orderName,
       giftMessage: encryptedGiftMessage,
       status: 'confirmed',
+      updatedAt: new Date(),
     },
   });
 
   // Update item quantity purchased
-  await db.registryItem.update({
+  await db.registry_items.update({
     where: { id: data.itemId },
     data: {
       quantityPurchased: {
@@ -408,9 +416,8 @@ export async function purchaseRegistryItem(data: PurchaseRegistryItemInput): Pro
  * Get registry by slug with decrypted PII (cached)
  */
 export const getRegistryBySlug = async (slug: string): Promise<RegistryWithDecryptedPII | null> => {
-  // Removed caching, direct database call
   try {
-    const registry = await db.registry.findFirst({
+    const registry = await db.registries.findFirst({
       where: { slug },
     });
     
@@ -440,7 +447,7 @@ export async function searchRegistries(query: string, shopId?: string): Promise<
     where.shopId = shopId;
   }
 
-  const registries = await db.registry.findMany({
+  const registries = await db.registries.findMany({
     where,
     orderBy: { createdAt: 'desc' },
   });
@@ -452,10 +459,10 @@ export async function searchRegistries(query: string, shopId?: string): Promise<
  * Get registry statistics
  */
 export async function getRegistryStats(registryId: string) {
-  const registry = await db.registry.findUnique({
+  const registry = await db.registries.findUnique({
     where: { id: registryId },
     include: {
-      items: true,
+      registry_items: true,
     },
   });
 
@@ -463,17 +470,17 @@ export async function getRegistryStats(registryId: string) {
     return null;
   }
 
-  const totalItems = registry.items.length;
+  const totalItems = registry.registry_items.length;
   // Get purchases through registry items relation
-  const totalPurchases = await db.registryPurchase.count({
+  const totalPurchases = await db.registry_purchases.count({
     where: {
       registry_items: {
         registryId: registryId
       }
     }
   });
-  const totalValue = registry.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const purchasedValue = await db.registryPurchase.aggregate({
+  const totalValue = registry.registry_items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const purchasedValue = await db.registry_purchases.aggregate({
     where: {
       registry_items: {
         registryId: registryId
@@ -495,9 +502,6 @@ export async function getRegistryStats(registryId: string) {
   };
 }
 
-// ============================================================================
-// SECURITY UTILITIES
-// ============================================================================
 
 /**
  * Helper function to decrypt PII fields in registry
@@ -515,7 +519,7 @@ function decryptRegistryPII(registry: any): RegistryWithDecryptedPII {
  * Verify access code for protected registry
  */
 export async function verifyRegistryAccess(registryId: string, accessCode: string): Promise<boolean> {
-  const registry = await db.registry.findUnique({
+  const registry = await db.registries.findUnique({
     where: { id: registryId },
     select: { accessCode: true },
   });
@@ -527,9 +531,6 @@ export async function verifyRegistryAccess(registryId: string, accessCode: strin
   return await verifyAccessCode(accessCode, registry.accessCode);
 }
 
-// ============================================================================
-// GDPR COMPLIANCE UTILITIES
-// ============================================================================
 
 /**
  * Search registries by customer email (using searchable hash for efficiency)
@@ -542,13 +543,13 @@ export async function searchRegistriesByCustomer(
   const encryptedEmail = encryptPII(customerEmail);
   
   // Query using encrypted email
-  const registries = await db.registry.findMany({
+  const registries = await db.registries.findMany({
     where: { 
       shopId,
       customerEmail: encryptedEmail 
     },
     include: {
-      items: {
+      registry_items: {
         where: { status: 'active' },
         take: 100 // Limit items per registry
       },
@@ -590,9 +591,6 @@ export async function deleteCustomerData(shopId: string, customerEmail: string) 
   };
 }
 
-// ============================================================================
-// PERFORMANCE OPTIMIZED OPERATIONS
-// ============================================================================
 
 /**
  * Batch create registry items with optimized performance
@@ -615,17 +613,19 @@ export async function batchCreateRegistryItems(
   }>
 ): Promise<number> {
   // PERFORMANCE: Use createMany for batch insert
-  const result = await db.registryItem.createMany({
+  const result = await db.registry_items.createMany({
     data: items.map(item => ({
+      id: crypto.randomUUID(),
       registryId,
       ...item,
       status: 'active',
+      updatedAt: new Date(),
     })),
   });
   
   // Update registry total value in single query
   const totalValue = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  await db.registry.update({
+  await db.registries.update({
     where: { id: registryId },
     data: {
       totalValue: { increment: totalValue },
@@ -642,7 +642,7 @@ export async function getOptimizedRegistryStats(shopId: string) {
   // PERFORMANCE: Use aggregation pipeline
   const [registryStats, itemStats, purchaseStats] = await Promise.all([
     // Registry statistics
-    db.registry.aggregate({
+    db.registries.aggregate({
       where: { shopId },
       _count: { id: true },
       _sum: { 
@@ -657,9 +657,9 @@ export async function getOptimizedRegistryStats(shopId: string) {
     }),
     
     // Item statistics
-    db.registryItem.aggregate({
+    db.registry_items.aggregate({
       where: {
-        registry: { shopId },
+        registries: { shopId },
       },
       _count: { id: true },
       _sum: {
@@ -669,10 +669,10 @@ export async function getOptimizedRegistryStats(shopId: string) {
     }),
     
     // Purchase statistics
-    db.registryPurchase.aggregate({
+    db.registry_purchases.aggregate({
       where: {
         registry_items: {
-          registry: { shopId },
+          registries: { shopId },
         },
       },
       _count: { id: true },
@@ -715,7 +715,7 @@ export async function getRegistriesWithCursor(
   nextCursor: string | null;
   hasMore: boolean;
 }> {
-  const registries = await db.registry.findMany({
+  const registries = await db.registries.findMany({
     where: { shopId },
     orderBy: { createdAt: 'desc' },
     take: take + 1,
@@ -740,7 +740,7 @@ export async function getRegistriesWithCursor(
       updatedAt: true,
       _count: {
         select: {
-          items: true,
+          registry_items: true,
         },
       },
     },

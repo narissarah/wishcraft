@@ -86,7 +86,7 @@ function checkEnvironmentVariables() {
   
   if (missingVars.length > 0) {
     logError(`Missing required environment variables: ${missingVars.join(', ')}`);
-    logInfo('Generate secrets with: npm run generate-secrets');
+    logInfo('Set these environment variables in your deployment platform');
     return false;
   }
   
@@ -186,10 +186,9 @@ function validateShopifyConfig() {
   const config = fs.readFileSync(configPath, 'utf8');
   
   // Check API version
-  if (config.includes('api_version = "2025-07"')) {
-    logError('Invalid API version "2025-07" in shopify.app.toml');
-    logInfo('Use the latest stable version: "2024-10"');
-    return false;
+  if (!config.includes('api_version = "2025-07"')) {
+    logWarning('Not using the latest API version "2025-07" in shopify.app.toml');
+    logInfo('Consider updating to the latest stable version: "2025-07"');
   }
   
   // Check for exposed secrets

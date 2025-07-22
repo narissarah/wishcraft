@@ -2,6 +2,7 @@ import { redirect } from "@remix-run/node";
 import { generateState, generateCodeVerifier, generateCodeChallenge, createCustomerSession, getCustomerSession, makeCustomerAPIRequest } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
+import crypto from "crypto";
 
 // Re-export getCustomerSession for routes
 export { getCustomerSession } from "~/lib/auth.server";
@@ -20,7 +21,7 @@ interface CustomerAccountConfig {
 }
 
 function getCustomerAccountConfig(shop: string): CustomerAccountConfig {
-  const apiVersion = '2025-01'; // FIXED: Updated to current stable version for 2025 compliance
+  const apiVersion = '2025-07'; // Latest Shopify API version for 2025 compliance
   return {
     authorizationEndpoint: `https://shopify.com/${shop}/account/oauth/authorize`,
     tokenEndpoint: `https://shopify.com/${shop}/account/oauth/token`,
@@ -264,16 +265,16 @@ export async function updateCustomerProfile(
 
 export async function getCustomerRegistries(customerId: string, shop: string) {
   try {
-    const registries = await db.registry.findMany({
+    const registries = await db.registries.findMany({
       where: {
         customerId,
         shopId: shop
       },
       include: {
-        items: true,
+        registry_items: true,
         _count: {
           select: {
-            items: true,
+            registry_items: true,
           }
         }
       },
@@ -321,7 +322,7 @@ export async function linkCustomerToRegistry(
     const customer = customerProfile.data.customer;
     
     // Update registry with customer information
-    const updatedRegistry = await db.registry.update({
+    const updatedRegistry = await db.registries.update({
       where: { id: registryId },
       data: {
         customerId: customer.id,
@@ -332,8 +333,9 @@ export async function linkCustomerToRegistry(
     });
     
     // Log activity in audit log
-    await db.auditLog.create({
+    await db.audit_logs.create({
       data: {
+        id: crypto.randomUUID(),
         action: 'customer_linked',
         resource: 'registry',
         resourceId: registryId,
@@ -370,7 +372,7 @@ export async function validateCustomerAccess(
     }
     
     // Get registry with shop validation for security
-    const registry = await db.registry.findUnique({
+    const registry = await db.registries.findUnique({
       where: { 
         id: registryId,
         // Ensure shop context is validated through customer session

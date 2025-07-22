@@ -6,9 +6,10 @@
   },
   "deploy": {
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 300,
+    "healthcheckTimeout": 60,
     "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 3,
+    "restartPolicyMaxRetries": 5,
+    "deployTimeoutSeconds": 600,
     "environmentVariables": {
       "NODE_ENV": "production",
       "NODE_NO_WARNINGS": "1",
@@ -16,7 +17,10 @@
       "NPM_CONFIG_UPDATE_NOTIFIER": "false",
       "NPM_CONFIG_FUND": "false",
       "NPM_CONFIG_AUDIT": "false",
-      "RAILWAY_DEPLOYMENT_DRAINING_SECONDS": "10"
+      "RAILWAY_DEPLOYMENT_DRAINING_SECONDS": "30",
+      "DATABASE_CONNECTION_LIMIT": "20",
+      "DATABASE_POOL_TIMEOUT": "30",
+      "DATABASE_STATEMENT_TIMEOUT": "30000"
     }
   }
 }

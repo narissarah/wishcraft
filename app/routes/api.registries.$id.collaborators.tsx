@@ -4,19 +4,20 @@ import { json } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { CollaborativeRegistryManager, CollaboratorRole, CollaboratorPermission, CollaborationUtils } from "~/lib/collaboration.server";
 import { db } from "~/lib/db.server";
-import { decryptPII } from "~/lib/encryption.server";
+import { decryptPII } from "~/lib/crypto.server";
+import { apiResponse } from "~/lib/api-response.server";
 
 /**
  * SECURITY: Validate that admin has access to registry's shop
  */
 async function validateRegistryAccess(registryId: string, adminShop: string) {
-  const registry = await db.registry.findUnique({
+  const registry = await db.registries.findUnique({
     where: { id: registryId },
     select: { shopId: true, id: true }
   });
 
   if (!registry) {
-    return { error: json({ error: "Registry not found" }, { status: 404 }), registry: null };
+    return { error: apiResponse.notFound("Registry"), registry: null };
   }
 
   if (adminShop !== registry.shopId) {
@@ -25,7 +26,7 @@ async function validateRegistryAccess(registryId: string, adminShop: string) {
       registryShop: registry.shopId,
       registryId
     });
-    return { error: json({ error: "Unauthorized access to registry" }, { status: 403 }), registry: null };
+    return { error: apiResponse.forbidden("Unauthorized access to registry"), registry: null };
   }
 
   return { error: null, registry };
@@ -44,47 +45,53 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const { admin } = await authenticate.admin(request);
   
   if (!admin) {
-    return json({ error: "Unauthorized" }, { status: 401 });
+    return apiResponse.unauthorized();
   }
 
   const registryId = params.id;
   
   if (!registryId) {
-    return json({ error: "Registry ID required" }, { status: 400 });
+    return apiResponse.validationError({ registryId: ["Registry ID is required"] });
   }
 
   try {
     // Get registry to verify ownership/access
-    const registry = await db.registry.findUnique({
+    const registry = await db.registries.findUnique({
       where: { id: registryId },
       select: { 
         id: true, 
         title: true, 
         shopId: true,   // CRITICAL: Add shop validation
         customerEmail: true, 
-        collaborationEnabled: true,
-        collaborationSettings: true,
         metadata: true   // CRITICAL: Fix undefined metadata
       }
     });
 
     if (!registry) {
-      return json({ error: "Registry not found" }, { status: 404 });
+      return apiResponse.notFound("Registry");
     }
 
+    // Get shop from session - need to get session first
+    const { session } = await authenticate.admin(request);
+    const adminShop = session.shop;
+    
     // CRITICAL SECURITY FIX: Validate shop access
-    if (admin.shop !== registry.shopId) {
+    if (adminShop !== registry.shopId) {
       log.error("Unauthorized access attempt to registry", {
-        adminShop: admin.shop,
+        adminShop: adminShop,
         registryShop: registry.shopId,
         registryId,
-        adminSession: admin.session?.id
+        sessionId: session.id
       });
-      return json({ error: "Unauthorized access to registry" }, { status: 403 });
+      return apiResponse.forbidden("Unauthorized access to registry");
     }
 
-    if (!registry.collaborationEnabled) {
-      return json({ error: "Collaboration not enabled for this registry" }, { status: 400 });
+    // Parse metadata to check collaboration settings
+    const metadata = registry.metadata ? JSON.parse(registry.metadata) : {};
+    const collaborationEnabled = metadata.collaborationEnabled || false;
+    
+    if (!collaborationEnabled) {
+      return apiResponse.error("COLLABORATION_DISABLED", "Collaboration not enabled for this registry", 400);
     }
 
     // Get collaborators
@@ -93,16 +100,13 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     // Get activity feed
     const activities = await CollaborativeRegistryManager.getActivityFeed(registryId, 10);
 
-    // Parse metadata safely
-    const metadata = registry.metadata ? JSON.parse(registry.metadata) : {};
-
-    return json({
-      registry: {
+    return apiResponse.success({
+      registries: {
         id: registry.id,
         title: registry.title,
         ownerEmail: decryptPII(registry.customerEmail),
-        collaborationEnabled: registry.collaborationEnabled,
-        collaborationSettings: registry.collaborationSettings || metadata.collaborationSettings || {}
+        collaborationEnabled: metadata.collaborationEnabled || false,
+        collaborationSettings: metadata.collaborationSettings || {}
       },
       collaborators: collaborators.map(c => ({
         id: c.id,
@@ -121,16 +125,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
         id: a.id,
         actorEmail: a.actorEmail,
         actorName: a.actorName,
-        action: a.action,
+        action: a.type, // type maps to action
         description: a.description,
         metadata: a.metadata,
-        isSystem: a.isSystem,
         createdAt: a.createdAt
       }))
     });
   } catch (error) {
     log.error("Failed to load collaborators:", error as Error);
-    return json({ error: "Failed to load collaborators" }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
 
@@ -138,30 +141,31 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const { admin } = await authenticate.admin(request);
   
   if (!admin) {
-    return json({ error: "Unauthorized" }, { status: 401 });
+    return apiResponse.unauthorized();
   }
 
   const registryId = params.id;
   const method = request.method;
   
   if (!registryId) {
-    return json({ error: "Registry ID required" }, { status: 400 });
+    return apiResponse.validationError({ registryId: ["Registry ID is required"] });
   }
 
   // CRITICAL SECURITY: Validate registry access before any operations
-  const { error: accessError } = await validateRegistryAccess(registryId, admin.shop);
+  const { session } = await authenticate.admin(request);
+  const { error: accessError } = await validateRegistryAccess(registryId, session.shop);
   if (accessError) {
     return accessError;
   }
 
   if (method === "POST") {
-    return handleInviteCollaborator(request, registryId, admin.shop);
+    return handleInviteCollaborator(request, registryId, session.shop);
   } else if (method === "PUT") {
-    return handleUpdateCollaborator(request, registryId, admin.shop);
+    return handleUpdateCollaborator(request, registryId, session.shop);
   } else if (method === "DELETE") {
-    return handleRemoveCollaborator(request, registryId, admin.shop);
+    return handleRemoveCollaborator(request, registryId, session.shop);
   } else {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return apiResponse.error("METHOD_NOT_ALLOWED", "Method not allowed", 405);
   }
 }
 
@@ -178,22 +182,27 @@ async function handleInviteCollaborator(request: Request, registryId: string, ad
     const invitedBy = formData.get("invitedBy") as string;
 
     if (!email || !role || !permissions || !invitedBy) {
-      return json({ error: "Email, role, permissions, and invitedBy are required" }, { status: 400 });
+      return apiResponse.validationError({
+        email: !email ? ["Email is required"] : [],
+        role: !role ? ["Role is required"] : [],
+        permissions: !permissions ? ["Permissions are required"] : [],
+        invitedBy: !invitedBy ? ["InvitedBy is required"] : []
+      });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return json({ error: "Invalid email format" }, { status: 400 });
+      return apiResponse.validationError({ email: ["Invalid email format"] });
     }
 
     // Validate role and permissions
     if (!Object.values(CollaboratorRole).includes(role)) {
-      return json({ error: "Invalid role" }, { status: 400 });
+      return apiResponse.validationError({ role: ["Invalid role"] });
     }
 
     if (!Object.values(CollaboratorPermission).includes(permissions)) {
-      return json({ error: "Invalid permissions" }, { status: 400 });
+      return apiResponse.validationError({ permissions: ["Invalid permissions"] });
     }
 
     // Check if user has permission to invite
@@ -204,21 +213,18 @@ async function handleInviteCollaborator(request: Request, registryId: string, ad
     );
 
     if (!hasPermission) {
-      return json({ error: "You don't have permission to invite collaborators" }, { status: 403 });
+      return apiResponse.forbidden("You don't have permission to invite collaborators");
     }
 
     // Invite collaborator
     const collaborator = await CollaborativeRegistryManager.inviteCollaborator({
       registryId,
       email,
-      role,
-      permissions,
-      invitedBy,
-      message
+      role: role as "viewer" | "editor", // Cast to expected schema type
+      addedBy: invitedBy
     });
 
-    return json({
-      success: true,
+    return apiResponse.created({
       message: "Collaborator invited successfully",
       collaborator: {
         id: collaborator.id,
@@ -227,13 +233,13 @@ async function handleInviteCollaborator(request: Request, registryId: string, ad
         permissions: collaborator.permissions,
         status: collaborator.status,
         invitedAt: collaborator.invitedAt,
-        expiresAt: collaborator.expiresAt
+        expiresAt: collaborator.inviteExpiresAt
       }
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to invite collaborator";
     log.error("Failed to invite collaborator:", error as Error);
-    return json({ error: message }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
 
@@ -250,7 +256,12 @@ async function handleUpdateCollaborator(request: Request, registryId: string, ad
     const updatedBy = formData.get("updatedBy") as string;
 
     if (!collaboratorId || !role || !permissions || !updatedBy) {
-      return json({ error: "Collaborator ID, role, permissions, and updatedBy are required" }, { status: 400 });
+      return apiResponse.validationError({
+        collaboratorId: !collaboratorId ? ["Collaborator ID is required"] : [],
+        role: !role ? ["Role is required"] : [],
+        permissions: !permissions ? ["Permissions are required"] : [],
+        updatedBy: !updatedBy ? ["UpdatedBy is required"] : []
+      });
     }
 
     // Check if user has permission to update
@@ -261,11 +272,11 @@ async function handleUpdateCollaborator(request: Request, registryId: string, ad
     );
 
     if (!hasPermission) {
-      return json({ error: "You don't have permission to update collaborators" }, { status: 403 });
+      return apiResponse.forbidden("You don't have permission to update collaborators");
     }
 
     // Update collaborator
-    const collaborator = await db.registryCollaborator.update({
+    const collaborator = await db.registry_collaborators.update({
       where: { id: collaboratorId },
       data: {
         role,
@@ -279,7 +290,6 @@ async function handleUpdateCollaborator(request: Request, registryId: string, ad
       registryId,
       actorEmail: updatedBy,
       action: 'collaborator_updated',
-      description: `Updated collaborator permissions for ${decryptPII(collaborator.email)}`,
       metadata: {
         collaboratorId,
         oldRole: collaborator.role,
@@ -289,8 +299,7 @@ async function handleUpdateCollaborator(request: Request, registryId: string, ad
       }
     });
 
-    return json({
-      success: true,
+    return apiResponse.success({
       message: "Collaborator updated successfully",
       collaborator: {
         id: collaborator.id,
@@ -301,7 +310,7 @@ async function handleUpdateCollaborator(request: Request, registryId: string, ad
     });
   } catch (error) {
     log.error("Failed to update collaborator:", error as Error);
-    return json({ error: "Failed to update collaborator" }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
 
@@ -315,7 +324,10 @@ async function handleRemoveCollaborator(request: Request, registryId: string, ad
     const removedBy = url.searchParams.get("removedBy");
 
     if (!collaboratorId || !removedBy) {
-      return json({ error: "Collaborator ID and removedBy are required" }, { status: 400 });
+      return apiResponse.validationError({
+        collaboratorId: !collaboratorId ? ["Collaborator ID is required"] : [],
+        removedBy: !removedBy ? ["RemovedBy is required"] : []
+      });
     }
 
     // Check if user has permission to remove
@@ -326,19 +338,18 @@ async function handleRemoveCollaborator(request: Request, registryId: string, ad
     );
 
     if (!hasPermission) {
-      return json({ error: "You don't have permission to remove collaborators" }, { status: 403 });
+      return apiResponse.forbidden("You don't have permission to remove collaborators");
     }
 
     // Remove collaborator
-    await CollaborativeRegistryManager.removeCollaborator(registryId, collaboratorId, removedBy);
+    await CollaborativeRegistryManager.removeCollaborator(registryId, collaboratorId);
 
-    return json({
-      success: true,
+    return apiResponse.success({
       message: "Collaborator removed successfully"
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to remove collaborator";
     log.error("Failed to remove collaborator:", error as Error);
-    return json({ error: message }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }

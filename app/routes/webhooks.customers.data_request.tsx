@@ -1,60 +1,59 @@
+import crypto from "crypto";import type { ActionFunctionArgs } from "@remix-run/node";
+import { apiResponse } from "~/lib/api-response.server";
+import { createWebhookHandler } from "~/lib/webhook.server";
+import { createGDPRJob } from "~/lib/utils.server";
 import { log } from "~/lib/logger.server";
-import type { ActionFunctionArgs } from "@remix-run/node";
-import { authenticate } from "~/shopify.server";
-import { db } from "~/lib/db.server";
 
 /**
- * GDPR Webhook: Customer Data Request
+ * GDPR Webhook: Customer Data Request - Consolidated Pattern
  * Triggered when a customer requests their data
  * Must respond within 30 days with all customer data
  */
-export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop, payload, topic } = await authenticate.webhook(request);
-  
-  if (!payload.customer?.id || !payload.customer?.email) {
-    log.error("Invalid customer data in webhook payload");
-    throw new Response("Bad request", { status: 400 });
-  }
+const handler = createWebhookHandler(
+  {
+    topic: "customers.data_request",
+    requireAuth: false, // GDPR webhooks don't require auth
+    rateLimit: { max: 10, windowMs: 60000 }
+  },
+  async ({ shop, payload }) => {
+    log.webhook("CUSTOMERS_DATA_REQUEST", shop, { verified: true });
 
-  try {
-    // Queue data export job
-    await db.systemJob.create({
-      data: {
-        type: "customer_data_export",
+    if (!payload.customer?.id || !payload.customer?.email) {
+      throw new Error("Invalid customer data in webhook payload");
+    }
+
+    try {
+      // Queue high-priority GDPR data export job
+      const job = await createGDPRJob({
+        type: 'customer_data_export',
         shopId: shop,
-        payload: JSON.stringify({
-          customerId: payload.customer.id,
+        customerId: payload.customer.id,
+        metadata: {
           customerEmail: payload.customer.email,
           shopDomain: payload.shop_domain,
           requestedAt: new Date().toISOString(),
           webhookId: payload.webhook_id,
-        }),
-        priority: 1, // High priority for GDPR compliance
-        runAt: new Date(), // Process immediately
-      },
-    });
+          ordersToRedact: payload.orders_to_redact || [],
+          customFields: payload.custom_fields || {}
+        }
+      });
 
-    // Log the request for audit trail
-    await db.auditLog.create({
-      data: {
-        shopId: shop,
-        action: "gdpr_data_request",
-        resource: "customer",
-        resourceId: payload.customer.id,
-        metadata: JSON.stringify({
-          email: payload.customer.email,
-          requestedAt: new Date().toISOString(),
-          webhookTopic: topic,
-        }),
-      },
-    });
+      log.info("GDPR customer data export job queued", {
+        jobId: job.id,
+        customerId: payload.customer.id.substring(0, 8) + '****',
+        customerEmail: payload.customer.email.substring(0, 3) + '****',
+        shopId: shop
+      });
 
-    log.info(`GDPR: Customer data request received for ${payload.customer.email} from shop ${shop}`);
-    
-    return new Response("OK", { status: 200 });
-  } catch (error) {
-    log.error("Error processing customer data request:", error as Error);
-    // Still return 200 to prevent webhook retry storms
-    return new Response("OK", { status: 200 });
+      return apiResponse.success({ received: true, jobId: job.id });
+    } catch (error) {
+      log.error("Failed to queue GDPR data export job", error as Error, {
+        customerId: payload.customer.id.substring(0, 8) + '****',
+        shopId: shop
+      });
+      throw error;
+    }
   }
-};
+);
+
+export const action = handler;

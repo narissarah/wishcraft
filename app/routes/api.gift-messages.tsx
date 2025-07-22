@@ -2,9 +2,10 @@ import { log } from "~/lib/logger.server";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
-import { encryptGiftMessage, decryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation } from "~/lib/encryption.server";
+import { encryptGiftMessage, decryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation } from "~/lib/crypto.server";
 import { db } from "~/lib/db.server";
-import { notificationManager, NotificationTemplates } from "~/lib/notifications.server";
+import { apiResponse } from "~/lib/api-response.server";
+
 
 /**
  * Gift Message API Endpoints
@@ -19,33 +20,37 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { admin } = await authenticate.admin(request);
   
   if (!admin) {
-    return json({ error: "Unauthorized" }, { status: 401 });
+    return apiResponse.unauthorized();
   }
 
   const url = new URL(request.url);
   const purchaseId = url.searchParams.get("purchaseId");
   
   if (!purchaseId) {
-    return json({ error: "Purchase ID required" }, { status: 400 });
+    return apiResponse.validationError({ purchaseId: ["Purchase ID is required"] });
   }
 
   try {
     // Get the purchase with gift message
-    const purchase = await db.registryPurchase.findUnique({
+    const purchase = await db.registry_purchases.findUnique({
       where: { id: purchaseId },
       include: {
-        registry: {
-          select: {
-            id: true,
-            customerId: true,
-            shopId: true,
+        registry_items: {
+          include: {
+            registries: {
+              select: {
+                id: true,
+                customerId: true,
+                shopId: true,
+              },
+            },
           },
         },
       },
     });
 
     if (!purchase) {
-      return json({ error: "Purchase not found" }, { status: 404 });
+      return apiResponse.notFound("Purchase");
     }
 
     // Decrypt gift message if it exists
@@ -56,13 +61,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
         decryptedGiftMessage = decryptGiftMessage(
           purchase.giftMessage,
           purchase.purchaserEmail || 'anonymous',
-          purchase.registry.id
+          purchase.registry_items.registries.id
         );
         
         logGiftMessageOperation(
           'decrypt',
           purchase.purchaserEmail || 'anonymous',
-          purchase.registry.id,
+          purchase.registry_items.registries.id,
           true
         );
       } catch (error) {
@@ -70,16 +75,16 @@ export async function loader({ request }: LoaderFunctionArgs) {
         logGiftMessageOperation(
           'decrypt',
           purchase.purchaserEmail || 'anonymous',
-          purchase.registry.id,
+          purchase.registry_items.registries.id,
           false,
           errorMessage
         );
         
-        return json({ error: "Failed to decrypt gift message" }, { status: 500 });
+        return apiResponse.serverError(new Error("Failed to decrypt gift message"));
       }
     }
 
-    return json({
+    return apiResponse.success({
       purchaseId: purchase.id,
       giftMessage: decryptedGiftMessage,
       purchaserName: purchase.purchaserName,
@@ -88,7 +93,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     });
   } catch (error) {
     log.error("Failed to retrieve gift message:", error as Error);
-    return json({ error: "Internal server error" }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
 
@@ -96,7 +101,7 @@ export async function action({ request }: ActionFunctionArgs) {
   const { admin } = await authenticate.admin(request);
   
   if (!admin) {
-    return json({ error: "Unauthorized" }, { status: 401 });
+    return apiResponse.unauthorized();
   }
 
   const method = request.method;
@@ -108,7 +113,7 @@ export async function action({ request }: ActionFunctionArgs) {
   } else if (method === "DELETE") {
     return handleDeleteGiftMessage(request);
   } else {
-    return json({ error: "Method not allowed" }, { status: 405 });
+    return apiResponse.error("METHOD_NOT_ALLOWED", "Method not allowed", 405);
   }
 }
 
@@ -123,70 +128,69 @@ async function handleCreateGiftMessage(request: Request) {
     const purchaserEmail = formData.get("purchaserEmail") as string;
     
     if (!purchaseId || !giftMessage) {
-      return json({ error: "Purchase ID and gift message are required" }, { status: 400 });
+      return apiResponse.validationError({ 
+        purchaseId: !purchaseId ? ["Purchase ID is required"] : [],
+        giftMessage: !giftMessage ? ["Gift message is required"] : []
+      });
     }
 
     // Get the purchase
-    const purchase = await db.registryPurchase.findUnique({
+    const purchase = await db.registry_purchases.findUnique({
       where: { id: purchaseId },
       include: {
-        registry: {
-          select: {
-            id: true,
-            customerId: true,
-            shopId: true,
+        registry_items: {
+          include: {
+            registries: {
+              select: {
+                id: true,
+                customerId: true,
+                shopId: true,
+              },
+            },
           },
         },
       },
     });
 
     if (!purchase) {
-      return json({ error: "Purchase not found" }, { status: 404 });
+      return apiResponse.notFound("Purchase");
     }
 
     // Validate gift message
     const validation = validateGiftMessage(giftMessage);
     if (!validation.isValid) {
-      logGiftMessageOperation('validate', purchaserEmail, purchase.registry.id, false, validation.error);
-      return json({ error: validation.error }, { status: 400 });
+      logGiftMessageOperation('validate', purchaserEmail, purchase.registry_items.registries.id, false, validation.error);
+      return apiResponse.validationError({ giftMessage: [validation.error || "Invalid gift message"] });
     }
 
     // Sanitize and encrypt gift message
     const sanitizedMessage = sanitizeGiftMessage(giftMessage);
-    const encryptedMessage = encryptGiftMessage(sanitizedMessage, purchaserEmail, purchase.registry.id);
+    const encryptedMessage = encryptGiftMessage(sanitizedMessage, purchaserEmail, purchase.registry_items.registries.id);
 
     // Update the purchase with encrypted gift message
-    const updatedPurchase = await db.registryPurchase.update({
+    const updatedPurchase = await db.registry_purchases.update({
       where: { id: purchaseId },
       data: {
         giftMessage: encryptedMessage,
       },
     });
 
-    logGiftMessageOperation('encrypt', purchaserEmail, purchase.registry.id, true);
+    logGiftMessageOperation('encrypt', purchaserEmail, purchase.registry_items.registries.id, true);
 
-    // Send notification about gift message
-    await notificationManager.sendNotification({
-      ...NotificationTemplates.giftMessage(purchase.purchaserName || 'Anonymous'),
-      shopId: purchase.registry.shopId,
-      customerId: purchase.registry.customerId,
-      registryId: purchase.registry.id,
-      metadata: {
-        purchaseId: purchase.id,
-        purchaserEmail: purchase.purchaserEmail,
-      },
-      actionUrl: `/app/registries/${purchase.registry.id}`,
-      actionLabel: 'View Registry',
+    log.info('Gift message saved', {
+      purchaserName: (purchase.purchaserName || 'Anonymous').substring(0, 3) + '****',
+      shopId: purchase.registry_items.registries.shopId,
+      customerId: purchase.registry_items.registries.customerId?.substring(0, 8) + '****',
+      registryId: purchase.registry_items.registries.id,
+      purchaseId: purchase.id
     });
 
-    return json({ 
-      success: true, 
-      message: "Gift message added successfully",
+    return apiResponse.created({ 
       purchaseId: updatedPurchase.id,
-    });
+    }, "Gift message added successfully");
   } catch (error) {
     log.error("Failed to create gift message:", error as Error);
-    return json({ error: "Failed to create gift message" }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
 
@@ -201,55 +205,61 @@ async function handleUpdateGiftMessage(request: Request) {
     const purchaserEmail = formData.get("purchaserEmail") as string;
     
     if (!purchaseId || !giftMessage) {
-      return json({ error: "Purchase ID and gift message are required" }, { status: 400 });
+      return apiResponse.validationError({ 
+        purchaseId: !purchaseId ? ["Purchase ID is required"] : [],
+        giftMessage: !giftMessage ? ["Gift message is required"] : []
+      });
     }
 
     // Get the purchase
-    const purchase = await db.registryPurchase.findUnique({
+    const purchase = await db.registry_purchases.findUnique({
       where: { id: purchaseId },
       include: {
-        registry: {
-          select: {
-            id: true,
-            customerId: true,
-            shopId: true,
+        registry_items: {
+          include: {
+            registries: {
+              select: {
+                id: true,
+                customerId: true,
+                shopId: true,
+              },
+            },
           },
         },
       },
     });
 
     if (!purchase) {
-      return json({ error: "Purchase not found" }, { status: 404 });
+      return apiResponse.notFound("Purchase");
     }
 
     // Validate gift message
     const validation = validateGiftMessage(giftMessage);
     if (!validation.isValid) {
-      logGiftMessageOperation('validate', purchaserEmail, purchase.registry.id, false, validation.error);
-      return json({ error: validation.error }, { status: 400 });
+      logGiftMessageOperation('validate', purchaserEmail, purchase.registry_items.registries.id, false, validation.error);
+      return apiResponse.validationError({ giftMessage: [validation.error || "Invalid gift message"] });
     }
 
     // Sanitize and encrypt gift message
     const sanitizedMessage = sanitizeGiftMessage(giftMessage);
-    const encryptedMessage = encryptGiftMessage(sanitizedMessage, purchaserEmail, purchase.registry.id);
+    const encryptedMessage = encryptGiftMessage(sanitizedMessage, purchaserEmail, purchase.registry_items.registries.id);
 
     // Update the purchase with encrypted gift message
-    await db.registryPurchase.update({
+    await db.registry_purchases.update({
       where: { id: purchaseId },
       data: {
         giftMessage: encryptedMessage,
       },
     });
 
-    logGiftMessageOperation('encrypt', purchaserEmail, purchase.registry.id, true);
+    logGiftMessageOperation('encrypt', purchaserEmail, purchase.registry_items.registries.id, true);
 
-    return json({ 
-      success: true, 
-      message: "Gift message updated successfully",
+    return apiResponse.success({ 
+      message: "Gift message updated successfully"
     });
   } catch (error) {
     log.error("Failed to update gift message:", error as Error);
-    return json({ error: "Failed to update gift message" }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
 
@@ -262,23 +272,22 @@ async function handleDeleteGiftMessage(request: Request) {
     const purchaseId = url.searchParams.get("purchaseId");
     
     if (!purchaseId) {
-      return json({ error: "Purchase ID required" }, { status: 400 });
+      return apiResponse.validationError({ purchaseId: ["Purchase ID required"] });
     }
 
     // Update the purchase to remove gift message
-    await db.registryPurchase.update({
+    await db.registry_purchases.update({
       where: { id: purchaseId },
       data: {
         giftMessage: null,
       },
     });
 
-    return json({ 
-      success: true, 
-      message: "Gift message removed successfully",
+    return apiResponse.success({ 
+      message: "Gift message removed successfully"
     });
   } catch (error) {
     log.error("Failed to delete gift message:", error as Error);
-    return json({ error: "Failed to delete gift message" }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }

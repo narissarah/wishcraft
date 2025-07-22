@@ -1,8 +1,11 @@
 import type { EntryContext } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { renderToString } from "react-dom/server";
-import { getSecurityHeaders } from "~/lib/security-headers.server";
+import { getSecurityHeaders } from "~/lib/security.server";
 import { shopify } from "~/shopify.server";
+// Environment validation removed - not exported from validation.server
+
+// Environment validation handled at startup
 
 export default function handleRequest(
   request: Request,

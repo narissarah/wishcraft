@@ -8,141 +8,260 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Session {
-  id                  String    @id @default(cuid())
-  shop                String
-  state               String
-  isOnline            Boolean   @default(false)
-  scope               String?
-  expires             DateTime?
-  accessTokenEncrypted String?  // Encrypted access token (REQUIRED when tokenEncrypted=true)
-  accessTokenIV       String?   // Initialization vector for encryption (REQUIRED when tokenEncrypted=true)
-  accessTokenTag      String?   // Authentication tag for AES-GCM (REQUIRED when tokenEncrypted=true)
-  tokenEncrypted      Boolean   @default(true)  // All new tokens must be encrypted
-  userId              String?
-  firstName           String?
-  lastName            String?
-  email               String?
-  accountOwner        Boolean   @default(false)
-  locale              String?
-  collaborator        Boolean?  @default(false)
-  emailVerified       Boolean?  @default(false)
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+model analytics_events {
+  id         String   @id
+  shopId     String
+  event      String
+  category   String
+  properties String?
+  value      Float?
+  currency   String?
+  registryId String?
+  itemId     String?
+  userId     String?
+  sessionId  String?
+  timestamp  DateTime @default(now())
+  source     String?
+  medium     String?
+  campaign   String?
+  shops      shops    @relation(fields: [shopId], references: [id], onDelete: Cascade)
 
-  @@index([shop])
-  @@index([tokenEncrypted])
-  @@index([shop, tokenEncrypted])
-  @@index([expires])
-  @@map("sessions")
-}
-
-model Shop {
-  id               String             @id @default(cuid())
-  domain           String             @unique
-  name             String
-  email            String?
-  phone            String?
-  address1         String?
-  address2         String?
-  city             String?
-  province         String?
-  country          String?
-  zip              String?
-  currencyCode     String             @default("USD")
-  timezone         String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  analytics_events analytics_events[]
-  metafield_syncs  metafield_syncs[]
-  registries       Registry[]
-  settings         ShopSettings?
-
-  @@map("shops")
-}
-
-model ShopSettings {
-  id                        String    @id @default(cuid())
-  shopId                    String    @unique
-  enablePasswordProtection  Boolean   @default(true)
-  enableGiftMessages        Boolean   @default(true)
-  enableSocialSharing       Boolean   @default(true)
-  enableGroupGifting        Boolean   @default(true)
-  enableAnalytics           Boolean   @default(true)
-  enableEmailNotifications  Boolean   @default(true)
-  fromEmail                 String?
-  emailTemplateId           String?
-  primaryColor              String    @default("#007ace")
-  accentColor               String    @default("#f3f3f3")
-  fontFamily                String    @default("Inter")
-  defaultRegistryVisibility String    @default("public")
-  maxItemsPerRegistry       Int       @default(100)
-  enableInventoryTracking   Boolean   @default(true)
-  enableMultipleAddresses   Boolean   @default(true)
-  defaultShippingZone       String?
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
-  appActive                 Boolean   @default(true)
-  appUninstalledAt          DateTime?
-  shop                      Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  @@map("shop_settings")
-}
-
-model Registry {
-  id                   String                 @id @default(cuid())
-  title                String
-  description          String?
-  slug                 String                 @unique
-  status               String                 @default("active")
-  eventType            String                 @default("general")
-  eventDate            DateTime?
-  eventLocation        String?
-  eventDetails         String?
-  visibility           String                 @default("public")
-  accessCode           String?
-  allowAnonymousGifts  Boolean                @default(true)
-  requiresApproval     Boolean                @default(false)
-  shopId               String
-  customerId           String
-  customerEmail        String                 // Encrypted via application layer
-  customerFirstName    String?                // Encrypted via application layer
-  customerLastName     String?                // Encrypted via application layer
-  customerPhone        String?                // Encrypted via application layer
-  customerEmailHash    String?                // Searchable hash for queries
-  views                Int                    @default(0)
-  uniqueViews          Int                    @default(0)
-  totalValue           Float                  @default(0)
-  purchasedValue       Float                  @default(0)
-  completionRate       Float                  @default(0)
-  metadata             String?
-  tags                 String?
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
-  shop                 Shop                   @relation(fields: [shopId], references: [id], onDelete: Cascade)
-  activities           RegistryActivity[]
-  registry_addresses   registry_addresses[]
-  collaborators        RegistryCollaborator[]
-  registry_invitations registry_invitations[]
-  items                RegistryItem[]
-
+  @@index([category])
+  @@index([event])
+  @@index([registryId])
   @@index([shopId])
-  @@index([customerId])
-  @@index([status])
-  @@index([eventType])
-  @@index([visibility])
-  @@index([customerEmail])
-  @@index([customerEmailHash])
-  @@index([eventDate])
-  @@index([createdAt])
-  @@index([shopId, status])
-  @@index([shopId, customerId])
-  @@index([shopId, eventType])
-  @@map("registries")
+  @@index([timestamp])
 }
 
-model RegistryItem {
-  id                  String             @id @default(cuid())
+model audit_logs {
+  id         String   @id
+  shopId     String?
+  userId     String?
+  userEmail  String?
+  action     String
+  resource   String
+  resourceId String
+  oldValues  String?
+  newValues  String?
+  changes    String?
+  ipAddress  String?
+  userAgent  String?
+  requestId  String?
+  timestamp  DateTime @default(now())
+  metadata   String?
+
+  @@index([action])
+  @@index([resource])
+  @@index([shopId])
+  @@index([timestamp])
+}
+
+model group_gift_contributions {
+  id                 String             @id
+  purchaseId         String
+  contributorEmail   String
+  contributorName    String?
+  contributorMessage String?
+  amount             Float
+  currencyCode       String             @default("USD")
+  paymentIntentId    String?
+  paymentStatus      String             @default("pending")
+  isAnonymous        Boolean            @default(false)
+  showAmount         Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime
+  registry_purchases registry_purchases @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([contributorEmail])
+  @@index([paymentStatus])
+  @@index([purchaseId])
+}
+
+model metafield_syncs {
+  id           String    @id
+  shopId       String
+  namespace    String
+  key          String
+  ownerId      String
+  ownerType    String
+  localId      String?
+  metafieldId  String?
+  status       String    @default("pending")
+  lastSyncAt   DateTime?
+  lastErrorAt  DateTime?
+  errorMessage String?
+  syncAttempts Int       @default(0)
+  value        String?
+  valueType    String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime
+  shops        shops     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@unique([shopId, namespace, key, ownerId])
+  @@index([lastSyncAt])
+  @@index([status])
+}
+
+model performance_metrics {
+  id          String   @id
+  shopId      String
+  metricType  String
+  metricValue Float
+  url         String?
+  userAgent   String?
+  viewport    String?
+  connection  String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([metricType])
+  @@index([shopId])
+  @@index([shopId, metricType, createdAt])
+}
+
+model registries {
+  id                     String                   @id
+  title                  String
+  description            String?
+  slug                   String                   @unique
+  status                 String                   @default("active")
+  eventType              String                   @default("general")
+  eventDate              DateTime?
+  eventLocation          String?
+  eventDetails           String?
+  visibility             String                   @default("public")
+  accessCode             String?
+  allowAnonymousGifts    Boolean                  @default(true)
+  requiresApproval       Boolean                  @default(false)
+  shopId                 String
+  customerId             String
+  customerEmail          String
+  customerFirstName      String?
+  customerLastName       String?
+  customerPhone          String?
+  views                  Int                      @default(0)
+  uniqueViews            Int                      @default(0)
+  totalValue             Float                    @default(0)
+  purchasedValue         Float                    @default(0)
+  completionRate         Float                    @default(0)
+  metadata               String?
+  tags                   String?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime
+  shops                  shops                    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  registry_activities    registry_activities[]
+  registry_addresses     registry_addresses[]
+  registry_collaborators registry_collaborators[]
+  registry_invitations   registry_invitations[]
+  registry_items         registry_items[]
+
+  @@index([customerId])
+  @@index([eventType])
+  @@index([shopId])
+  @@index([status])
+  @@index([visibility])
+}
+
+model registry_activities {
+  id          String     @id
+  registryId  String
+  type        String
+  description String?
+  actorType   String     @default("guest")
+  actorId     String?
+  actorEmail  String?
+  actorName   String?
+  actorIp     String?
+  metadata    String?
+  itemId      String?
+  userAgent   String?
+  referrer    String?
+  sessionId   String?
+  createdAt   DateTime   @default(now())
+  registries  registries @relation(fields: [registryId], references: [id], onDelete: Cascade)
+
+  @@index([actorEmail])
+  @@index([createdAt])
+  @@index([registryId])
+  @@index([type])
+}
+
+model registry_addresses {
+  id                 String               @id
+  registryId         String
+  type               String               @default("shipping")
+  isDefault          Boolean              @default(false)
+  label              String?
+  firstName          String?
+  lastName           String?
+  company            String?
+  address1           String
+  address2           String?
+  city               String
+  province           String?
+  country            String
+  zip                String
+  phone              String?
+  isVerified         Boolean              @default(false)
+  verificationData   String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime
+  registries         registries           @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  registry_purchases registry_purchases[]
+
+  @@index([registryId])
+  @@index([type])
+}
+
+model registry_collaborators {
+  id              String     @id
+  registryId      String
+  email           String
+  name            String?
+  role            String     @default("viewer")
+  permissions     String?
+  status          String     @default("pending")
+  invitedAt       DateTime   @default(now())
+  acceptedAt      DateTime?
+  lastAccessAt    DateTime?
+  inviteToken     String?    @unique
+  inviteExpiresAt DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime
+  registries      registries @relation(fields: [registryId], references: [id], onDelete: Cascade)
+
+  @@unique([registryId, email])
+  @@index([email])
+  @@index([status])
+}
+
+model registry_invitations {
+  id             String     @id
+  registryId     String
+  email          String
+  name           String?
+  message        String?
+  inviteType     String     @default("view")
+  sentAt         DateTime?
+  deliveryMethod String     @default("email")
+  deliveryStatus String     @default("pending")
+  openedAt       DateTime?
+  clickedAt      DateTime?
+  respondedAt    DateTime?
+  response       String?
+  reminderSent   Boolean    @default(false)
+  reminderAt     DateTime?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime
+  registries     registries @relation(fields: [registryId], references: [id], onDelete: Cascade)
+
+  @@index([deliveryStatus])
+  @@index([email])
+  @@index([registryId])
+}
+
+model registry_items {
+  id                  String               @id
   registryId          String
   productId           String
   variantId           String?
@@ -155,42 +274,37 @@ model RegistryItem {
   productImages       String?
   productUrl          String?
   description         String?
-  quantity            Int                @default(1)
-  quantityPurchased   Int                @default(0)
-  priority            String             @default("medium")
+  quantity            Int                  @default(1)
+  quantityPurchased   Int                  @default(0)
+  priority            String               @default("medium")
   notes               String?
   personalNote        String?
   price               Float
   compareAtPrice      Float?
-  currencyCode        String             @default("USD")
-  allowGroupGifting   Boolean            @default(true)
-  allowPartialGifting Boolean            @default(true)
+  currencyCode        String               @default("USD")
+  allowGroupGifting   Boolean              @default(true)
+  allowPartialGifting Boolean              @default(true)
   minGiftAmount       Float?
-  inventoryTracked    Boolean            @default(true)
+  inventoryTracked    Boolean              @default(true)
   inventoryQuantity   Int?
   lastInventorySync   DateTime?
-  status              String             @default("active")
+  status              String               @default("active")
   metadata            String?
   displayOrder        Int?
-  createdAt           DateTime           @default(now())
-  updatedAt           DateTime           @updatedAt
-  registry            Registry           @relation(fields: [registryId], references: [id], onDelete: Cascade)
-  registry_purchases  RegistryPurchase[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime
+  registries          registries           @relation(fields: [registryId], references: [id], onDelete: Cascade)
+  registry_purchases  registry_purchases[]
 
-  @@index([registryId])
-  @@index([productId])
-  @@index([status])
   @@index([priority])
+  @@index([productId])
+  @@index([registryId])
+  @@index([status])
   @@index([variantId])
-  @@index([createdAt])
-  @@index([price])
-  @@index([registryId, status])
-  @@index([registryId, productId])
-  @@map("registry_items")
 }
 
-model RegistryPurchase {
-  id                       String                     @id @default(cuid())
+model registry_purchases {
+  id                       String                     @id
   registryItemId           String
   orderId                  String?
   lineItemId               String?
@@ -218,51 +332,88 @@ model RegistryPurchase {
   estimatedDelivery        DateTime?
   metadata                 String?
   createdAt                DateTime                   @default(now())
-  updatedAt                DateTime                   @updatedAt
+  updatedAt                DateTime
   group_gift_contributions group_gift_contributions[]
-  registry_items           RegistryItem               @relation(fields: [registryItemId], references: [id], onDelete: Cascade)
+  registry_items           registry_items             @relation(fields: [registryItemId], references: [id], onDelete: Cascade)
   registry_addresses       registry_addresses?        @relation(fields: [shippingAddressId], references: [id])
 
-  @@index([orderId])
-  @@index([status])
   @@index([groupGiftId])
+  @@index([orderId])
   @@index([purchaserEmail])
   @@index([registryItemId])
-  @@index([createdAt])
-  @@index([paymentStatus])
-  @@index([purchaserType])
-  @@index([registryItemId, status])
-  @@map("registry_purchases")
+  @@index([status])
 }
 
-model AuditLog {
-  id         String   @id @default(cuid())
-  shopId     String?
-  userId     String?
-  userEmail  String?
-  action     String
-  resource   String
-  resourceId String
-  oldValues  String?
-  newValues  String?
-  changes    String?
-  ipAddress  String?
-  userAgent  String?
-  requestId  String?
-  metadata   String?
-  timestamp  DateTime @default(now())
-
-  @@index([shopId])
-  @@index([action])
-  @@index([timestamp])
-  @@index([resource])
-  @@index([resourceId])
-  @@index([shopId, timestamp])
-  @@map("audit_logs")
+model sessions {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        String?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime
 }
 
-model SystemJob {
-  id           String    @id @default(cuid())
+model shop_settings {
+  id                        String    @id
+  shopId                    String    @unique
+  enablePasswordProtection  Boolean   @default(true)
+  enableGiftMessages        Boolean   @default(true)
+  enableSocialSharing       Boolean   @default(true)
+  enableGroupGifting        Boolean   @default(true)
+  enableAnalytics           Boolean   @default(true)
+  enableEmailNotifications  Boolean   @default(true)
+  fromEmail                 String?
+  emailTemplateId           String?
+  primaryColor              String    @default("#007ace")
+  accentColor               String    @default("#f3f3f3")
+  fontFamily                String    @default("Inter")
+  defaultRegistryVisibility String    @default("public")
+  maxItemsPerRegistry       Int       @default(100)
+  enableInventoryTracking   Boolean   @default(true)
+  enableMultipleAddresses   Boolean   @default(true)
+  defaultShippingZone       String?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime
+  appActive                 Boolean   @default(true)
+  appUninstalledAt          DateTime?
+  shops                     shops     @relation(fields: [shopId], references: [id], onDelete: Cascade)
+}
+
+model shops {
+  id               String             @id
+  domain           String             @unique
+  name             String
+  email            String?
+  phone            String?
+  address1         String?
+  address2         String?
+  city             String?
+  province         String?
+  country          String?
+  zip              String?
+  currencyCode     String             @default("USD")
+  timezone         String?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime
+  analytics_events analytics_events[]
+  metafield_syncs  metafield_syncs[]
+  registries       registries[]
+  shop_settings    shop_settings?
+}
+
+model system_jobs {
+  id           String    @id
   type         String
   status       String    @default("pending")
   priority     Int       @default(5)
@@ -277,201 +428,10 @@ model SystemJob {
   shopId       String?
   registryId   String?
   createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  updatedAt    DateTime
 
-  @@index([status])
-  @@index([type])
-  @@index([runAt])
   @@index([priority])
-  @@index([priority, status])
-  @@index([status, runAt])
-  @@map("system_jobs")
-}
-
-model RegistryCollaborator {
-  id              String    @id @default(cuid())
-  registryId      String
-  email           String
-  name            String?
-  role            String    @default("viewer")
-  permissions     String?
-  status          String    @default("pending")
-  invitedAt       DateTime  @default(now())
-  acceptedAt      DateTime?
-  lastAccessAt    DateTime?
-  inviteToken     String?   @unique
-  inviteExpiresAt DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  registry        Registry  @relation(fields: [registryId], references: [id], onDelete: Cascade)
-
-  @@unique([registryId, email])
-  @@index([email])
+  @@index([runAt])
   @@index([status])
-  @@map("registry_collaborators")
-}
-
-model RegistryActivity {
-  id          String   @id @default(cuid())
-  registryId  String
-  type        String
-  description String?
-  actorType   String   @default("guest")
-  actorId     String?
-  actorEmail  String?
-  actorName   String?
-  actorIp     String?
-  metadata    String?
-  itemId      String?
-  userAgent   String?
-  referrer    String?
-  sessionId   String?
-  createdAt   DateTime @default(now())
-  registry    Registry @relation(fields: [registryId], references: [id], onDelete: Cascade)
-
-  @@index([registryId])
-  @@index([actorEmail])
-  @@index([createdAt])
   @@index([type])
-  @@map("registry_activities")
-}
-
-model analytics_events {
-  id         String   @id @default(cuid())
-  shopId     String
-  event      String
-  category   String
-  properties String?
-  value      Float?
-  currency   String?
-  registryId String?
-  itemId     String?
-  userId     String?
-  sessionId  String?
-  timestamp  DateTime @default(now())
-  source     String?
-  medium     String?
-  campaign   String?
-  shops      Shop     @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  @@index([category])
-  @@index([event])
-  @@index([registryId])
-  @@index([shopId])
-  @@index([timestamp])
-}
-
-model group_gift_contributions {
-  id                 String           @id @default(cuid())
-  purchaseId         String
-  contributorEmail   String
-  contributorName    String?
-  contributorMessage String?
-  amount             Float
-  currencyCode       String           @default("USD")
-  paymentIntentId    String?
-  paymentStatus      String           @default("pending")
-  isAnonymous        Boolean          @default(false)
-  showAmount         Boolean          @default(true)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  registry_purchases RegistryPurchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-
-  @@index([contributorEmail])
-  @@index([paymentStatus])
-  @@index([purchaseId])
-}
-
-model metafield_syncs {
-  id           String    @id @default(cuid())
-  shopId       String
-  namespace    String
-  key          String
-  ownerId      String
-  ownerType    String
-  localId      String?
-  metafieldId  String?
-  status       String    @default("pending")
-  lastSyncAt   DateTime?
-  lastErrorAt  DateTime?
-  errorMessage String?
-  syncAttempts Int       @default(0)
-  value        String?
-  valueType    String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  shops        Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
-
-  @@unique([shopId, namespace, key, ownerId])
-  @@index([lastSyncAt])
-  @@index([status])
-}
-
-model registry_addresses {
-  id                 String             @id @default(cuid())
-  registryId         String
-  type               String             @default("shipping")
-  isDefault          Boolean            @default(false)
-  label              String?
-  firstName          String?
-  lastName           String?
-  company            String?
-  address1           String
-  address2           String?
-  city               String
-  province           String?
-  country            String
-  zip                String
-  phone              String?
-  isVerified         Boolean            @default(false)
-  verificationData   String?
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  registries         Registry           @relation(fields: [registryId], references: [id], onDelete: Cascade)
-  registry_purchases RegistryPurchase[]
-
-  @@index([registryId])
-  @@index([type])
-}
-
-model registry_invitations {
-  id             String    @id @default(cuid())
-  registryId     String
-  email          String
-  name           String?
-  message        String?
-  inviteType     String    @default("view")
-  sentAt         DateTime?
-  deliveryMethod String    @default("email")
-  deliveryStatus String    @default("pending")
-  openedAt       DateTime?
-  clickedAt      DateTime?
-  respondedAt    DateTime?
-  response       String?
-  reminderSent   Boolean   @default(false)
-  reminderAt     DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  registries     Registry  @relation(fields: [registryId], references: [id], onDelete: Cascade)
-
-  @@index([deliveryStatus])
-  @@index([email])
-  @@index([registryId])
-}
-
-model performance_metrics {
-  id          String   @id @default(cuid())
-  shopId      String
-  metricType  String
-  metricValue Float
-  url         String?
-  userAgent   String?
-  viewport    String?
-  connection  String?
-  createdAt   DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([metricType])
-  @@index([shopId])
-  @@index([shopId, metricType, createdAt])
 }

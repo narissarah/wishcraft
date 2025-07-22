@@ -2,7 +2,34 @@
 
 import type { GraphQLResponse } from "./types";
 
-// Removed duplicate generateSlug - use createSlug from sanitization-unified.server.ts
+// Sanitization utilities
+export const Sanitizer = {
+  string: (input: string): string => {
+    return input.trim().replace(/[<>]/g, '');
+  },
+  
+  sanitizeHtml: (input: string): string => {
+    return input.replace(/<[^>]*>/g, '').trim();
+  },
+  
+  slug: (title: string): string => {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  },
+  
+  number: (input: any): number => {
+    const num = parseFloat(input);
+    return isNaN(num) ? 0 : num;
+  },
+  
+  boolean: (input: any): boolean => {
+    return Boolean(input);
+  }
+};
 
 export function formatPrice(price: string | number, currencyCode = "USD"): string {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -26,11 +53,6 @@ export function truncateText(text: string, maxLength: number): string {
   return text.substring(0, maxLength).trim() + "...";
 }
 
-// Removed duplicate isValidEmail - use BaseSchemas.email from validation-unified.server.ts
-
-// Removed duplicate generatePassword - use generateSecurePassword from crypto-utils.server.ts
-
-// Removed duplicate generateId - use generateSecureId from crypto-utils.server.ts
 
 export function extractShopifyId(gid: string): string {
   return gid.split("/").pop() || "";

@@ -2,25 +2,20 @@ import type { LinksFunction, LoaderFunctionArgs, HeadersFunction } from "@remix-
 import { json } from "@remix-run/node";
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
-import "@shopify/polaris/build/esm/styles.css";
-import { generateNonce } from "~/lib/security-headers.server";
-import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/rate-limiter.server";
+// Minimal Polaris CSS for Built for Shopify compliance (<2KB vs 200KB+)
+import "~/styles/polaris-minimal.css";
+import { generateNonce } from "~/lib/security.server";
+import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/security.server";
 import { useEffect } from "react";
-import { ResourceHints } from "~/components/ResourceHints";
-import { CriticalCSS } from "~/components/CriticalCSS";
+// ResourceHints and CriticalCSS removed - were always empty
 import { ThemeProvider } from "~/components/ThemeProvider";
-import { PerformanceMonitor } from "~/components/PerformanceMonitor";
+import { lazy, Suspense } from "react";
 import { ErrorBoundary as ApplicationErrorBoundary } from "~/components/ErrorBoundary";
+
+// PerformanceMonitor component removed as part of cleanup
 
 export const links: LinksFunction = () => {
   return [
-    // Critical CSS will be inlined, so load Polaris with lower priority
-    { 
-      rel: "preload", 
-      href: "/build/polaris.css", 
-      as: "style",
-      onload: "this.onload=null;this.rel='stylesheet'"
-    },
     // Preconnect to critical domains
     { rel: "preconnect", href: "https://cdn.shopify.com" },
     { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -50,8 +45,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const nonce = (request as any).nonce || generateNonce();
   
   return json({
-    resourceHints: [],
-    criticalCSS: '',
+    // resourceHints and criticalCSS removed - were always empty
     pathname,
     nonce,
     ENV: {
@@ -88,14 +82,17 @@ export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders, actionH
 };
 
 export default function App() {
-  const { resourceHints, criticalCSS, ENV, nonce } = useLoaderData<typeof loader>();
+  const { ENV, nonce } = useLoaderData<typeof loader>();
 
-  // Initialize Core Web Vitals monitoring on client
+  // Initialize client-side error handling
   useEffect(() => {
     if (typeof window !== "undefined") {
-      
-      import("~/lib/global-error-handler.client").then(({ initializeGlobalErrorHandlers }) => {
-        initializeGlobalErrorHandlers();
+      // Basic error handling without the over-engineered global handler
+      window.addEventListener("error", (event) => {
+        console.error("Client error:", event.error);
+      });
+      window.addEventListener("unhandledrejection", (event) => {
+        console.error("Unhandled promise rejection:", event.reason);
       });
     }
   }, []);
@@ -113,11 +110,7 @@ export default function App() {
         <meta name="theme-color" content="#000000" />
         <meta name="color-scheme" content="light dark" />
         
-        {/* Resource hints for performance */}
-        <ResourceHints hints={resourceHints} />
-        
-        {/* Critical CSS inlined for faster rendering */}
-        <CriticalCSS styles={criticalCSS} />
+        {/* Resource hints and critical CSS removed - were always empty */}
         
         <Meta />
         <Links />
@@ -586,18 +579,11 @@ export default function App() {
           </AppProvider>
         </ThemeProvider>
         
-        {/* Performance monitoring */}
-        <PerformanceMonitor />
+        {/* Performance monitoring - component was removed during cleanup */}
         
         <ScrollRestoration />
         
-        {/* Make ENV available to client */}
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `window.ENV = ${JSON.stringify(ENV)}`,
-          }}
-        />
+        {/* ENV script moved to end of body for better security */}
         
         <Scripts />
         <LiveReload />

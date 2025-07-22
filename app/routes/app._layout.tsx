@@ -3,8 +3,11 @@ import { json } from "@remix-run/node";
 import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { authenticate } from "~/shopify.server";
-import { AppBridgeWrapper } from "~/components/AppBridgeProvider";
-import { Page, Card, Layout, Navigation , InlineStack, BlockStack } from "@shopify/polaris";
+import { lazy, Suspense } from "react";
+
+// Lazy load components to reduce initial bundle size
+const AppBridgeWrapper = lazy(() => import("~/components/AppBridgeProvider").then(m => ({default: m.AppBridgeWrapper})));
+import { Page, Layout, Spinner } from "@shopify/polaris";
 import indexStyles from "~/styles/index.css";
 
 export const links: LinksFunction = () => [
@@ -17,7 +20,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return json({
     shopOrigin: session.shop,
-    apiKey: process.env.SHOPIFY_API_KEY || "",
+    apiKey: "", // API key should not be sent to client
     host: new URL(request.url).searchParams.get("host") || "",
   });
 };
@@ -26,32 +29,34 @@ export default function App() {
   const { shopOrigin, apiKey, host } = useLoaderData<typeof loader>();
 
   return (
-    <AppBridgeWrapper
-      config={{
-        apiKey,
-        shop: shopOrigin,
-        host,
-      }}
-    >
-      <Page>
-        <Layout>
-          <Layout.Section>
-            <div className="app-nav-wrapper">
-              <nav className="app-nav">
-                <Link to="/app" rel="home" className="app-nav-link">
-                  Dashboard
-                </Link>
-                <Link to="/app/registries" className="app-nav-link">
-                  Registries
-                </Link>
-                <Link to="/app/settings" className="app-nav-link">Settings</Link>
-              </nav>
-            </div>
-            <Outlet />
-          </Layout.Section>
-        </Layout>
-      </Page>
-    </AppBridgeWrapper>
+    <Suspense fallback={<Page><Layout><Layout.Section><Spinner size="large" /></Layout.Section></Layout></Page>}>
+      <AppBridgeWrapper
+        config={{
+          apiKey,
+          shop: shopOrigin,
+          host,
+        }}
+      >
+        <Page>
+          <Layout>
+            <Layout.Section>
+              <div className="app-nav-wrapper">
+                <nav className="app-nav">
+                  <Link to="/app" rel="home" className="app-nav-link">
+                    Dashboard
+                  </Link>
+                  <Link to="/app/registries" className="app-nav-link">
+                    Registries
+                  </Link>
+                  <Link to="/app/settings" className="app-nav-link">Settings</Link>
+                </nav>
+              </div>
+              <Outlet />
+            </Layout.Section>
+          </Layout>
+        </Page>
+      </AppBridgeWrapper>
+    </Suspense>
   );
 }
 

@@ -1,8 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import { log } from "~/lib/logger.server";
+import crypto from "crypto";
 
 declare global {
-  // eslint-disable-next-line no-var
+   
   var __db__: PrismaClient | undefined;
 }
 
@@ -205,15 +206,15 @@ export const registryDb = {
   // Get registry with all related data
   async getRegistryWithDetails(registryId: string) {
     try {
-      const registry = await db.registry.findUnique({
+      const registry = await db.registries.findUnique({
         where: { id: registryId },
         include: {
-          items: {
+          registry_items: {
             orderBy: { createdAt: "asc" }
           },
-          shop: {
+          shops: {
             include: {
-              settings: true
+              shop_settings: true
             }
           }
         }
@@ -262,8 +263,9 @@ export const registryDb = {
     }
 
     try {
-      const registry = await db.registry.create({
+      const registry = await db.registries.create({
         data: {
+          id: crypto.randomUUID(),
           title: data.title,
           description: data.description,
           slug: data.slug,
@@ -275,16 +277,18 @@ export const registryDb = {
           customerId: data.customerId,
           customerEmail: data.customerEmail,
           customerFirstName: data.customerFirstName,
-          customerLastName: data.customerLastName
+          customerLastName: data.customerLastName,
+          updatedAt: new Date()
         },
         include: {
-          shop: true
+          shops: true
         }
       });
 
       // Log creation activity
-      await db.auditLog.create({
+      await db.audit_logs.create({
         data: {
+          id: crypto.randomUUID(),
           action: "registry_created",
           resource: "registry",
           resourceId: registry.id,
@@ -335,8 +339,9 @@ export const registryDb = {
     }
 
     try {
-      const item = await db.registryItem.create({
+      const item = await db.registry_items.create({
         data: {
+          id: crypto.randomUUID(),
           registryId: data.registryId,
           productId: data.productId,
           variantId: data.variantId,
@@ -348,13 +353,14 @@ export const registryDb = {
           priority: data.priority,
           notes: data.notes,
           price: data.price,
+          updatedAt: new Date(),
           compareAtPrice: data.compareAtPrice,
           currencyCode: data.currencyCode
         }
       });
 
       // Update registry total value
-      await db.registry.update({
+      await db.registries.update({
         where: { id: data.registryId },
         data: {
           totalValue: {
@@ -364,14 +370,15 @@ export const registryDb = {
       });
 
       // Log activity
-      const registry = await db.registry.findUnique({
+      const registry = await db.registries.findUnique({
         where: { id: data.registryId },
         select: { shopId: true }
       });
       
       if (registry) {
-        await db.auditLog.create({
+        await db.audit_logs.create({
           data: {
+            id: crypto.randomUUID(),
             action: "item_added",
             resource: "registry_item",
             resourceId: item.id,

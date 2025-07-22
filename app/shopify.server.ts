@@ -1,5 +1,5 @@
-// 2025 API Version - Current stable version for Built for Shopify compliance
-const SHOPIFY_API_VERSION_2025 = "2025-01";
+// 2025-07 API Version - Latest version for Built for Shopify compliance
+const SHOPIFY_API_VERSION_2025 = "2025-07";
 import { shopifyApp } from "@shopify/shopify-app-remix/server";
 import { sessionStorage } from "~/lib/session-storage.server";
 
@@ -11,18 +11,16 @@ export const shopify = shopifyApp({
   // Consistent scopes with shopify.app.toml (2025 compliant)
   scopes: process.env.SHOPIFY_SCOPES?.split(",") || [
     "read_customers",
-    "write_customers",
     "read_products",
     "read_orders",
     "write_orders",
-    "read_inventory",
-    "write_content"
+    "read_inventory"
   ],
   
   appUrl: process.env.SHOPIFY_APP_URL!,
   authPathPrefix: "/auth",
   sessionStorage,
-  apiVersion: SHOPIFY_API_VERSION_2025 as any, // FIXED: 2025-01 for current stable compliance
+  apiVersion: SHOPIFY_API_VERSION_2025 as any, // FIXED: 2025-07 for latest compliance
   
   // 2025 Embedded App Strategy (MANDATORY)
   isEmbeddedApp: true,

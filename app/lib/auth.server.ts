@@ -3,8 +3,8 @@ import { createCookieSessionStorage } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { verifyWebhookHMAC } from "~/lib/webhook-security.server";
-import { generateRandomBytes, createSHA256HashBase64URL, generateRandomString, generateRandomBase64 } from "~/lib/crypto-utils.server";
+import { verifyWebhookHMAC } from "~/lib/webhook.server";
+import { generateRandomBytes, createSHA256HashBase64URL, generateRandomString, generateRandomBase64 } from "~/lib/crypto.server";
 import crypto from "crypto";
 
 // ============================================================================
@@ -69,22 +69,25 @@ export async function requireAdminAuth(request: Request) {
     const { admin, session } = await authenticate.admin(request);
     
     // Verify shop exists in our database (optional - create if not exists)
-    let shop = await db.shop.findUnique({
+    let shop = await db.shops.findUnique({
       where: { id: session.shop },
-      include: { settings: true }
+      include: { shop_settings: true }
     });
     
     if (!shop) {
       // Auto-create shop record for new installations
-      shop = await db.shop.create({
+      shop = await db.shops.create({
         data: {
           id: session.shop,
           name: session.shop.replace('.myshopify.com', ''),
           email: '',
           domain: session.shop,
           currencyCode: 'USD',
-          settings: {
+          updatedAt: new Date(),
+          shop_settings: {
             create: {
+              id: `settings_${session.shop}`,
+              updatedAt: new Date(),
               enablePasswordProtection: false,
               enableGiftMessages: true,
               enableSocialSharing: true,
@@ -95,8 +98,8 @@ export async function requireAdminAuth(request: Request) {
             }
           }
         },
-        include: { settings: true }
-      });
+        include: { shop_settings: true }
+      }) as any;
     }
     
     return { admin, session, shop };
@@ -258,8 +261,8 @@ export async function makeCustomerAPIRequest(
   query: string,
   variables?: any
 ) {
-  // FIXED: Updated to 2025-01 API version for proper 2025 compliance
-  const apiVersion = '2025-01'; // Current stable Shopify API version
+  // Updated to 2025-07 API version for proper 2025 compliance
+  const apiVersion = '2025-07'; // Latest Shopify API version
   const response = await fetch(
     `https://shopify.com/${session.shop}/account/customer/api/${apiVersion}/graphql`,
     {
@@ -544,7 +547,7 @@ export async function verifyAdminToken(token: string, shop: string): Promise<any
   try {
     // Use GraphQL Admin API with latest stable version
     const shopDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
-    const apiVersion = '2025-01'; // FIXED: Updated to current stable version for 2025 compliance
+    const apiVersion = '2025-07'; // Latest Shopify API version for 2025 compliance
     const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
       method: 'POST',
       headers: {

@@ -3,11 +3,12 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { CollaborativeRegistryManager } from "~/lib/collaboration.server";
 import { db } from "~/lib/db.server";
-import { decryptPII } from "~/lib/encryption.server";
+import { decryptPII } from "~/lib/crypto.server";
 import { authenticate } from "~/shopify.server";
-import { validateRequest } from "~/lib/validation-unified.server";
-import { verifyInvitationToken } from "~/lib/crypto-utils.server";
+import { withValidation } from "~/lib/validation.server";
+import { verifyInvitationToken } from "~/lib/crypto.server";
 import crypto from "crypto";
+import { apiResponse } from "~/lib/api-response.server";
 
 /**
  * Collaboration Invitation Acceptance API
@@ -24,7 +25,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   const collaboratorId = params.id;
   
   if (!collaboratorId) {
-    return json({ error: "Collaborator ID required" }, { status: 400 });
+    return apiResponse.validationError({ collaboratorId: ["Collaborator ID is required"] });
   }
 
   // SECURITY: Validate request and check authentication
@@ -52,15 +53,15 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
   
   if (!isAuthenticated) {
-    return json({ error: "Unauthorized: Valid authentication or invitation token required" }, { status: 401 });
+    return apiResponse.unauthorized("Valid authentication or invitation token required");
   }
 
   try {
     // Get invitation details
-    const collaborator = await db.registryCollaborator.findUnique({
+    const collaborator = await db.registry_collaborators.findUnique({
       where: { id: collaboratorId },
       include: {
-        registry: {
+        registries: {
           select: {
             id: true,
             title: true,
@@ -72,7 +73,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
             eventDate: true,
             totalValue: true,
             shopId: true,
-            shop: {
+            shops: {
               select: {
                 domain: true,
                 name: true
@@ -84,67 +85,71 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
     });
 
     if (!collaborator) {
-      return json({ error: "Invitation not found" }, { status: 404 });
+      return apiResponse.notFound("Invitation");
     }
 
     // SECURITY: Verify shop context if authenticated as admin
-    if (shopId && collaborator.registry.shopId !== shopId) {
+    if (shopId && collaborator.registries.shopId !== shopId) {
       log.warn("Cross-shop access attempt detected", {
-        requestedShopId: collaborator.registry.shopId,
+        requestedShopId: collaborator.registries.shopId,
         authenticatedShopId: shopId,
         collaboratorId
       });
-      return json({ error: "Access denied: Invalid shop context" }, { status: 403 });
+      return apiResponse.forbidden("Access denied: Invalid shop context");
     }
 
     // Check if invitation is still valid
     if (collaborator.status !== 'pending') {
-      return json({ 
-        error: "Invitation is no longer valid",
-        status: collaborator.status 
-      }, { status: 400 });
+      return apiResponse.error(
+        "INVALID_INVITATION",
+        "Invitation is no longer valid",
+        400,
+        { status: [collaborator.status] }
+      );
     }
 
-    // Check if invitation has expired
-    if (collaborator.expiresAt && collaborator.expiresAt < new Date()) {
-      return json({ error: "Invitation has expired" }, { status: 400 });
+    // Check if invitation has expired (using createdAt + 7 days)
+    const expiryDate = new Date(collaborator.createdAt);
+    expiryDate.setDate(expiryDate.getDate() + 7);
+    if (expiryDate < new Date()) {
+      return apiResponse.error("EXPIRED_INVITATION", "Invitation has expired", 400);
     }
 
-    return json({
+    return apiResponse.success({
       invitation: {
         id: collaborator.id,
         email: decryptPII(collaborator.email),
         role: collaborator.role,
         permissions: collaborator.permissions,
-        invitedBy: collaborator.invitedBy,
+        invitedBy: "system", // Not stored in current schema
         invitedAt: collaborator.invitedAt,
-        expiresAt: collaborator.expiresAt,
-        registry: {
-          id: collaborator.registry.id,
-          title: collaborator.registry.title,
-          description: collaborator.registry.description,
-          eventType: collaborator.registry.eventType,
-          eventDate: collaborator.registry.eventDate,
-          totalValue: collaborator.registry.totalValue,
+        expiresAt: expiryDate,
+        registries: {
+          id: collaborator.registries.id,
+          title: collaborator.registries.title,
+          description: collaborator.registries.description,
+          eventType: collaborator.registries.eventType,
+          eventDate: collaborator.registries.eventDate,
+          totalValue: collaborator.registries.totalValue,
           owner: {
-            email: decryptPII(collaborator.registry.customerEmail),
-            firstName: collaborator.registry.customerFirstName 
-              ? decryptPII(collaborator.registry.customerFirstName) 
+            email: decryptPII(collaborator.registries.customerEmail),
+            firstName: collaborator.registries.customerFirstName 
+              ? decryptPII(collaborator.registries.customerFirstName) 
               : null,
-            lastName: collaborator.registry.customerLastName 
-              ? decryptPII(collaborator.registry.customerLastName) 
+            lastName: collaborator.registries.customerLastName 
+              ? decryptPII(collaborator.registries.customerLastName) 
               : null
           },
           shop: {
-            domain: collaborator.registry.shop.domain,
-            name: collaborator.registry.shop.name
+            domain: collaborator.registries.shops.domain,
+            name: collaborator.registries.shops.name
           }
         }
       }
     });
   } catch (error) {
     log.error("Failed to load invitation:", error as Error);
-    return json({ error: "Failed to load invitation details" }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
 
@@ -152,7 +157,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   const collaboratorId = params.id;
   
   if (!collaboratorId) {
-    return json({ error: "Collaborator ID required" }, { status: 400 });
+    return apiResponse.validationError({ collaboratorId: ["Collaborator ID is required"] });
   }
 
   // SECURITY: Validate request and check authentication
@@ -180,7 +185,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   }
   
   if (!isAuthenticated) {
-    return json({ error: "Unauthorized: Valid authentication or invitation token required" }, { status: 401 });
+    return apiResponse.unauthorized("Valid authentication or invitation token required");
   }
 
   try {
@@ -190,25 +195,23 @@ export async function action({ request, params }: ActionFunctionArgs) {
     const action = formData.get("action") as string;
 
     if (!acceptorEmail) {
-      return json({ error: "Acceptor email is required" }, { status: 400 });
+      return apiResponse.validationError({ acceptorEmail: ["Acceptor email is required"] });
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(acceptorEmail)) {
-      return json({ error: "Invalid email format" }, { status: 400 });
+      return apiResponse.validationError({ acceptorEmail: ["Invalid email format"] });
     }
 
     if (action === "accept") {
       // Accept the invitation
       const collaborator = await CollaborativeRegistryManager.acceptInvitation(
         collaboratorId,
-        acceptorEmail,
-        acceptorName
+        acceptorEmail
       );
 
-      return json({
-        success: true,
+      return apiResponse.success({
         message: "Invitation accepted successfully",
         collaborator: {
           id: collaborator.id,
@@ -221,7 +224,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
     } else if (action === "decline") {
       // Decline the invitation
-      await db.registryCollaborator.update({
+      await db.registry_collaborators.update({
         where: { id: collaboratorId },
         data: {
           status: 'revoked',
@@ -230,7 +233,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       });
 
       // Track activity
-      const collaborator = await db.registryCollaborator.findUnique({
+      const collaborator = await db.registry_collaborators.findUnique({
         where: { id: collaboratorId },
         select: { registryId: true }
       });
@@ -241,7 +244,6 @@ export async function action({ request, params }: ActionFunctionArgs) {
           actorEmail: acceptorEmail,
           actorName: acceptorName,
           action: 'collaborator_declined',
-          description: `${acceptorName || acceptorEmail} declined collaboration invitation`,
           metadata: {
             collaboratorId,
             declinedBy: acceptorEmail
@@ -249,17 +251,16 @@ export async function action({ request, params }: ActionFunctionArgs) {
         });
       }
 
-      return json({
-        success: true,
+      return apiResponse.success({
         message: "Invitation declined"
       });
     } else {
-      return json({ error: "Invalid action" }, { status: 400 });
+      return apiResponse.validationError({ action: ["Invalid action"] });
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to process invitation";
     log.error("Failed to process invitation:", error as Error);
-    return json({ error: message }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
 
@@ -303,10 +304,10 @@ export async function getInvitationByToken(token: string) {
       return null; // Invalid signature
     }
     
-    const collaborator = await db.registryCollaborator.findUnique({
+    const collaborator = await db.registry_collaborators.findUnique({
       where: { id: collaboratorId },
       include: {
-        registry: {
+        registries: {
           select: {
             id: true,
             title: true,
@@ -316,7 +317,7 @@ export async function getInvitationByToken(token: string) {
             customerLastName: true,
             eventType: true,
             eventDate: true,
-            shop: {
+            shops: {
               select: {
                 domain: true,
                 name: true
@@ -331,33 +332,37 @@ export async function getInvitationByToken(token: string) {
       return null;
     }
 
+    // Calculate expiry date (7 days from invitation date)
+    const expiryDate = new Date(collaborator.invitedAt);
+    expiryDate.setDate(expiryDate.getDate() + 7);
+
     return {
       id: collaborator.id,
       email: decryptPII(collaborator.email),
       role: collaborator.role,
       permissions: collaborator.permissions,
       status: collaborator.status,
-      invitedBy: collaborator.invitedBy,
+      invitedBy: "system", // Not stored in current schema
       invitedAt: collaborator.invitedAt,
-      expiresAt: collaborator.expiresAt,
-      registry: {
-        id: collaborator.registry.id,
-        title: collaborator.registry.title,
-        description: collaborator.registry.description,
-        eventType: collaborator.registry.eventType,
-        eventDate: collaborator.registry.eventDate,
+      expiresAt: expiryDate,
+      registries: {
+        id: collaborator.registries.id,
+        title: collaborator.registries.title,
+        description: collaborator.registries.description,
+        eventType: collaborator.registries.eventType,
+        eventDate: collaborator.registries.eventDate,
         owner: {
-          email: decryptPII(collaborator.registry.customerEmail),
-          firstName: collaborator.registry.customerFirstName 
-            ? decryptPII(collaborator.registry.customerFirstName) 
+          email: decryptPII(collaborator.registries.customerEmail),
+          firstName: collaborator.registries.customerFirstName 
+            ? decryptPII(collaborator.registries.customerFirstName) 
             : null,
-          lastName: collaborator.registry.customerLastName 
-            ? decryptPII(collaborator.registry.customerLastName) 
+          lastName: collaborator.registries.customerLastName 
+            ? decryptPII(collaborator.registries.customerLastName) 
             : null
         },
         shop: {
-          domain: collaborator.registry.shop.domain,
-          name: collaborator.registry.shop.name
+          domain: collaborator.registries.shops.domain,
+          name: collaborator.registries.shops.name
         }
       }
     };
@@ -372,10 +377,10 @@ export async function getInvitationByToken(token: string) {
  */
 export async function sendInvitationReminder(collaboratorId: string) {
   try {
-    const collaborator = await db.registryCollaborator.findUnique({
+    const collaborator = await db.registry_collaborators.findUnique({
       where: { id: collaboratorId },
       include: {
-        registry: {
+        registries: {
           select: {
             id: true,
             title: true,

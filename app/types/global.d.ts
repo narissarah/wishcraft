@@ -29,9 +29,4 @@ declare module "@remix-run/node" {
   }
 }
 
-// Fix for remix-utils if not installed
-declare module "remix-utils/client-only" {
-  export function ClientOnly({ children }: { children: () => React.ReactNode }): JSX.Element | null;
-}
-
 export {};

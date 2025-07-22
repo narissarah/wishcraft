@@ -4,8 +4,14 @@
  */
 
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
+import { Session } from "@shopify/shopify-api";
 import { db } from "./db.server";
 import { log } from "./logger.server";
+
+// Extend the Shopify Session type to include our custom fields
+interface ExtendedSession extends Session {
+  tokenEncrypted?: boolean;
+}
 
 // Custom encrypted session storage class
 class EncryptedPrismaSessionStorage extends PrismaSessionStorage<any> {
@@ -14,7 +20,7 @@ class EncryptedPrismaSessionStorage extends PrismaSessionStorage<any> {
   }
 
   // Override storeSession to enforce encryption for all new sessions
-  async storeSession(session: any): Promise<boolean> {
+  async storeSession(session: ExtendedSession): Promise<boolean> {
     try {
       // SECURITY FIX: All new sessions must be encrypted
       if (session.accessToken && typeof session.accessToken === 'string') {
@@ -41,7 +47,7 @@ class EncryptedPrismaSessionStorage extends PrismaSessionStorage<any> {
   }
 
   // Override loadSession to handle both encrypted and legacy unencrypted sessions
-  async loadSession(id: string): Promise<any | undefined> {
+  async loadSession(id: string): Promise<ExtendedSession | undefined> {
     try {
       const session = await super.loadSession(id);
       
@@ -49,7 +55,7 @@ class EncryptedPrismaSessionStorage extends PrismaSessionStorage<any> {
         // Log session encryption status for monitoring
         log.debug("Loading session", { 
           id: id.substring(0, 8) + "...",
-          tokenEncrypted: session.tokenEncrypted || false,
+          tokenEncrypted: (session as ExtendedSession).tokenEncrypted || false,
           hasAccessToken: !!session.accessToken
         });
       }

@@ -10,10 +10,14 @@ export default {
   serverDependenciesToBundle: [
     "@shopify/shopify-app-remix",
     "@shopify/polaris",
-    "@shopify/app-bridge",
+    "@shopify/app-bridge", 
     "@shopify/app-bridge-react",
     "date-fns",
-    /^~/,  // Bundle all ~ imports
+    // Only bundle specific client-side app imports, not server files
+    /^~\/components/,
+    /^~\/styles/,
+    /^~\/lib\/types/,
+    /^~\/lib\/utils\.(ts|js)$/,  // Only client utils, not server utils
   ],
   future: {
     // v3 flags for React Router v7 compatibility
@@ -35,16 +39,5 @@ export default {
   dev: {
     port: process.env.DEV_PORT ? parseInt(process.env.DEV_PORT) : 3000,
   },
-  // Bundle optimization
-  rollupOptions: {
-    output: {
-      manualChunks: {
-        // Separate vendor chunks for better caching
-        vendor: ['react', 'react-dom'],
-        polaris: ['@shopify/polaris'],
-        shopify: ['@shopify/shopify-app-remix', '@shopify/app-bridge', '@shopify/app-bridge-react'],
-        utils: ['date-fns']
-      }
-    }
-  }
+  // Remove rollupOptions - this should be handled by vite.config.ts
 };

@@ -1,7 +1,9 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { log } from "~/lib/logger.server";
 import { db } from "~/lib/db.server";
+import { apiResponse } from "~/lib/api-response.server";
+import { rateLimiter } from "~/lib/security.server";
+import crypto from "crypto";
 
 /**
  * CSP Violation Reporting Endpoint
@@ -9,11 +11,18 @@ import { db } from "~/lib/db.server";
  */
 export async function action({ request }: ActionFunctionArgs) {
   try {
+    // Rate limiting for CSP reports
+    const rateLimitResult = await rateLimiter.check(request);
+    if (rateLimitResult && !rateLimitResult.allowed) {
+      // For CSP reports, still return 204 to avoid browser retries
+      return new Response(null, { status: 204 });
+    }
+
     const contentType = request.headers.get("content-type");
     
     // CSP reports are sent as application/csp-report or application/json
     if (!contentType?.includes("json") && !contentType?.includes("csp-report")) {
-      return json({ error: "Invalid content type" }, { status: 400 });
+      return apiResponse.error("INVALID_CONTENT_TYPE", "Invalid content type", 400);
     }
 
     const report = await request.json();
@@ -45,8 +54,9 @@ export async function action({ request }: ActionFunctionArgs) {
 
     if (shopId) {
       // Store violation in audit log
-      await db.auditLog.create({
+      await db.audit_logs.create({
         data: {
+          id: crypto.randomUUID(),
           shopId,
           action: "csp_violation",
           resource: "security",
@@ -55,8 +65,7 @@ export async function action({ request }: ActionFunctionArgs) {
           ipAddress: request.headers.get("x-forwarded-for") || 
                      request.headers.get("x-real-ip") ||
                      "unknown",
-          userAgent: violation.userAgent,
-          timestamp: new Date()
+          userAgent: violation.userAgent
         }
       });
     }
@@ -75,7 +84,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
 // GET requests should return 405 Method Not Allowed
 export async function loader() {
-  return json({ error: "Method not allowed" }, { status: 405 });
+  return apiResponse.error("METHOD_NOT_ALLOWED", "Method not allowed", 405);
 }
 
 /**

@@ -16,14 +16,19 @@ async function startServer() {
   console.log('🔧 Environment:', process.env.NODE_ENV);
   console.log('🔧 Port:', process.env.PORT || 3000);
   
-  // Validate environment variables early
+  // Validate environment variables early - CRITICAL for security
   try {
     const { validateEnvironment } = await import('./build/server/app/lib/env-validation.server.js');
-    await validateEnvironment();
-    console.log('✅ Environment variables validated');
+    const validatedEnv = validateEnvironment();
+    console.log('✅ Environment variables validated successfully');
+    console.log(`✅ Security keys verified (${Object.keys(validatedEnv).filter(k => k.includes('KEY') || k.includes('SECRET')).length} secrets)`);
   } catch (error) {
-    console.error('❌ Environment validation failed:', error.message);
-    // Continue without validation in case build files are missing
+    console.error('❌ CRITICAL: Environment validation failed:', error.message);
+    console.error('❌ This will cause application crashes. Fix environment variables before deployment.');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('❌ PRODUCTION DEPLOYMENT BLOCKED - Missing required environment variables');
+      process.exit(1); // Block production deployment with invalid environment
+    }
   }
   
   // Railway deployment debugging

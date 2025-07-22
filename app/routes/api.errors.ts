@@ -1,6 +1,8 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { log } from "~/lib/logger.server";
+import { apiResponse } from "~/lib/api-response.server";
+import { validateRequest } from "~/lib/validation.server";
+import { rateLimiter } from "~/lib/security.server";
 import { z } from "zod";
 
 const ErrorReportSchema = z.object({
@@ -17,14 +19,24 @@ const ErrorReportSchema = z.object({
 
 export async function action({ request }: ActionFunctionArgs) {
   try {
+    // Rate limiting for error reports
+    const rateLimitResult = await rateLimiter.check(request);
+    if (rateLimitResult && !rateLimitResult.allowed) {
+      return apiResponse.rateLimitExceeded(60);
+    }
+
     const data = await request.json();
-    const validation = ErrorReportSchema.safeParse(data);
+    const validation = validateRequest(ErrorReportSchema, data);
     
     if (!validation.success) {
-      return json({ error: "Invalid error report format" }, { status: 400 });
+      return apiResponse.validationError(validation.errors || {});
     }
     
     const errorReport = validation.data;
+    
+    if (!errorReport) {
+      return apiResponse.validationError({ error: ["Invalid error report data"] });
+    }
     
     // Log the error report
     log.error("Client-side error reported", {
@@ -36,9 +48,9 @@ export async function action({ request }: ActionFunctionArgs) {
       timestamp: errorReport.timestamp
     });
     
-    return json({ success: true });
+    return apiResponse.success({ received: true });
   } catch (error) {
     log.error("Failed to process error report", error as Error);
-    return json({ error: "Failed to process error report" }, { status: 500 });
+    return apiResponse.serverError(error);
   }
 }
