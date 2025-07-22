@@ -4,9 +4,26 @@ import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 import { rateLimiter } from "~/lib/security.server";
 import { QuerySchemas, validateQueryParams, Sanitizer } from "~/lib/validation.server";
+import { z } from "zod";
 import { apiResponse } from "~/lib/api-response.server";
 import { RegistryCache } from "~/lib/cache.server";
 import crypto from "crypto";
+
+// Registry creation validation schema
+const CreateRegistrySchema = z.object({
+  title: z.string().min(1).max(200).trim(),
+  description: z.string().max(1000).optional(),
+  eventType: z.enum(['wedding', 'birthday', 'baby_shower', 'graduation', 'general']).default('general'),
+  eventDate: z.string().datetime().optional(),
+  eventLocation: z.string().max(500).optional(),
+  visibility: z.enum(['public', 'private']).default('public'),
+  customerEmail: z.string().email(),
+  customerFirstName: z.string().min(1).max(100).trim(),
+  customerLastName: z.string().min(1).max(100).trim(),
+  customerPhone: z.string().max(20).optional(),
+  customerId: z.string().optional(),
+  accessCode: z.string().max(50).optional()
+});
 
 /**
  * GET /api/registries - List all registries for a shop
@@ -132,9 +149,23 @@ export async function action({ request }: ActionFunctionArgs) {
       return apiResponse.rateLimitExceeded(60);
     }
     
-    // Get request data
+    // Get request data and validate with comprehensive schema
     const requestData = await request.json();
-    const validatedData = requestData; // Simplified validation
+    
+    // Validate input with Zod schema
+    const validationResult = CreateRegistrySchema.safeParse(requestData);
+    if (!validationResult.success) {
+      return apiResponse.validationError(
+        Object.fromEntries(
+          validationResult.error.errors.map(err => [
+            err.path.join('.'), 
+            [err.message]
+          ])
+        )
+      );
+    }
+    
+    const validatedData = validationResult.data;
     
     // Authenticate
     const { admin, session } = await authenticate.admin(request);
@@ -152,7 +183,7 @@ export async function action({ request }: ActionFunctionArgs) {
       data: {
         id: crypto.randomUUID(),
         shopId: shop,
-        customerId: validatedData.customerId,
+        customerId: validatedData.customerId || crypto.randomUUID(),
         customerEmail: sanitizedCustomer.email,
         customerFirstName: sanitizedCustomer.firstName,
         customerLastName: sanitizedCustomer.lastName,

@@ -25,19 +25,7 @@ export function generateRandomString(length: number = 32, encoding: BufferEncodi
   return generateRandomBytes(length).toString(encoding);
 }
 
-/**
- * Generate secure random Base64 string
- */
-export function generateRandomBase64(length: number = 32): string {
-  return generateRandomBytes(length).toString('base64');
-}
 
-/**
- * Generate secure random Base64URL string
- */
-export function generateRandomBase64URL(length: number = 32): string {
-  return generateRandomBytes(length).toString('base64url');
-}
 
 /**
  * Create SHA256 hash
@@ -46,19 +34,7 @@ export function createSHA256Hash(data: string): string {
   return crypto.createHash('sha256').update(data).digest('hex');
 }
 
-/**
- * Create MD5 hash (for non-security purposes like cache keys)
- */
-export function createMD5Hash(data: string): string {
-  return crypto.createHash('md5').update(data).digest('hex');
-}
 
-/**
- * Hash data using bcrypt
- */
-export async function hashData(data: string, rounds: number = 10): Promise<string> {
-  return bcrypt.hash(data, rounds);
-}
 
 /**
  * Create SHA256 hash with Base64 encoding
@@ -133,77 +109,7 @@ export function generateSecurePassword(length = 12): string {
   return password;
 }
 
-/**
- * Generate cryptographically secure random integer
- */
-export function generateSecureInt(min: number, max: number): number {
-  return crypto.randomInt(min, max);
-}
 
-/**
- * Generate cryptographically secure random float between 0 and 1
- */
-export function generateSecureFloat(): number {
-  const bytes = generateRandomBytes(4);
-  const max = 0xffffffff;
-  const value = bytes.readUInt32BE(0);
-  return value / max;
-}
-
-/**
- * Generate secure jitter for backoff algorithms
- */
-export function generateJitter(min = 0.5, max = 1.5): number {
-  const range = max - min;
-  return min + (generateSecureFloat() * range);
-}
-
-/**
- * Generate secure probability check
- */
-export function shouldExecuteWithProbability(probability: number): boolean {
-  if (probability <= 0) return false;
-  if (probability >= 1) return true;
-  return generateSecureFloat() < probability;
-}
-
-/**
- * Generate secure request ID for tracking
- */
-export function generateRequestId(): string {
-  return generateSecureId('req');
-}
-
-/**
- * Generate secure transaction ID
- */
-export function generateTransactionId(): string {
-  return generateSecureId('tx');
-}
-
-/**
- * Generate secure notification ID
- */
-export function generateNotificationId(): string {
-  return generateSecureId('notif');
-}
-
-/**
- * Generate secure UUID-like string
- */
-export function generateSecureUUID(): string {
-  const bytes = generateRandomBytes(16);
-  const hex = bytes.toString('hex');
-  
-  // Format as UUID-like: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-  return [
-    hex.substr(0, 8),
-    hex.substr(8, 4),
-    hex.substr(12, 4),
-    hex.substr(16, 4),
-    hex.substr(20, 12)
-  ].join('-');
-}
 
 /**
  * Generate secure invitation token

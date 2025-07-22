@@ -6,13 +6,14 @@ node = "22"
 NODE_ENV = "production"
 NPM_CONFIG_PRODUCTION = "true"
 CI = "false"
+NODE_NO_WARNINGS = "1"
 
 [phases.build]
 cmds = [
     "npm ci --no-audit --no-fund",
-    "npx prisma generate",
+    "npx prisma generate --no-hints",
     "npm run build"
 ]
 
 [start]
-cmd = "sleep 3 && npx prisma db push --accept-data-loss && node server.js"
+cmd = "npx prisma migrate deploy && node server.js"

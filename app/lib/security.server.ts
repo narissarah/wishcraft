@@ -5,7 +5,7 @@
  */
 
 import { json } from "@remix-run/node";
-import { generateRandomBase64 } from "~/lib/crypto.server";
+import { generateRandomBytes } from "~/lib/crypto.server";
 import { log } from "~/lib/logger.server";
 
 // ============================================
@@ -47,11 +47,18 @@ export function getSecurityHeaders(requestOrOptions: Request | SecurityHeadersOp
     'X-Content-Type-Options': 'nosniff',
     'X-XSS-Protection': '1; mode=block',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), midi=(), magnetometer=(), gyroscope=(), accelerometer=()',
     
     // Session token security headers (2025 requirement)
     'Cross-Origin-Embedder-Policy': 'credentialless',
     'Cross-Origin-Opener-Policy': 'same-origin',
+    
+    // Additional security headers
+    'X-Permitted-Cross-Domain-Policies': 'none',
+    'X-Download-Options': 'noopen',
+    'Cache-Control': 'no-cache, no-store, must-revalidate, private',
+    'Pragma': 'no-cache',
+    'Expires': '0',
     
     // HSTS (only in production)
     ...(development ? {} : {
@@ -112,7 +119,7 @@ function generateCSP({ nonce, shop, development }: SecurityHeadersOptions): stri
  * Generate a cryptographic nonce for CSP
  */
 export function generateNonce(): string {
-  return generateRandomBase64(16);
+  return generateRandomBytes(16).toString('base64');
 }
 
 // ============================================

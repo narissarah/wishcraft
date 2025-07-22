@@ -55,15 +55,24 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   }
 
   try {
-    // Get registry to verify ownership/access
-    const registry = await db.registries.findUnique({
-      where: { id: registryId },
+    // Get session to validate shop ownership
+    const { session } = await authenticate.admin(request);
+    if (!session || !session.shop) {
+      return apiResponse.unauthorized();
+    }
+
+    // Get registry with shop validation to prevent cross-tenant access
+    const registry = await db.registries.findFirst({
+      where: { 
+        id: registryId,
+        shopId: session.shop  // SECURITY: Ensure registry belongs to authenticated shop
+      },
       select: { 
         id: true, 
         title: true, 
-        shopId: true,   // CRITICAL: Add shop validation
+        shopId: true,
         customerEmail: true, 
-        metadata: true   // CRITICAL: Fix undefined metadata
+        metadata: true
       }
     });
 
@@ -71,8 +80,7 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
       return apiResponse.notFound("Registry");
     }
 
-    // Get shop from session - need to get session first
-    const { session } = await authenticate.admin(request);
+    // Get shop from session (already authenticated above)
     const adminShop = session.shop;
     
     // CRITICAL SECURITY FIX: Validate shop access

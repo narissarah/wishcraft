@@ -1,38 +1,27 @@
-// Utility functions for WishCraft app
+// Client-side utility functions for WishCraft app
 
 import type { GraphQLResponse } from "./types";
 
-// Sanitization utilities
-export const Sanitizer = {
-  string: (input: string): string => {
-    return input.trim().replace(/[<>]/g, '');
-  },
-  
-  sanitizeHtml: (input: string): string => {
-    return input.replace(/<[^>]*>/g, '').trim();
-  },
-  
-  slug: (title: string): string => {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-|-$/g, '');
-  },
-  
-  number: (input: any): number => {
-    const num = parseFloat(input);
-    return isNaN(num) ? 0 : num;
-  },
-  
-  boolean: (input: any): boolean => {
-    return Boolean(input);
-  }
-};
+// Re-export Sanitizer from validation.server.ts to avoid duplication
+export { Sanitizer } from "~/lib/validation.server";
 
 export function formatPrice(price: string | number, currencyCode = "USD"): string {
-  const numPrice = typeof price === "string" ? parseFloat(price) : price;
+  let numPrice: number;
+  
+  if (typeof price === "string") {
+    numPrice = parseFloat(price);
+    // Validate parseFloat result
+    if (isNaN(numPrice) || !isFinite(numPrice)) {
+      numPrice = 0;
+    }
+  } else {
+    numPrice = price;
+    // Validate number input
+    if (isNaN(numPrice) || !isFinite(numPrice)) {
+      numPrice = 0;
+    }
+  }
+  
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currencyCode,

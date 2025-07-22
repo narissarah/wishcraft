@@ -7,7 +7,7 @@ import crypto from "crypto";
 import { json } from "@remix-run/node";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { getCircuitBreaker } from "~/lib/utils.server";
+// Removed CircuitBreaker - using direct error handling
 
 // ============================================
 // Webhook Security
@@ -555,19 +555,11 @@ export async function processWebhook(request: Request) {
     return json({ error: "Handler not found" }, { status: 404 });
   }
   
-  // Use circuit breaker for webhook processing
-  const circuitBreaker = getCircuitBreaker(`webhook-${topic}`, {
-    failureThreshold: 5,
-    resetTimeout: 60000,
-    requestTimeout: 30000
-  });
-  
   try {
     const data = JSON.parse(verification.payload);
     
-    await circuitBreaker.execute(async () => {
-      await registration.handler(data, shop!);
-    });
+    // Process webhook directly - removed CircuitBreaker
+    await registration.handler(data, shop!);
     
     const duration = Date.now() - startTime;
     await logWebhookEvent(topic!, shop, data, true);
@@ -596,148 +588,30 @@ export async function processWebhook(request: Request) {
   }
 }
 
-// Built-in webhook handlers
-registerWebhookHandler({
-  topic: "app/uninstalled",
-  handler: async (data: any, shop: string) => {
-    log.info(`App uninstalled for shop: ${shop}`);
-    
-    // Mark shop as inactive
-    await db.shop_settings.updateMany({
-      where: { shopId: shop },
-      data: {
-        appActive: false,
-        appUninstalledAt: new Date()
-      }
-    });
-    
-    // Clean up sessions
-    await db.sessions.deleteMany({
-      where: { shop }
-    });
-  },
-  required: true
-});
+// WEBHOOK REGISTRATION SYSTEM REMOVED:
+// - Prevents conflicts with route-based webhook handlers
+// - Route-based approach in app/routes/webhooks.* is preferred
+// - Cleaner separation of concerns
+//
+// All webhook handlers are now implemented as individual route files:
+// - app/routes/webhooks.app.uninstalled.tsx
+// - app/routes/webhooks.customers.redact.tsx  
+// - app/routes/webhooks.shop.redact.tsx
+// - app/routes/webhooks.products.update.tsx
+// - app/routes/webhooks.orders.create.tsx
 
-registerWebhookHandler({
-  topic: "customers/redact",
-  handler: async (data: any, shop: string) => {
-    const { customer } = data;
-    log.info(`Customer redact request for shop: ${shop}`, { customerId: customer.id });
-    
-    // GDPR: Redact customer data
-    await db.registries.updateMany({
-      where: {
-        shopId: shop,
-        customerId: customer.id
-      },
-      data: {
-        customerEmail: "[REDACTED]",
-        customerFirstName: "[REDACTED]",
-        customerLastName: "[REDACTED]",
-        customerPhone: "[REDACTED]"
-      }
-    });
-  },
-  required: true
-});
+// All webhook handlers moved to individual route files for better organization
+// No registration-based handlers to prevent conflicts
 
-registerWebhookHandler({
-  topic: "shop/redact",
-  handler: async (data: any, shop: string) => {
-    log.info(`Shop redact request for shop: ${shop}`);
-    
-    // GDPR: Delete all shop data after grace period
-    // In production, you might want to schedule this for later
-    await db.shops.delete({
-      where: { domain: shop }
-    });
-  },
-  required: true
-});
-
-registerWebhookHandler({
-  topic: "products/update",
-  handler: async (data: any, shop: string) => {
-    const { id, title, status, variants } = data;
-    
-    // Update registry items with new product info
-    await db.registry_items.updateMany({
-      where: {
-        productId: id,
-        registries: { shopId: shop }
-      },
-      data: {
-        productTitle: title,
-        status: status === "active" ? "active" : "out_of_stock"
-      }
-    });
-    
-    // Update variant info if needed
-    for (const variant of variants || []) {
-      await db.registry_items.updateMany({
-        where: {
-          variantId: variant.id,
-          registries: { shopId: shop }
-        },
-        data: {
-          price: parseFloat(variant.price),
-          inventoryQuantity: variant.inventory_quantity,
-          inventoryTracked: variant.inventory_management !== null
-        }
-      });
-    }
-  }
-});
-
-registerWebhookHandler({
-  topic: "orders/paid",
-  handler: async (data: any, shop: string) => {
-    const { id, line_items, customer } = data;
-    
-    // Check if any line items are registry purchases
-    for (const item of line_items) {
-      if (item.properties?.registry_item_id) {
-        await db.registry_purchases.create({
-          data: {
-            id: crypto.randomUUID(),
-            registryItemId: item.properties.registry_item_id,
-            orderId: id.toString(),
-            lineItemId: item.id.toString(),
-            orderName: data.order_number || data.name,
-            quantity: item.quantity,
-            unitPrice: parseFloat(item.price),
-            totalAmount: parseFloat(item.price) * item.quantity,
-            currencyCode: data.currency,
-            purchaserEmail: customer?.email,
-            purchaserName: customer ? `${customer.first_name} ${customer.last_name}` : null,
-            status: "confirmed",
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }
-        });
-        
-        // Get registry item to find registry ID
-        const registryItem = await db.registry_items.findUnique({
-          where: { id: item.properties.registry_item_id }
-        });
-        
-        if (registryItem) {
-          // Update registry purchased value
-          await db.registries.update({
-            where: { id: registryItem.registryId },
-            data: {
-              purchasedValue: {
-                increment: parseFloat(item.price) * item.quantity
-              },
-              updatedAt: new Date()
-            }
-          });
-        }
-      }
-    }
-  }
-});
+// Note: If you need to add webhook handlers through registration instead of routes,
+// uncomment and modify the sample below:
+//
+// registerWebhookHandler({
+//   topic: "example/webhook",
+//   handler: async (data: any, shop: string) => {
+//     // Handler implementation
+//   }
+// });
 
 // Webhook registration helper
 export async function registerRequiredWebhooks(admin: any, shop: string) {

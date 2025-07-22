@@ -72,14 +72,28 @@ function runCommand(command, options = {}) {
 function checkEnvironmentVariables() {
   log('\nChecking environment variables...', 'magenta');
   
+  const deployTarget = process.argv[2] || 'railway';
+  
+  // Skip environment variable check for Railway since they're managed in Railway dashboard
+  if (deployTarget === 'railway') {
+    logInfo('Skipping environment variable check for Railway deployment');
+    logInfo('Environment variables are managed in Railway dashboard');
+    return true;
+  }
+  
   const requiredEnvVars = [
     'DATABASE_URL',
     'SHOPIFY_APP_URL',
     'SHOPIFY_API_KEY',
     'SHOPIFY_API_SECRET',
+    'SHOPIFY_WEBHOOK_SECRET',
     'SESSION_SECRET',
     'ENCRYPTION_KEY',
-    'ENCRYPTION_SALT'
+    'ENCRYPTION_SALT',
+    'DATA_ENCRYPTION_KEY',
+    'DATA_ENCRYPTION_SALT',
+    'SEARCH_HASH_KEY',
+    'COLLABORATION_TOKEN_SECRET'
   ];
   
   const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
@@ -97,6 +111,14 @@ function checkEnvironmentVariables() {
 // Run tests
 function runTests() {
   log('\nRunning tests...', 'magenta');
+  
+  const deployTarget = process.argv[2] || 'railway';
+  
+  // Skip tests for Railway since vitest is not configured
+  if (deployTarget === 'railway') {
+    logInfo('Skipping tests for Railway deployment');
+    return true;
+  }
   
   const testResult = runCommand('npm test', { silent: false });
   

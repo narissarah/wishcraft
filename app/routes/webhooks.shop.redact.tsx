@@ -1,8 +1,9 @@
-import crypto from "crypto";import type { ActionFunctionArgs } from "@remix-run/node";
+import crypto from "crypto";
+import type { ActionFunctionArgs } from "@remix-run/node";
 import { apiResponse } from "~/lib/api-response.server";
 import { createWebhookHandler } from "~/lib/webhook.server";
-import { createGDPRJob } from "~/lib/utils.server";
 import { log } from "~/lib/logger.server";
+import { deleteShopData } from "~/lib/gdpr-simple.server";
 
 /**
  * GDPR Webhook: Shop Data Redaction - Consolidated Pattern
@@ -18,26 +19,34 @@ const handler = createWebhookHandler(
     log.webhook("SHOP_REDACT", shop, { verified: true });
 
     try {
-      // Queue high-priority GDPR shop data deletion job
-      const job = await createGDPRJob({
-        type: 'shop_data_redact',
+      // GDPR: Handle shop data redaction directly
+      log.info("GDPR shop data redaction requested", {
         shopId: shop,
-        metadata: {
-          shopDomain: payload.shop_domain,
-          requestedAt: new Date().toISOString(),
-          webhookId: payload.webhook_id
-        }
+        shopDomain: payload.shop_domain,
+        requestedAt: new Date().toISOString()
       });
 
-      log.info("GDPR shop data redaction job queued", {
-        jobId: job.id,
+      // Delete all shop data - GDPR Compliance (48 hours after app uninstall)
+      const deletionResult = await deleteShopData({
         shopId: shop,
         shopDomain: payload.shop_domain
       });
 
-      return apiResponse.success({ received: true, jobId: job.id });
+      log.info("GDPR shop data deletion completed", {
+        shopId: shop,
+        shopDomain: payload.shop_domain,
+        recordsDeleted: deletionResult.recordsDeleted,
+        tablesCleared: deletionResult.tablesCleared
+      });
+
+      return apiResponse.success({ 
+        received: true, 
+        processed: true,
+        recordsDeleted: deletionResult.recordsDeleted,
+        tablesCleared: deletionResult.tablesCleared.length
+      });
     } catch (error) {
-      log.error("Failed to queue GDPR shop redaction job", error as Error, {
+      log.error("Failed to process GDPR shop redaction request", error as Error, {
         shopId: shop,
         shopDomain: payload.shop_domain
       });

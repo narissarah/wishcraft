@@ -7,6 +7,9 @@
     "dev": "shopify app dev --use-localhost",
     "start": "node server.js",
     "start:production": "node server.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "db:deploy": "npx prisma db push",
     "deploy": "node deploy.js",
     "db:migrate": "prisma migrate dev",
@@ -54,6 +57,7 @@
     "@types/react-dom": "^18.3.5",
     "@typescript-eslint/eslint-plugin": "^8.37.0",
     "@typescript-eslint/parser": "^8.37.0",
+    "@vitest/coverage-v8": "^2.1.8",
     "autoprefixer": "10.4.21",
     "cssnano": "7.1.0",
     "eslint": "^9.31.0",
@@ -66,6 +70,7 @@
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
+    "vitest": "^2.1.8",
     "ws": "^8.16.0"
   },
   "engines": {

@@ -4,7 +4,8 @@
 # client_id = "YOUR_NEW_SHOPIFY_API_KEY"
 name = "wishcraft"
 handle = "wishcraft"
-application_url = "https://wishcraft-production.up.railway.app"
+# Use environment variable for flexible deployment
+application_url = "{{ SHOPIFY_APP_URL }}"
 embedded = true
 
 [build]
@@ -29,8 +30,8 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "https://wishcraft-production.up.railway.app/auth/callback",
-  "https://wishcraft-production.up.railway.app/auth/shopify/callback"
+  "{{ SHOPIFY_APP_URL }}/auth/callback",
+  "{{ SHOPIFY_APP_URL }}/auth/shopify/callback"
 ]
 
 [pos]

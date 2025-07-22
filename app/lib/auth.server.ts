@@ -4,7 +4,7 @@ import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 import { verifyWebhookHMAC } from "~/lib/webhook.server";
-import { generateRandomBytes, createSHA256HashBase64URL, generateRandomString, generateRandomBase64 } from "~/lib/crypto.server";
+import { generateRandomBytes, createSHA256HashBase64URL, generateRandomString } from "~/lib/crypto.server";
 import crypto from "crypto";
 
 // ============================================================================
@@ -387,7 +387,7 @@ export function generateState(): string {
 }
 
 export function generateCodeVerifier(): string {
-  return generateRandomBase64(32).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return generateRandomBytes(32).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 export function generateCodeChallenge(verifier: string): string {
@@ -395,7 +395,7 @@ export function generateCodeChallenge(verifier: string): string {
 }
 
 export function generateSessionSecret(): string {
-  return generateRandomBase64(32);
+  return generateRandomBytes(32).toString('base64');
 }
 
 export function isValidShopDomain(shop: string): boolean {

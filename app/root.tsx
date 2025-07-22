@@ -2,8 +2,8 @@ import type { LinksFunction, LoaderFunctionArgs, HeadersFunction } from "@remix-
 import { json } from "@remix-run/node";
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
-// Minimal Polaris CSS for Built for Shopify compliance (<2KB vs 200KB+)
-import "~/styles/polaris-minimal.css";
+// Main CSS import for styling
+import "~/styles/index.css";
 import { generateNonce } from "~/lib/security.server";
 import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/security.server";
 import { useEffect } from "react";

@@ -5,7 +5,8 @@
 
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { generateRandomString, hashData, encryptCollaboratorPII, decryptCollaboratorPII } from "~/lib/crypto.server";
+import { generateRandomString, encryptCollaboratorPII, decryptCollaboratorPII } from "~/lib/crypto.server";
+import bcrypt from 'bcrypt';
 import crypto from "crypto";
 
 function logEmailSend(params: any) {
@@ -54,7 +55,7 @@ export class CollaborativeRegistryManager {
       
       // Create invitation token
       const invitationToken = generateRandomString(32);
-      const invitationTokenHash = await hashData(invitationToken);
+      const invitationTokenHash = await bcrypt.hash(invitationToken, 10);
       
       // CRITICAL: Encrypt PII before storing
       const encryptedCollaboratorData = encryptCollaboratorPII({

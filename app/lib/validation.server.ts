@@ -73,6 +73,9 @@ export function createSlug(title: string): string {
 export const Sanitizer = {
   string: sanitizeString,
   slug: createSlug,
+  sanitizeHtml: (input: string): string => {
+    return input.replace(/<[^>]*>/g, '').trim();
+  },
   number: (input: any): number => {
     const num = Number(input);
     return isNaN(num) ? 0 : num;

@@ -345,23 +345,31 @@ model registry_purchases {
 }
 
 model sessions {
-  id            String    @id
-  shop          String
-  state         String
-  isOnline      Boolean   @default(false)
-  scope         String?
-  expires       DateTime?
-  accessToken   String
-  userId        String?
-  firstName     String?
-  lastName      String?
-  email         String?
-  accountOwner  Boolean   @default(false)
-  locale        String?
-  collaborator  Boolean?  @default(false)
-  emailVerified Boolean?  @default(false)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime
+  id                    String    @id
+  shop                  String
+  state                 String
+  isOnline              Boolean   @default(false)
+  scope                 String?
+  expires               DateTime?
+  accessToken           String?
+  userId                String?
+  firstName             String?
+  lastName              String?
+  email                 String?
+  accountOwner          Boolean   @default(false)
+  locale                String?
+  collaborator          Boolean?  @default(false)
+  emailVerified         Boolean?  @default(false)
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime
+  // Encryption fields added by migrations
+  tokenEncrypted        Boolean?  @default(false)
+  accessTokenEncrypted  String?
+  accessTokenIV         String?
+  accessTokenTag        String?
+
+  @@index([shop, tokenEncrypted])
+  @@index([accessTokenEncrypted])
 }
 
 model shop_settings {
@@ -391,25 +399,40 @@ model shop_settings {
 }
 
 model shops {
-  id               String             @id
-  domain           String             @unique
-  name             String
-  email            String?
-  phone            String?
-  address1         String?
-  address2         String?
-  city             String?
-  province         String?
-  country          String?
-  zip              String?
-  currencyCode     String             @default("USD")
-  timezone         String?
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime
-  analytics_events analytics_events[]
-  metafield_syncs  metafield_syncs[]
-  registries       registries[]
-  shop_settings    shop_settings?
+  id                   String             @id
+  domain               String             @unique
+  name                 String
+  email                String?
+  phone                String?
+  address1             String?
+  address2             String?
+  city                 String?
+  province             String?
+  country              String?
+  zip                  String?
+  currencyCode         String             @default("USD")
+  timezone             String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime
+  // GDPR compliance field added by migrations
+  dataRetentionPeriod  Int?               @default(90)
+  analytics_events     analytics_events[]
+  metafield_syncs      metafield_syncs[]
+  registries           registries[]
+  shop_settings        shop_settings?
+}
+
+model security_audit {
+  id         String   @id
+  action     String
+  resource   String
+  resourceId String?
+  status     String
+  details    String?  // JSON stored as string (was JSONB in migration)
+  timestamp  DateTime @default(now())
+
+  @@index([action])
+  @@index([timestamp])
 }
 
 model system_jobs {
