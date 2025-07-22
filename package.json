@@ -4,6 +4,7 @@
   "description": "WishCraft - Shopify Gift Registry App - CSP Compliant",
   "scripts": {
     "build": "npx prisma generate --no-hints && remix build",
+    "railway-build": "npm ci && npx prisma generate --no-hints && npm run build",
     "dev": "shopify app dev --use-localhost",
     "start": "node server.js",
     "start:production": "node server.js",
@@ -74,7 +75,7 @@
     "ws": "^8.16.0"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=18.0.0"
   },
   "optionalDependencies": {
     "@rollup/rollup-darwin-x64": "4.45.1",
