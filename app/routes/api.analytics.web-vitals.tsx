@@ -1,8 +1,8 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { json } from "@remix-run/node";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/security.server";
+import { apiResponse } from "~/lib/api-response.server";
 import crypto from "crypto";
 
 /**
@@ -23,7 +23,7 @@ export async function action({ request }: ActionFunctionArgs) {
     
     // Validate required fields
     if (!vitalsData.name || !vitalsData.value || !vitalsData.url) {
-      return json({ error: "Missing required fields" }, { status: 400 });
+      return apiResponse.validationError({ fields: ["name", "value", "url"] });
     }
 
     // Extract shop ID from URL if available (for multi-tenant tracking)
@@ -63,7 +63,7 @@ export async function action({ request }: ActionFunctionArgs) {
     // Check for performance issues and alert if needed
     await checkPerformanceThresholds(vitalsData);
 
-    return json({ success: true });
+    return apiResponse.success({ metric: vitalsData.name, recorded: true });
 
   } catch (error) {
     log.error("Failed to process Web Vitals data", error as Error, {
@@ -72,7 +72,7 @@ export async function action({ request }: ActionFunctionArgs) {
     });
     
     // Return success to prevent client-side errors from impacting user experience
-    return json({ success: true });
+    return apiResponse.success({ recorded: false, error: "Processing failed" });
   }
 }
 
@@ -111,5 +111,5 @@ async function checkPerformanceThresholds(vitalsData: any) {
 
 // Handle preflight OPTIONS requests
 export async function loader() {
-  return json({ message: "Use POST to submit Web Vitals data" }, { status: 405 });
+  return apiResponse.error("METHOD_NOT_ALLOWED", "Use POST to submit Web Vitals data", 405);
 }

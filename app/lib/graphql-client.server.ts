@@ -8,6 +8,9 @@ import { authenticate } from "~/shopify.server";
 import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { cache } from './cache.server';
 import { log } from "./logger.server";
+import { retryShopifyOperation } from "./retry.server";
+import { API_CONFIG, SHOPIFY } from "./constants.server";
+import { ExternalServiceError } from "./error-handler.server";
 
 export interface GraphQLResponse<T = any> {
   data?: T;
@@ -40,7 +43,6 @@ export interface QueryOptions {
   operationName?: string;
   cacheKey?: string;
   cacheTtl?: number;
-  retries?: number;
   timeout?: number;
 }
 
@@ -53,8 +55,6 @@ export async function graphqlQuery<T = any>(
   options: QueryOptions = {}
 ): Promise<GraphQLResponse<T>> {
   const startTime = Date.now();
-  const maxRetries = options.retries ?? 3;
-  let lastError: Error | undefined;
   
   try {
     // Authenticate with Shopify
@@ -69,14 +69,28 @@ export async function graphqlQuery<T = any>(
       }
     }
 
-    // Execute GraphQL query with retry logic
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        const response = await admin.graphql(query, {
-          variables: options.variables,
-        });
+    // Execute GraphQL query with centralized retry logic
+    const responseData = await retryShopifyOperation(async () => {
+      const response = await admin.graphql(query, {
+        variables: options.variables,
+      });
 
-        const responseData = await response.json() as GraphQLResponse<T>;
+      const data = await response.json() as GraphQLResponse<T>;
+      
+      // Check for rate limiting or throttling errors that should trigger retry
+      const shouldRetry = data.errors?.some(err => 
+        err.extensions?.code === 'THROTTLED' ||
+        err.message.toLowerCase().includes('throttled') ||
+        err.message.toLowerCase().includes('rate limit')
+      );
+      
+      if (shouldRetry) {
+        throw new ExternalServiceError(`Shopify API throttled: ${data.errors?.[0]?.message}`);
+      }
+      
+      return data;
+    }, `GraphQL query: ${options.operationName || 'unnamed'}`);
+
         const duration = Date.now() - startTime;
 
         // Log query performance
@@ -85,59 +99,15 @@ export async function graphqlQuery<T = any>(
           duration,
           hasErrors: !!responseData.errors,
           cost: responseData.extensions?.cost,
-          attempt: attempt > 0 ? attempt : undefined,
         });
-
-        // Check for rate limiting errors
-        const rateLimitError = responseData.errors?.find(
-          err => err.extensions?.code === 'THROTTLED'
-        );
-        
-        if (rateLimitError && attempt < maxRetries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt), 10000); // Exponential backoff, max 10s
-          log.warn(`GraphQL rate limited, retrying in ${delay}ms`, {
-            attempt,
-            operationName: options.operationName,
-          });
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
 
         // Cache successful responses
         if (options.cacheKey && !responseData.errors) {
-          const ttl = options.cacheTtl || 300; // 5 minutes default
+          const ttl = options.cacheTtl || API_CONFIG.CACHE_TTL;
           await cache.set(options.cacheKey, responseData, ttl);
         }
 
         return responseData;
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
-        
-        // Check if error is retryable
-        const isRetryable = 
-          error instanceof Error && (
-            error.message.includes('ECONNRESET') ||
-            error.message.includes('ETIMEDOUT') ||
-            error.message.includes('ENOTFOUND') ||
-            error.message.includes('fetch failed')
-          );
-        
-        if (isRetryable && attempt < maxRetries) {
-          const delay = Math.min(1000 * Math.pow(2, attempt), 10000);
-          log.warn(`GraphQL request failed, retrying in ${delay}ms`, {
-            attempt,
-            operationName: options.operationName,
-            error: lastError.message,
-          });
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
-        
-        throw lastError;
-      }
-    }
-    
-    throw lastError || new Error('GraphQL query failed after retries');
   } catch (error) {
     const duration = Date.now() - startTime;
     log.error("GraphQL query failed", {

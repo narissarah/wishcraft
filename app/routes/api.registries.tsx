@@ -7,35 +7,36 @@ import { QuerySchemas, validateQueryParams, Sanitizer } from "~/lib/validation.s
 import { z } from "zod";
 import { apiResponse } from "~/lib/api-response.server";
 import { RegistryCache } from "~/lib/cache.server";
+import { withErrorHandling, ValidationError, DatabaseError } from "~/lib/error-handler.server";
+import { VALIDATION, BUSINESS_RULES } from "~/lib/constants.server";
 import crypto from "crypto";
 
-// Registry creation validation schema
+// Registry creation validation schema using centralized constants
 const CreateRegistrySchema = z.object({
-  title: z.string().min(1).max(200).trim(),
-  description: z.string().max(1000).optional(),
+  title: z.string().min(1).max(VALIDATION.REGISTRY_TITLE_MAX).trim(),
+  description: z.string().max(VALIDATION.REGISTRY_DESCRIPTION_MAX).optional(),
   eventType: z.enum(['wedding', 'birthday', 'baby_shower', 'graduation', 'general']).default('general'),
   eventDate: z.string().datetime().optional(),
   eventLocation: z.string().max(500).optional(),
   visibility: z.enum(['public', 'private']).default('public'),
-  customerEmail: z.string().email(),
-  customerFirstName: z.string().min(1).max(100).trim(),
-  customerLastName: z.string().min(1).max(100).trim(),
-  customerPhone: z.string().max(20).optional(),
+  customerEmail: z.string().email().max(VALIDATION.EMAIL_MAX),
+  customerFirstName: z.string().min(1).max(VALIDATION.NAME_MAX).trim(),
+  customerLastName: z.string().min(1).max(VALIDATION.NAME_MAX).trim(),
+  customerPhone: z.string().max(VALIDATION.PHONE_MAX).optional(),
   customerId: z.string().optional(),
-  accessCode: z.string().max(50).optional()
+  accessCode: z.string().min(VALIDATION.ACCESS_CODE_MIN).max(VALIDATION.ACCESS_CODE_MAX).optional()
 });
 
 /**
  * GET /api/registries - List all registries for a shop
  * Implements Redis caching for performance
  */
-export async function loader({ request }: LoaderFunctionArgs) {
-  try {
-    // Rate limiting
-    const rateLimitResult = await rateLimiter.check(request);
-    if (rateLimitResult && !rateLimitResult.allowed) {
-      return apiResponse.rateLimitExceeded(60);
-    }
+export const loader = withErrorHandling(async ({ request }: LoaderFunctionArgs) => {
+  // Rate limiting
+  const rateLimitResult = await rateLimiter.check(request);
+  if (rateLimitResult && !rateLimitResult.allowed) {
+    return apiResponse.rateLimitExceeded(60);
+  }
     
     // Validate query parameters
     const url = new URL(request.url);
@@ -123,12 +124,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
         totalPages: Math.ceil(totalCount / (queryData?.limit || 20))
       }
     });
-  } catch (error) {
-    log.error("Failed to fetch registries", error);
-    
-    return apiResponse.serverError(error);
-  }
-}
+});
 
 /**
  * POST /api/registries - Create a new registry
