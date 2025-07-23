@@ -6,8 +6,7 @@ cmds = ['npm ci --include=dev']
 
 [phases.build]
 cmds = [
-  'npx prisma generate --no-hints',
-  'npm run build',
+  'npm run railway-build',
   'ls -la build/ || echo "Build directory check"'
 ]
 
@@ -16,4 +15,3 @@ cmd = 'npm run start'
 
 [variables]
 NODE_ENV = 'production'
-PRISMA_QUERY_ENGINE_BINARY = '/app/node_modules/.prisma/client/query-engine-debian-openssl-3.0.x'

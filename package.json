@@ -6,7 +6,7 @@
     "build": "npx prisma generate --no-hints && remix build",
     "railway-build": "npm ci && npx prisma generate --no-hints && npm run build",
     "dev": "shopify app dev --use-localhost",
-    "start": "node server.js",
+    "start": "node railway-start.js",
     "start:production": "node server.js",
     "test": "vitest run",
     "test:watch": "vitest",
