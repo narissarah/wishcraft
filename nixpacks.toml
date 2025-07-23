@@ -1,14 +1,19 @@
 [phases.setup]
-nixpkgs = ['nodejs-20_x', 'npm-10_x']
+nixpkgs = ['nodejs-20_x', 'npm-10_x', 'openssl']
 
-[phases.install]
+[phases.install]  
 cmds = ['npm ci --include=dev']
 
 [phases.build]
-cmds = ['npm run railway-build']
+cmds = [
+  'npx prisma generate --no-hints',
+  'npm run build',
+  'ls -la build/ || echo "Build directory check"'
+]
 
 [start]
 cmd = 'npm run start'
 
 [variables]
 NODE_ENV = 'production'
+PRISMA_QUERY_ENGINE_BINARY = '/app/node_modules/.prisma/client/query-engine-debian-openssl-3.0.x'
