@@ -1,8 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { log } from "~/lib/logger.server";
 import { apiResponse } from "~/lib/api-response.server";
-import { validateRequest } from "~/lib/validation.server";
-import { rateLimiter } from "~/lib/security.server";
+import { checkRateLimit, RATE_LIMITS } from "~/lib/rate-limit.server";
 import { z } from "zod";
 
 const ErrorReportSchema = z.object({
@@ -20,22 +19,22 @@ const ErrorReportSchema = z.object({
 export async function action({ request }: ActionFunctionArgs) {
   try {
     // Rate limiting for error reports
-    const rateLimitResult = await rateLimiter.check(request);
-    if (rateLimitResult && !rateLimitResult.allowed) {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimitResult = checkRateLimit(ip, RATE_LIMITS.api.limit, RATE_LIMITS.api.window);
+    if (!rateLimitResult.allowed) {
       return apiResponse.rateLimitExceeded(60);
     }
 
     const data = await request.json();
-    const validation = validateRequest(ErrorReportSchema, data);
     
-    if (!validation.success) {
-      return apiResponse.validationError(validation.errors || {});
-    }
-    
-    const errorReport = validation.data;
-    
-    if (!errorReport) {
-      return apiResponse.validationError({ error: ["Invalid error report data"] });
+    let errorReport;
+    try {
+      errorReport = ErrorReportSchema.parse(data);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return apiResponse.validationError({ error: ["Invalid error report data"] });
+      }
+      throw error;
     }
     
     // Log the error report

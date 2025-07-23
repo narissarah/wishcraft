@@ -1,319 +1,242 @@
 /**
- * Collaboration management for WishCraft
- * Handles registry collaborators and permissions
+ * Simplified collaboration management for WishCraft
+ * Direct functions without unnecessary class wrapper
  */
 
 import { db } from "~/lib/db.server";
-import { log } from "~/lib/logger.server";
-import { generateRandomString, encryptCollaboratorPII, decryptCollaboratorPII } from "~/lib/crypto.server";
+import { encryptPII, decryptPII, verifyInvitationToken } from "~/lib/crypto.server";
 import bcrypt from 'bcrypt';
 import crypto from "crypto";
 
-function logEmailSend(params: any) {
-  log.info('Email would be sent', params);
-  return Promise.resolve(true);
+/**
+ * Add a collaborator to a registry
+ */
+export async function addCollaborator(params: {
+  registryId: string;
+  email: string;
+  role: 'viewer' | 'editor';
+  addedBy: string;
+}) {
+  const { registryId, email, role } = params;
+  
+  // Check for existing collaborator
+  const existingCollaborators = await db.registry_collaborators.findMany({
+    where: { registryId }
+  });
+  
+  const existing = existingCollaborators.find(collab => {
+    try {
+      const decryptedEmail = decryptPII(collab.email);
+      return decryptedEmail.toLowerCase() === email.toLowerCase();
+    } catch {
+      return false;
+    }
+  });
+  
+  if (existing) {
+    // Update role if different
+    if (existing.role !== role) {
+      return await db.registry_collaborators.update({
+        where: { id: existing.id },
+        data: { role }
+      });
+    }
+    return existing;
+  }
+  
+  // Create invitation token
+  const invitationToken = crypto.randomBytes(32).toString('hex');
+  const invitationTokenHash = await bcrypt.hash(invitationToken, 10);
+  
+  // Create new collaborator
+  const collaborator = await db.registry_collaborators.create({
+    data: {
+      id: crypto.randomUUID(),
+      registryId,
+      email: encryptPII(email.toLowerCase()),
+      role,
+      status: 'pending',
+      inviteToken: invitationTokenHash,
+      invitedAt: new Date(),
+      updatedAt: new Date()
+    }
+  });
+  
+  // In production, send email here
+  console.log('Invitation email would be sent', { email, invitationToken });
+  
+  return collaborator;
 }
 
-export class CollaborativeRegistryManager {
-  /**
-   * Add a collaborator to a registry
-   */
-  static async addCollaborator(params: {
-    registryId: string;
-    email: string;
-    role: 'viewer' | 'editor';
-    addedBy: string;
-  }) {
-    const { registryId, email, role, addedBy } = params;
+/**
+ * Remove a collaborator from a registry
+ */
+export async function removeCollaborator(collaboratorId: string, removedBy: string) {
+  const collaborator = await db.registry_collaborators.findUnique({
+    where: { id: collaboratorId }
+  });
+  
+  if (!collaborator) {
+    throw new Error('Collaborator not found');
+  }
+  
+  await db.registry_collaborators.delete({
+    where: { id: collaboratorId }
+  });
+  
+  return { success: true };
+}
+
+/**
+ * Accept collaboration invitation
+ */
+export async function acceptInvitation(params: {
+  collaboratorId: string;
+  token: string;
+  name?: string;
+}) {
+  const { collaboratorId, token, name } = params;
+  
+  const collaborator = await db.registry_collaborators.findUnique({
+    where: { id: collaboratorId }
+  });
+  
+  if (!collaborator || !collaborator.inviteToken) {
+    throw new Error('Invalid invitation');
+  }
+  
+  // Verify token
+  const isValidToken = await bcrypt.compare(token, collaborator.inviteToken);
+  if (!isValidToken) {
+    throw new Error('Invalid invitation token');
+  }
+  
+  // Update collaborator status
+  return await db.registry_collaborators.update({
+    where: { id: collaboratorId },
+    data: {
+      status: 'active',
+      name: name ? encryptPII(name) : null,
+      acceptedAt: new Date(),
+      inviteToken: null // Clear token after use
+    }
+  });
+}
+
+/**
+ * Decline collaboration invitation
+ */
+export async function declineInvitation(collaboratorId: string, token: string) {
+  const collaborator = await db.registry_collaborators.findUnique({
+    where: { id: collaboratorId }
+  });
+  
+  if (!collaborator || !collaborator.inviteToken) {
+    throw new Error('Invalid invitation');
+  }
+  
+  // Verify token
+  const isValidToken = await bcrypt.compare(token, collaborator.inviteToken);
+  if (!isValidToken) {
+    throw new Error('Invalid invitation token');
+  }
+  
+  // Delete the invitation
+  await db.registry_collaborators.delete({
+    where: { id: collaboratorId }
+  });
+  
+  return { success: true };
+}
+
+/**
+ * Get collaborators for a registry
+ */
+export async function getCollaborators(registryId: string) {
+  const collaborators = await db.registry_collaborators.findMany({
+    where: { registryId },
+    orderBy: { createdAt: 'desc' }
+  });
+  
+  // Decrypt PII for display
+  return collaborators.map(collab => ({
+    ...collab,
+    email: decryptPII(collab.email),
+    name: collab.name ? decryptPII(collab.name) : null
+  }));
+}
+
+/**
+ * Check if user has permission
+ */
+export async function checkPermission(params: {
+  registryId: string;
+  userId?: string;
+  email?: string;
+  requiredRole?: 'viewer' | 'editor' | 'owner';
+}) {
+  const { registryId, userId, email, requiredRole = 'viewer' } = params;
+  
+  // Check if owner
+  if (userId) {
+    const registry = await db.registries.findFirst({
+      where: { id: registryId, shopId: userId }
+    });
+    if (registry) return true;
+  }
+  
+  // Check collaborator
+  if (email) {
+    const collaborators = await getCollaborators(registryId);
+    const collaborator = collaborators.find(c => 
+      c.email.toLowerCase() === email.toLowerCase() && c.status === 'active'
+    );
     
-    try {
-      // SECURITY NOTE: Since emails are encrypted, we need to query all collaborators 
-      // for this registry and decrypt to check for duplicates
-      const existingCollaborators = await db.registry_collaborators.findMany({
-        where: { registryId }
-      });
-      
-      const existing = existingCollaborators.find(collab => {
-        try {
-          const decryptedData = decryptCollaboratorPII({ email: collab.email, name: collab.name || undefined });
-          return decryptedData.email.toLowerCase() === email.toLowerCase();
-        } catch {
-          return false; // Skip corrupted data
-        }
-      });
-      
-      if (existing) {
-        // Update role if different
-        if (existing.role !== role) {
-          return await db.registry_collaborators.update({
-            where: { id: existing.id },
-            data: { role }
-          });
-        }
-        return existing;
-      }
-      
-      // Create invitation token
-      const invitationToken = generateRandomString(32);
-      const invitationTokenHash = await bcrypt.hash(invitationToken, 10);
-      
-      // CRITICAL: Encrypt PII before storing
-      const encryptedCollaboratorData = encryptCollaboratorPII({
-        email: email.toLowerCase(),
-        name: undefined // Will be set when collaborator accepts
-      });
-
-      // Create new collaborator
-      const collaborator = await db.registry_collaborators.create({
-        data: {
-          id: crypto.randomUUID(),
-          registryId,
-          email: encryptedCollaboratorData.email,
-          role,
-          status: 'pending',
-          inviteToken: invitationTokenHash,
-          invitedAt: new Date(),
-          updatedAt: new Date()
-        }
-      });
-      
-      // Send invitation email
-      await logEmailSend({
-        to: email,
-        subject: 'You have been invited to collaborate on a registry',
-        template: 'collaboration-invite',
-        data: { invitationToken, role }
-      });
-      
-      log.info(`Collaborator invited`, {
-        registryId,
-        email,
-        role,
-        collaboratorId: collaborator.id
-      });
-      
-      return collaborator;
-    } catch (error) {
-      log.error('Failed to add collaborator', error as Error);
-      throw error;
-    }
+    if (!collaborator) return false;
+    
+    // Check role hierarchy
+    if (requiredRole === 'owner') return false;
+    if (requiredRole === 'editor' && collaborator.role === 'viewer') return false;
+    
+    return true;
   }
   
-  /**
-   * Remove a collaborator from a registry
-   */
-  static async removeCollaborator(registryId: string, collaboratorId: string) {
-    try {
-      await db.registry_collaborators.delete({
-        where: {
-          id: collaboratorId,
-          registryId
-        }
-      });
-      
-      log.info(`Collaborator removed`, {
-        registryId,
-        collaboratorId
-      });
-    } catch (error) {
-      log.error('Failed to remove collaborator', error as Error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Accept a collaboration invitation
-   */
-  static async acceptInvitation(collaboratorId: string, customerId?: string) {
-    try {
-      const collaborator = await db.registry_collaborators.update({
-        where: { id: collaboratorId },
-        data: {
-          status: 'active',
-          acceptedAt: new Date()
-          // customerId - this field doesn't exist in the registry_collaborators model
-        }
-      });
-      
-      log.info(`Collaboration invitation accepted`, {
-        collaboratorId,
-        registryId: collaborator.registryId
-      });
-      
-      return collaborator;
-    } catch (error) {
-      log.error('Failed to accept invitation', error as Error);
-      throw error;
-    }
-  }
-  
-  /**
-   * Check if a user has access to a registry
-   */
-  static async checkAccess(registryId: string, userId: string, requiredRole?: 'viewer' | 'editor') {
-    try {
-      // Check if user is the owner
-      const registry = await db.registries.findUnique({
-        where: { id: registryId },
-        select: { customerId: true }
-      });
-      
-      if (registry?.customerId === userId) {
-        return { hasAccess: true, role: 'owner' as const };
-      }
-      
-      // Check if user is a collaborator
-      const collaborator = await db.registry_collaborators.findFirst({
-        where: {
-          registryId,
-          email: userId, // Email-based lookup only since customerId doesn't exist in the model
-          status: 'active'
-        }
-      });
-      
-      if (!collaborator) {
-        return { hasAccess: false, role: null };
-      }
-      
-      // Check role requirement
-      if (requiredRole === 'editor' && collaborator.role === 'viewer') {
-        return { hasAccess: false, role: collaborator.role };
-      }
-      
-      return { hasAccess: true, role: collaborator.role };
-    } catch (error) {
-      log.error('Failed to check access', error as Error);
-      return { hasAccess: false, role: null };
-    }
-  }
-  
-  /**
-   * Get all collaborators for a registry
-   */
-  static async getCollaborators(registryId: string) {
-    try {
-      return await db.registry_collaborators.findMany({
-        where: { registryId },
-        orderBy: { createdAt: 'desc' }
-      });
-    } catch (error) {
-      log.error('Failed to get collaborators', error as Error);
-      throw error;
-    }
-  }
-
-  /**
-   * Track registry activity (placeholder implementation)
-   */
-  static async trackActivity(params: {
-    registryId: string;
-    action: string;
-    actorEmail?: string;
-    actorName?: string;
-    metadata?: any;
-  }) {
-    try {
-      await db.registry_activities.create({
-        data: {
-          id: crypto.randomUUID(),
-          registryId: params.registryId,
-          type: params.action,
-          actorEmail: params.actorEmail,
-          actorName: params.actorName,
-          metadata: params.metadata ? JSON.stringify(params.metadata) : null
-        }
-      });
-    } catch (error) {
-      log.error('Failed to track activity', error as Error);
-      throw error;
-    }
-  }
-
-  /**
-   * Check permission (placeholder implementation)
-   */
-  static async checkPermission(registryId: string, userId: string, permission: string) {
-    const access = await this.checkAccess(registryId, userId);
-    return access.hasAccess;
-  }
-
-  /**
-   * Invite collaborator (alias for addCollaborator)
-   */
-  static async inviteCollaborator(params: {
-    registryId: string;
-    email: string;
-    role: 'viewer' | 'editor';
-    addedBy: string;
-  }) {
-    return this.addCollaborator(params);
-  }
-
-  /**
-   * Get activity feed (placeholder implementation)
-   */
-  static async getActivityFeed(registryId: string, limit = 20) {
-    try {
-      return await db.registry_activities.findMany({
-        where: { registryId },
-        orderBy: { createdAt: 'desc' },
-        take: limit
-      });
-    } catch (error) {
-      log.error('Failed to get activity feed', error as Error);
-      throw error;
-    }
-  }
+  return false;
 }
 
-// Email service is now imported from notifications.server
+/**
+ * Get invitation by token (moved from route file)
+ */
+export async function getInvitationByToken(token: string) {
+  try {
+    const tokenData = verifyInvitationToken(token);
+    if (!tokenData.valid) return null;
 
-// Export enums and types for compatibility
-export enum CollaboratorRole {
-  VIEWER = 'viewer',
-  EDITOR = 'editor',
-  OWNER = 'owner'
-}
+    const collaborator = await db.registry_collaborators.findUnique({
+      where: { id: tokenData.collaboratorId },
+      include: {
+        registries: {
+          include: {
+            shops: {
+              select: { domain: true, name: true }
+            }
+          }
+        }
+      }
+    });
 
-export enum CollaboratorPermission {
-  VIEW = 'view',
-  EDIT = 'edit',
-  DELETE = 'delete',
-  MANAGE_COLLABORATORS = 'manage_collaborators',
-  ADMIN = 'admin'
-}
+    if (!collaborator) return null;
 
-export const CollaborationUtils = {
-  canEdit: (role: string): role is 'editor' | 'owner' => role === 'editor' || role === 'owner',
-  canManageCollaborators: (role: string): role is 'owner' => role === 'owner',
-  getPermissions: (role: string): CollaboratorPermission[] => {
-    switch (role) {
-      case 'owner':
-        return [CollaboratorPermission.VIEW, CollaboratorPermission.EDIT, CollaboratorPermission.DELETE, CollaboratorPermission.MANAGE_COLLABORATORS, CollaboratorPermission.ADMIN];
-      case 'editor':
-        return [CollaboratorPermission.VIEW, CollaboratorPermission.EDIT];
-      case 'viewer':
-        return [CollaboratorPermission.VIEW];
-      default:
-        return [];
-    }
-  },
-  getRoleDisplayName: (role: string): string => {
-    switch (role) {
-      case 'owner': return 'Owner';
-      case 'editor': return 'Editor';
-      case 'viewer': return 'Viewer';
-      default: return 'Unknown';
-    }
-  },
-  getPermissionDisplayName: (permission: CollaboratorPermission): string => {
-    switch (permission) {
-      case CollaboratorPermission.VIEW: return 'View';
-      case CollaboratorPermission.EDIT: return 'Edit';
-      case CollaboratorPermission.DELETE: return 'Delete';
-      case CollaboratorPermission.MANAGE_COLLABORATORS: return 'Manage Collaborators';
-      case CollaboratorPermission.ADMIN: return 'Admin';
-      default: return 'Unknown';
-    }
+    return {
+      id: collaborator.id,
+      email: decryptPII(collaborator.email),
+      role: collaborator.role,
+      status: collaborator.status,
+      invitedAt: collaborator.invitedAt,
+      registries: collaborator.registries
+    };
+  } catch (error) {
+    console.error("Failed to get invitation by token:", error);
+    return null;
   }
-};
+}

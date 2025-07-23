@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
-import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/security.server";
+import { checkRateLimit, RATE_LIMITS } from "~/lib/rate-limit.server";
 import { apiResponse } from "~/lib/api-response.server";
 import crypto from "crypto";
 
@@ -12,9 +12,10 @@ import crypto from "crypto";
  */
 export async function action({ request }: ActionFunctionArgs) {
   // Apply rate limiting to prevent abuse
-  const rateLimitResponse = await rateLimitMiddleware(RATE_LIMITS.api)(request);
-  if (rateLimitResponse) {
-    return rateLimitResponse;
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const rateLimit = checkRateLimit(ip, RATE_LIMITS.api.limit, RATE_LIMITS.api.window);
+  if (!rateLimit.allowed) {
+    return apiResponse.rateLimitExceeded();
   }
 
   try {

@@ -2,7 +2,7 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { processWebhook } from "~/lib/webhook.server";
 
 export async function action({ request }: ActionFunctionArgs) {
-  return processWebhook(request);
+  return processWebhook(request, "generic");
 }
 
 // Webhooks should only accept POST requests

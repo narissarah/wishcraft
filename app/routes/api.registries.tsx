@@ -1,217 +1,123 @@
+/**
+ * Simplified Registries API
+ * Direct operations without excessive abstraction
+ */
+
 import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
-import { authenticate } from "~/shopify.server";
-import { db } from "~/lib/db.server";
-import { log } from "~/lib/logger.server";
-import { rateLimiter } from "~/lib/security.server";
-import { QuerySchemas, validateQueryParams, Sanitizer } from "~/lib/validation.server";
-import { z } from "zod";
-import { apiResponse } from "~/lib/api-response.server";
-import { RegistryCache } from "~/lib/cache.server";
-import { withErrorHandling, ValidationError, DatabaseError } from "~/lib/error-handler.server";
-import { VALIDATION, BUSINESS_RULES } from "~/lib/constants.server";
-import crypto from "crypto";
+import { json } from "@remix-run/node";
+import { requireAdmin } from "~/lib/auth.server";
+import { createRegistry, listRegistries, updateRegistry, deleteRegistry } from "~/lib/registry.server";
+import { sanitizeString } from "~/lib/validation.server";
 
-// Registry creation validation schema using centralized constants
-const CreateRegistrySchema = z.object({
-  title: z.string().min(1).max(VALIDATION.REGISTRY_TITLE_MAX).trim(),
-  description: z.string().max(VALIDATION.REGISTRY_DESCRIPTION_MAX).optional(),
-  eventType: z.enum(['wedding', 'birthday', 'baby_shower', 'graduation', 'general']).default('general'),
-  eventDate: z.string().datetime().optional(),
-  eventLocation: z.string().max(500).optional(),
-  visibility: z.enum(['public', 'private']).default('public'),
-  customerEmail: z.string().email().max(VALIDATION.EMAIL_MAX),
-  customerFirstName: z.string().min(1).max(VALIDATION.NAME_MAX).trim(),
-  customerLastName: z.string().min(1).max(VALIDATION.NAME_MAX).trim(),
-  customerPhone: z.string().max(VALIDATION.PHONE_MAX).optional(),
-  customerId: z.string().optional(),
-  accessCode: z.string().min(VALIDATION.ACCESS_CODE_MIN).max(VALIDATION.ACCESS_CODE_MAX).optional()
-});
-
-/**
- * GET /api/registries - List all registries for a shop
- * Implements Redis caching for performance
- */
-export const loader = withErrorHandling(async ({ request }: LoaderFunctionArgs) => {
-  // Rate limiting
-  const rateLimitResult = await rateLimiter.check(request);
-  if (rateLimitResult && !rateLimitResult.allowed) {
-    return apiResponse.rateLimitExceeded(60);
-  }
-    
-    // Validate query parameters
-    const url = new URL(request.url);
-    const queryData = validateQueryParams(
-      url.searchParams,
-      QuerySchemas.registryFilters.merge(QuerySchemas.pagination)
-    );
-    
-    
-    // Authenticate
-    const { admin, session } = await authenticate.admin(request);
-    const shop = session.shop;
-    
-    // Try to get from cache first
-    const cacheKey = { ...queryData };
-    const cachedData = await RegistryCache.getList(shop, cacheKey);
-    if (cachedData) {
-      log.debug('Registry list cache hit', { shop });
-      return apiResponse.success(cachedData);
-    }
-    
-    // Build where clause with validated filters
-    const whereClause: any = { shopId: shop };
-    if (queryData?.status) whereClause.status = queryData.status;
-    if (queryData?.eventType) whereClause.eventType = queryData.eventType;
-    if (queryData?.visibility) whereClause.visibility = queryData.visibility;
-    if (queryData?.customerId) whereClause.customerId = queryData.customerId;
-    if (queryData?.search) {
-      whereClause.title = {
-        contains: queryData.search || '',
-        mode: 'insensitive'
-      };
-    }
-    
-    // Optimized query for <500ms performance requirement
-    const [registries, totalCount] = await Promise.all([
-      db.registries.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          title: true,
-          customerId: true,
-          eventDate: true,
-          status: true,
-          visibility: true,
-          createdAt: true,
-          updatedAt: true,
-          _count: {
-            select: { registry_items: true }
-          }
-        },
-        orderBy: { createdAt: "desc" },
-        skip: ((queryData?.page || 1) - 1) * (queryData?.limit || 20),
-        take: queryData?.limit || 20,
-      }),
-      db.registries.count({ where: whereClause })
-    ]);
-    
-    // Transform data with optimized performance
-    const response = {
-      registries: registries.map(registry => ({
-        id: registry.id,
-        name: registry.title,
-        customerId: registry.customerId,
-        eventDate: registry.eventDate,
-        status: registry.status,
-        privacy: registry.visibility,
-        itemCount: registry._count.registry_items,
-        purchaseCount: 0,
-        createdAt: registry.createdAt,
-        updatedAt: registry.updatedAt,
-      })),
-      total: totalCount,
-    };
-    
-    // Cache the response
-    await RegistryCache.setList(shop, cacheKey, response);
-    log.debug('Registry list cached', { shop });
-    
-    return apiResponse.success(response.registries, {
-      pagination: {
-        page: queryData?.page || 1,
-        pageSize: queryData?.limit || 20,
-        total: totalCount,
-        totalPages: Math.ceil(totalCount / (queryData?.limit || 20))
-      }
-    });
-});
-
-/**
- * POST /api/registries - Create a new registry
- */
-export async function action({ request }: ActionFunctionArgs) {
-  if (request.method !== "POST") {
-    return apiResponse.error(
-      "METHOD_NOT_ALLOWED",
-      "Method not allowed",
-      405
-    );
-  }
+export async function loader({ request }: LoaderFunctionArgs) {
+  const { session } = await requireAdmin(request);
   
-  try {
-    // Rate limiting
-    const rateLimitResult = await rateLimiter.check(request);
-    if (rateLimitResult && !rateLimitResult.allowed) {
-      return apiResponse.rateLimitExceeded(60);
+  const url = new URL(request.url);
+  const search = url.searchParams.get("search") || undefined;
+  const eventType = url.searchParams.get("eventType") || undefined;
+  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
+  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0"), 0);
+
+  const registries = await listRegistries(session.shop, {
+    search,
+    eventType,
+    limit,
+    offset,
+  });
+
+  return json({ registries });
+}
+
+export async function action({ request }: ActionFunctionArgs) {
+  const { session } = await requireAdmin(request);
+  const method = request.method;
+  
+  const formData = await request.formData();
+  
+  switch (method) {
+    case "POST": {
+      // Create registry
+      const title = formData.get("title") as string;
+      const description = formData.get("description") as string;
+      const eventType = formData.get("eventType") as string;
+      const eventDateStr = formData.get("eventDate") as string;
+      const visibility = formData.get("visibility") as "public" | "private";
+      const customerEmail = formData.get("customerEmail") as string;
+      const customerFirstName = formData.get("customerFirstName") as string;
+      const customerLastName = formData.get("customerLastName") as string;
+      const customerPhone = formData.get("customerPhone") as string;
+      const accessCode = formData.get("accessCode") as string;
+
+      // Basic validation
+      if (!title || !customerEmail || !customerFirstName || !customerLastName) {
+        throw new Response("Required fields missing", { status: 400 });
+      }
+
+      const eventDate = eventDateStr ? new Date(eventDateStr) : undefined;
+
+      const registry = await createRegistry(session.shop, {
+        title,
+        description: description || undefined,
+        eventType: eventType || "general",
+        eventDate,
+        visibility: visibility || "public",
+        customerEmail,
+        customerFirstName,
+        customerLastName,
+        customerPhone: customerPhone || undefined,
+        accessCode: accessCode || undefined,
+      });
+
+      return json({ registry });
     }
     
-    // Get request data and validate with comprehensive schema
-    const requestData = await request.json();
-    
-    // Validate input with Zod schema
-    const validationResult = CreateRegistrySchema.safeParse(requestData);
-    if (!validationResult.success) {
-      return apiResponse.validationError(
-        Object.fromEntries(
-          validationResult.error.errors.map(err => [
-            err.path.join('.'), 
-            [err.message]
-          ])
-        )
-      );
+    case "PUT": {
+      // Update registry
+      const id = formData.get("id") as string;
+      
+      if (!id) {
+        throw new Response("Registry ID required", { status: 400 });
+      }
+
+      const updateData: any = { id };
+      
+      const title = formData.get("title") as string;
+      if (title) updateData.title = title;
+      
+      const description = formData.get("description") as string;
+      if (description !== null) updateData.description = description;
+      
+      const eventType = formData.get("eventType") as string;
+      if (eventType) updateData.eventType = eventType;
+      
+      const eventDateStr = formData.get("eventDate") as string;
+      if (eventDateStr) updateData.eventDate = new Date(eventDateStr);
+      
+      const visibility = formData.get("visibility") as string;
+      if (visibility) updateData.visibility = visibility;
+      
+      const accessCode = formData.get("accessCode") as string;
+      if (accessCode !== null) updateData.accessCode = accessCode;
+
+      const registry = await updateRegistry(updateData);
+      
+      return json({ registry });
     }
     
-    const validatedData = validationResult.data;
+    case "DELETE": {
+      // Delete registry
+      const id = formData.get("id") as string;
+      
+      if (!id) {
+        throw new Response("Registry ID required", { status: 400 });
+      }
+
+      const registry = await deleteRegistry(id, session.shop);
+      
+      return json({ registry });
+    }
     
-    // Authenticate
-    const { admin, session } = await authenticate.admin(request);
-    const shop = session.shop;
-    
-    // Sanitize customer data
-    const sanitizedCustomer = {
-      firstName: Sanitizer.string(validatedData.customerFirstName || ''),
-      lastName: Sanitizer.string(validatedData.customerLastName || ''),
-      email: validatedData.customerEmail
-    };
-    
-    // Create registry with validated and sanitized data
-    const registry = await db.registries.create({
-      data: {
-        id: crypto.randomUUID(),
-        shopId: shop,
-        customerId: validatedData.customerId || crypto.randomUUID(),
-        customerEmail: sanitizedCustomer.email,
-        customerFirstName: sanitizedCustomer.firstName,
-        customerLastName: sanitizedCustomer.lastName,
-        title: Sanitizer.string(validatedData.title),
-        description: validatedData.description ? Sanitizer.string(validatedData.description) : null,
-        slug: Sanitizer.slug(validatedData.title),
-        eventType: validatedData.eventType,
-        eventDate: validatedData.eventDate ? new Date(validatedData.eventDate) : null,
-        status: "active",
-        visibility: validatedData.visibility,
-        accessCode: validatedData.accessCode || null,
-        updatedAt: new Date(),
-      },
-    });
-    
-    // Invalidate list cache
-    await RegistryCache.invalidate(shop);
-    
-    // Cache the new registry
-    await RegistryCache.set(shop, registry.id, registry);
-    
-    log.info("Registry created", {
-      shop,
-      registryId: registry.id,
-      customerId: validatedData.customerId,
-      sessionId: session.id
-    });
-    
-    return apiResponse.created({ registry }, "Registry created successfully");
-  } catch (error) {
-    log.error("Failed to create registry", error);
-    
-    return apiResponse.serverError(error);
+    default:
+      throw new Response("Method not allowed", { status: 405 });
   }
 }

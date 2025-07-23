@@ -1,7 +1,7 @@
 import type { EntryContext } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { renderToString } from "react-dom/server";
-import { getSecurityHeaders } from "~/lib/security.server";
+import { getSecurityHeaders } from "~/lib/security-headers.server";
 import { shopify } from "~/shopify.server";
 // Environment validation removed - not exported from validation.server
 
@@ -28,11 +28,8 @@ export default function handleRequest(
   
   // Set security headers with the same nonce from server
   const url = new URL(request.url);
-  const securityHeaders = getSecurityHeaders({
-    nonce: nonce,
-    shop: url.searchParams.get('shop') || undefined,
-    development: process.env.NODE_ENV !== 'production'
-  });
+  const shop = url.searchParams.get('shop');
+  const securityHeaders = getSecurityHeaders(nonce, shop);
   
   Object.entries(securityHeaders).forEach(([key, value]) => {
     if (value) responseHeaders.set(key, value);

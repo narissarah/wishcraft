@@ -1,181 +1,101 @@
 /**
- * Simple in-memory cache for WishCraft
- * Provides caching for frequently accessed data
+ * Ultra-simple in-memory cache for WishCraft
+ * Direct Map implementation without unnecessary abstractions
  */
 
-import { log } from "~/lib/logger.server";
-
-interface CacheEntry<T> {
-  data: T;
+interface CacheEntry {
+  data: any;
   expiry: number;
 }
 
-class SimpleCache<T> {
-  public cache = new Map<string, CacheEntry<T>>();
-  private name: string;
-  private defaultTTL: number;
+// Simple cache map
+const cacheStore = new Map<string, CacheEntry>();
+
+// Cleanup expired entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of cacheStore.entries()) {
+    if (now > entry.expiry) {
+      cacheStore.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+/**
+ * Get cached value
+ */
+export function get(key: string): any {
+  const entry = cacheStore.get(key);
+  if (!entry) return null;
   
-  get size(): number {
-    return this.cache.size;
+  if (Date.now() > entry.expiry) {
+    cacheStore.delete(key);
+    return null;
   }
+  
+  return entry.data;
+}
 
-  constructor(name: string, defaultTTL = 5 * 60 * 1000) { // 5 minutes default
-    this.name = name;
-    this.defaultTTL = defaultTTL;
-  }
-
-  get(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-    
-    if (Date.now() > entry.expiry) {
-      this.cache.delete(key);
-      return null;
-    }
-    
-    return entry.data;
-  }
-
-  set(key: string, data: T, ttl?: number): void {
-    const expiry = Date.now() + (ttl || this.defaultTTL);
-    this.cache.set(key, { data, expiry });
-    
-    // Prevent memory leak
-    if (this.cache.size > 1000) {
-      const entries = Array.from(this.cache.entries());
-      const toRemove = entries
-        .sort((a, b) => a[1].expiry - b[1].expiry)
-        .slice(0, 500);
-      
-      toRemove.forEach(([key]) => this.cache.delete(key));
-      log.warn(`Cache ${this.name} size limit reached, removed ${toRemove.length} entries`);
-    }
-  }
-
-  delete(key: string): void {
-    this.cache.delete(key);
-  }
-
-  clear(): void {
-    this.cache.clear();
-  }
-
-  // Clean up expired entries
-  cleanup(): void {
-    const now = Date.now();
-    let cleaned = 0;
-    
-    for (const [key, entry] of this.cache.entries()) {
-      if (now > entry.expiry) {
-        this.cache.delete(key);
-        cleaned++;
-      }
-    }
-    
-    if (cleaned > 0) {
-      log.debug(`Cleaned ${cleaned} expired entries from cache ${this.name}`);
-    }
+/**
+ * Set cached value
+ */
+export function set(key: string, data: any, ttl: number = 5 * 60 * 1000): void {
+  const expiry = Date.now() + ttl;
+  cacheStore.set(key, { data, expiry });
+  
+  // Prevent memory leak - keep max 1000 entries
+  if (cacheStore.size > 1000) {
+    const entries = Array.from(cacheStore.entries());
+    entries
+      .sort((a, b) => a[1].expiry - b[1].expiry)
+      .slice(0, 500)
+      .forEach(([key]) => cacheStore.delete(key));
   }
 }
 
-// Registry-specific cache
+/**
+ * Delete cached value
+ */
+export function del(key: string): void {
+  cacheStore.delete(key);
+}
+
+/**
+ * Clear all cache
+ */
+export function clear(): void {
+  cacheStore.clear();
+}
+
+// Export as cache object for compatibility
+export const cache = { get, set, delete: del };
+
+// Registry-specific helpers
 export const RegistryCache = {
-  registries: new SimpleCache<any>('registries', 5 * 60 * 1000), // 5 minutes
-  registryItems: new SimpleCache<any>('registry-items', 10 * 60 * 1000), // 10 minutes
-  products: new SimpleCache<any>('products', 30 * 60 * 1000), // 30 minutes
-  
-  // Utility methods
-  generateKey(parts: string[]): string {
-    return parts.join(':');
+  registries: {
+    get: (key: string) => get(`registry:${key}`),
+    set: (key: string, data: any, ttl?: number) => set(`registry:${key}`, data, ttl),
+    delete: (key: string) => del(`registry:${key}`),
+    size: 0 // Dummy for compatibility
   },
   
   getList(shopId: string, queryParams: any): any {
     const cacheKey = `registries:${shopId}:${JSON.stringify(queryParams)}`;
-    return this.registries.get(cacheKey);
+    return get(cacheKey);
   },
   
   setList(shopId: string, queryParams: any, data: any, ttl?: number): void {
     const cacheKey = `registries:${shopId}:${JSON.stringify(queryParams)}`;
-    this.registries.set(cacheKey, data, ttl);
-  },
-  
-  invalidateRegistry(registryId: string): void {
-    // Clear all cache entries related to this registry
-    const registryKey = `registry:${registryId}`;
-    this.registries.delete(registryKey);
-    
-    // Also clear related items
-    const itemsKey = `items:${registryId}`;
-    this.registryItems.delete(itemsKey);
-  },
-  
-  set(shopId: string, registryId: string, data: any, ttl?: number): void {
-    const cacheKey = `registry:${shopId}:${registryId}`;
-    this.registries.set(cacheKey, data, ttl);
-  },
-  
-  get(shopId: string, registryId: string): any {
-    const cacheKey = `registry:${shopId}:${registryId}`;
-    return this.registries.get(cacheKey);
+    set(cacheKey, data, ttl);
   },
   
   invalidate(shopId: string): void {
-    // Clear all registries cache for this shop
-    const keys = Array.from(this.registries.cache.keys());
+    // Clear all cache entries for this shop
+    const keys = Array.from(cacheStore.keys());
     keys.forEach(key => {
       if (key.includes(shopId)) {
-        this.registries.delete(key);
+        cacheStore.delete(key);
       }
     });
   }
 };
-
-// Main cache export for compatibility
-export const cache = {
-  // Cache operations
-  get(key: string) {
-    return RegistryCache.registries.get(key);
-  },
-  
-  set(key: string, data: any, ttl?: number) {
-    return RegistryCache.registries.set(key, data, ttl);
-  },
-  
-  delete(key: string) {
-    return RegistryCache.registries.delete(key);
-  },
-  
-  async getStats() {
-    const registrySize = RegistryCache.registries.size;
-    const itemsSize = RegistryCache.registryItems.size;
-    const productsSize = RegistryCache.products.size;
-    
-    return {
-      hitRate: 0.75, // Placeholder - implement actual tracking
-      size: registrySize + itemsSize + productsSize,
-      memoryUsage: (registrySize + itemsSize + productsSize) * 1024 // Rough estimate
-    };
-  },
-  
-  async isHealthy() {
-    try {
-      // Simple health check
-      const testKey = 'health-check';
-      RegistryCache.registries.set(testKey, { test: true }, 1000);
-      const result = RegistryCache.registries.get(testKey);
-      RegistryCache.registries.delete(testKey);
-      return result !== null;
-    } catch {
-      return false;
-    }
-  }
-};
-
-// Cleanup timer
-if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
-    RegistryCache.registries.cleanup();
-    RegistryCache.registryItems.cleanup();
-    RegistryCache.products.cleanup();
-  }, 5 * 60 * 1000); // Every 5 minutes
-}

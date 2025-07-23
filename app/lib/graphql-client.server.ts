@@ -9,8 +9,7 @@ import type { AdminApiContext } from "@shopify/shopify-app-remix/server";
 import { cache } from './cache.server';
 import { log } from "./logger.server";
 import { retryShopifyOperation } from "./retry.server";
-import { API_CONFIG, SHOPIFY } from "./constants.server";
-import { ExternalServiceError } from "./error-handler.server";
+import { Errors } from "./errors.server";
 
 export interface GraphQLResponse<T = any> {
   data?: T;
@@ -85,11 +84,11 @@ export async function graphqlQuery<T = any>(
       );
       
       if (shouldRetry) {
-        throw new ExternalServiceError(`Shopify API throttled: ${data.errors?.[0]?.message}`);
+        throw Errors.unavailable(`Shopify API throttled: ${data.errors?.[0]?.message}`);
       }
       
       return data;
-    }, `GraphQL query: ${options.operationName || 'unnamed'}`);
+    });
 
         const duration = Date.now() - startTime;
 
@@ -103,7 +102,7 @@ export async function graphqlQuery<T = any>(
 
         // Cache successful responses
         if (options.cacheKey && !responseData.errors) {
-          const ttl = options.cacheTtl || API_CONFIG.CACHE_TTL;
+          const ttl = options.cacheTtl || 300; // 5 minutes default
           await cache.set(options.cacheKey, responseData, ttl);
         }
 

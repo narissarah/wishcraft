@@ -1,51 +1,45 @@
+/**
+ * Simplified Root Component for WishCraft
+ * Extracted Polaris i18n config to separate file
+ */
+
 import type { LinksFunction, LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
-// Main CSS import for styling
 import "~/styles/index.css";
-import { generateNonce } from "~/lib/security.server";
-import { rateLimitMiddleware, RATE_LIMITS } from "~/lib/security.server";
+import { generateNonce } from "~/lib/csp.server";
+import { checkRateLimit, RATE_LIMITS } from "~/lib/rate-limit.server";
 import { useEffect } from "react";
-// ResourceHints and CriticalCSS removed - were always empty
 import { ThemeProvider } from "~/components/ThemeProvider";
-import { lazy, Suspense } from "react";
 import { ErrorBoundary as ApplicationErrorBoundary } from "~/components/ErrorBoundary";
+import { polarisI18n } from "~/lib/polaris-config";
 
-// PerformanceMonitor component removed as part of cleanup
-
-export const links: LinksFunction = () => {
-  return [
-    // Preconnect to critical domains
-    { rel: "preconnect", href: "https://cdn.shopify.com" },
-    { rel: "preconnect", href: "https://fonts.googleapis.com" },
-    { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-    // DNS prefetch for analytics
-    { rel: "dns-prefetch", href: "https://www.google-analytics.com" },
-    { rel: "dns-prefetch", href: "https://analytics.google.com" },
-  ];
-};
+export const links: LinksFunction = () => [
+  { rel: "preconnect", href: "https://cdn.shopify.com" },
+  { rel: "preconnect", href: "https://fonts.googleapis.com" },
+  { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+  { rel: "dns-prefetch", href: "https://www.google-analytics.com" },
+  { rel: "dns-prefetch", href: "https://analytics.google.com" },
+];
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const pathname = url.pathname;
   
   // Skip rate limiting for auth routes
-  const isAuthRoute = pathname.startsWith('/auth/');
-  
-  if (!isAuthRoute) {
-    // Apply rate limiting only to non-auth routes
-    const rateLimitResponse = await rateLimitMiddleware(RATE_LIMITS.public)(request);
-    if (rateLimitResponse && rateLimitResponse.status === 429) {
-      throw rateLimitResponse;
+  if (!pathname.startsWith('/auth/')) {
+    const ip = request.headers.get("x-forwarded-for") || "unknown";
+    const rateLimit = checkRateLimit(ip, RATE_LIMITS.api.limit, RATE_LIMITS.api.window);
+    
+    if (!rateLimit.allowed) {
+      throw new Response("Too many requests", { status: 429 });
     }
   }
   
-  // Get nonce from server middleware (same nonce used in CSP headers)
   const nonce = (request as any).nonce || generateNonce();
   
   return json({
-    // resourceHints and criticalCSS removed - were always empty
     pathname,
     nonce,
     ENV: {
@@ -56,24 +50,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 }
 
-// Apply security headers to all responses
 export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders, actionHeaders }) => {
   const headers = new Headers(parentHeaders);
   
-  // Copy loader headers (for rate limiting)
-  loaderHeaders.forEach((value, key) => {
-    headers.set(key, value);
-  });
+  loaderHeaders.forEach((value, key) => headers.set(key, value));
+  actionHeaders?.forEach((value, key) => headers.set(key, value));
   
-  // Copy action headers if present
-  if (actionHeaders) {
-    actionHeaders.forEach((value, key) => {
-      headers.set(key, value);
-    });
-  }
-  
-  // Don't set conflicting CSP headers here - let helmet middleware handle it
-  // Just add basic non-conflicting security headers
+  // Basic security headers
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Permitted-Cross-Domain-Policies", "none");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
@@ -84,10 +67,9 @@ export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders, actionH
 export default function App() {
   const { ENV, nonce } = useLoaderData<typeof loader>();
 
-  // Initialize client-side error handling
+  // Basic client-side error handling
   useEffect(() => {
     if (typeof window !== "undefined") {
-      // Basic error handling without the over-engineered global handler
       window.addEventListener("error", (event) => {
         console.error("Client error:", event.error);
       });
@@ -102,23 +84,16 @@ export default function App() {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width,initial-scale=1" />
-        
-        {/* Security headers via meta tags */}
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        
-        {/* Performance optimizations */}
         <meta name="theme-color" content="#000000" />
         <meta name="color-scheme" content="light dark" />
-        
-        {/* Resource hints and critical CSS removed - were always empty */}
         
         <Meta />
         <Links />
         
-        {/* Preload critical resources */}
         <link rel="preload" href="/build/entry.client.js" as="script" />
         
-        {/* Google Analytics (if configured) with nonce */}
+        {/* Google Analytics */}
         {ENV.GA_MEASUREMENT_ID && (
           <>
             <script
@@ -146,469 +121,41 @@ export default function App() {
       </head>
       <body>
         <ThemeProvider>
-          <AppProvider 
-            i18n={{
-              Polaris: {
-                Avatar: {
-                  label: 'Avatar',
-                  labelWithInitials: 'Avatar with initials {initials}',
-                },
-                ContextualSaveBar: {
-                  save: 'Save',
-                  discard: 'Discard',
-                },
-                TextField: {
-                  characterCount: '{count} characters',
-                },
-                TopBar: {
-                  toggleMenuLabel: 'Toggle menu',
-                  SearchField: {
-                    clearButtonLabel: 'Clear',
-                    search: 'Search',
-                  },
-                },
-                Modal: {
-                  iFrameTitle: 'body markup',
-                  modalWarning: 'These required properties are missing from Modal: {missingProps}',
-                },
-                Frame: {
-                  skipToContent: 'Skip to content',
-                  navigationLabel: 'Navigation',
-                  Navigation: {
-                    closeMobileNavigationLabel: 'Close navigation',
-                  },
-                },
-                ActionList: {
-                  SearchField: {
-                    clearButtonLabel: 'Clear',
-                    search: 'Search',
-                    placeholder: 'Search actions',
-                  },
-                },
-                Button: {
-                  spinnerAccessibilityLabel: 'Loading',
-                  connectedDisclosure: 'Additional actions',
-                },
-                Common: {
-                  checkbox: 'checkbox',
-                  undo: 'Undo',
-                  cancel: 'Cancel',
-                  clear: 'Clear',
-                  close: 'Close',
-                  submit: 'Submit',
-                  more: 'More',
-                },
-                FormLayout: {
-                  FormLayoutGroup: {
-                    helpText: 'Help text',
-                  },
-                },
-                Page: {
-                  Header: {
-                    rollupActionsLabel: 'Actions',
-                    pageReadyAccessibilityLabel: 'Page loaded',
-                  },
-                },
-                Pagination: {
-                  previous: 'Previous',
-                  next: 'Next',
-                  pagination: 'Pagination',
-                },
-                ProgressBar: {
-                  label: 'Progress of {progress}%',
-                },
-                ResourceList: {
-                  sortingLabel: 'Sort by',
-                  defaultItemSingular: 'item',
-                  defaultItemPlural: 'items',
-                  showing: 'Showing {itemsCount} {resource}',
-                  Item: {
-                    actionsDropdownLabel: 'Actions',
-                    actionsDropdown: 'Actions dropdown',
-                    viewItem: 'View details for {itemName}',
-                  },
-                  BulkActions: {
-                    actionsActivatorLabel: 'Actions',
-                    moreActionsActivatorLabel: 'More actions',
-                    tapToSelectAll: 'Tap to select all',
-                    selectAll: 'Select all',
-                    selectAllInStore: 'Select all in store',
-                    deselectAll: 'Deselect all',
-                    selectAllItems: 'Select all {itemsLength} items',
-                    selectAllItemsInStore: 'Select all items in store',
-                    deselectAllItems: 'Deselect all {itemsLength} items',
-                    partiallySelectedWarning: 'Only {selectedItemsCount} of {itemsLength} items are selected',
-                    aria: {
-                      bulkActionsLabel: 'Bulk actions',
-                      bulkActionsInstructionsWithSingleSelection: 'Select items to use bulk actions',
-                      bulkActionsInstructionsWithMultipleSelections: 'Select items to use bulk actions',
-                    },
-                  },
-                },
-                SkeletonPage: {
-                  loadingLabel: 'Page loading',
-                },
-                Spinner: {
-                  warningMessage: 'Missing accessibility label',
-                },
-                Tabs: {
-                  newViewAccessibilityLabel: 'New view',
-                  toggleTabsLabel: 'More tabs',
-                },
-                Toast: {
-                  dismissLabel: 'Dismiss notification',
-                },
-                Tooltip: {
-                  dismissLabel: 'Dismiss tooltip',
-                },
-                DataTable: {
-                  columnVisibilityButtonLabel: 'Customize table',
-                  editColumnVisibilityButtonLabel: 'Edit columns',
-                  sortAccessibilityLabel: 'sort {direction} by {content}',
-                  sortKeyAccessibilityLabel: 'sort {content}',
-                  navAccessibilityLabel: 'Scroll table right',
-                  totalsRowHeading: 'Total',
-                  totalRowHeading: 'Total',
-                },
-                DatePicker: {
-                  previousMonth: 'Previous month',
-                  nextMonth: 'Next month',
-                  today: 'Today',
-                  start: 'Start',
-                  end: 'End',
-                  months: {
-                    January: 'January',
-                    February: 'February',
-                    March: 'March',
-                    April: 'April',
-                    May: 'May',
-                    June: 'June',
-                    July: 'July',
-                    August: 'August',
-                    September: 'September',
-                    October: 'October',
-                    November: 'November',
-                    December: 'December',
-                  },
-                  daysAbbreviated: {
-                    Monday: 'Mon',
-                    Tuesday: 'Tue',
-                    Wednesday: 'Wed',
-                    Thursday: 'Thu',
-                    Friday: 'Fri',
-                    Saturday: 'Sat',
-                    Sunday: 'Sun',
-                  },
-                },
-                DropZone: {
-                  single: {
-                    overlayTextFile: 'Drop file to upload',
-                    overlayTextImage: 'Drop image to upload',
-                    overlayTextVideo: 'Drop video to upload',
-                    actionTitleFile: 'Add file',
-                    actionTitleImage: 'Add image',
-                    actionTitleVideo: 'Add video',
-                    actionHintFile: 'or drop files to upload',
-                    actionHintImage: 'or drop images to upload',
-                    actionHintVideo: 'or drop videos to upload',
-                    labelFile: 'Upload file',
-                    labelImage: 'Upload image',
-                    labelVideo: 'Upload video',
-                  },
-                  allowMultiple: {
-                    overlayTextFile: 'Drop files to upload',
-                    overlayTextImage: 'Drop images to upload',
-                    overlayTextVideo: 'Drop videos to upload',
-                    actionTitleFile: 'Add files',
-                    actionTitleImage: 'Add images',
-                    actionTitleVideo: 'Add videos',
-                    actionHintFile: 'or drop files to upload',
-                    actionHintImage: 'or drop images to upload',
-                    actionHintVideo: 'or drop videos to upload',
-                    labelFile: 'Upload files',
-                    labelImage: 'Upload images',
-                    labelVideo: 'Upload videos',
-                  },
-                  errorOverlayTextFile: 'File type is not valid',
-                  errorOverlayTextImage: 'Image type is not valid',
-                  errorOverlayTextVideo: 'Video type is not valid',
-                },
-                EmptyState: {
-                  heading: 'Manage your inventory transfers',
-                },
-                IndexTable: {
-                  emptySearchTitle: 'No results found',
-                  emptySearchDescription: 'Try changing the filters or search term',
-                  onboardingBadgeText: 'New',
-                  resourceName: {
-                    singular: 'item',
-                    plural: 'items',
-                  },
-                  selectedItemsCount: '{selectedItemsCount} selected',
-                  selectAllItems: 'Select all {itemsLength} items',
-                  selectAllItemsInStore: 'Select all items in store',
-                  selectItem: 'Select item',
-                  deselectAllItems: 'Deselect all {itemsLength} items',
-                  sort: 'Sort',
-                  undo: 'Undo',
-                  selectAllLabel: 'Select all',
-                  actionsLabel: 'Actions',
-                  selected: 'selected',
-                  duplicate: 'Duplicate',
-                  delete: 'Delete',
-                  unpublished: 'Unpublished',
-                  published: 'Published',
-                  draft: 'Draft',
-                  readyToShip: 'Ready to ship',
-                  unfulfilled: 'Unfulfilled',
-                  partiallyFulfilled: 'Partially fulfilled',
-                  fulfilled: 'Fulfilled',
-                  onHold: 'On hold',
-                  approved: 'Approved',
-                  declined: 'Declined',
-                  pending: 'Pending',
-                  markAsPaid: 'Mark as paid',
-                  markAsUnpaid: 'Mark as unpaid',
-                  paidStatus: 'Paid status',
-                  authorized: 'Authorized',
-                  captured: 'Captured',
-                  voided: 'Voided',
-                  refunded: 'Refunded',
-                  partiallyRefunded: 'Partially refunded',
-                  chargeback: 'Chargeback',
-                  disputeWon: 'Dispute won',
-                  disputeLost: 'Dispute lost',
-                  manuallyResolved: 'Manually resolved',
-                  cancelled: 'Cancelled',
-                  active: 'Active',
-                  expired: 'Expired',
-                  scheduled: 'Scheduled',
-                  soldOut: 'Sold out',
-                  partiallyAvailable: 'Partially available',
-                  available: 'Available',
-                  unavailable: 'Unavailable',
-                  processing: 'Processing',
-                  dialed: 'Dialed',
-                  busy: 'Busy',
-                  noAnswer: 'No answer',
-                  failed: 'Failed',
-                  completed: 'Completed',
-                  redacted: 'Redacted',
-                  requiresAction: 'Requires action',
-                  new: 'New',
-                  open: 'Open',
-                  inProgress: 'In progress',
-                  onHoldSecond: 'On hold',
-                  closed: 'Closed',
-                  resolved: 'Resolved',
-                  reopened: 'Reopened',
-                  notStarted: 'Not started',
-                  started: 'Started',
-                  finished: 'Finished',
-                  overdue: 'Overdue',
-                  upcoming: 'Upcoming',
-                  today: 'Today',
-                },
-                Loading: {
-                  label: 'Page loading bar',
-                },
-                Filters: {
-                  moreFilters: 'More filters',
-                  filter: 'Filter',
-                  noFiltersApplied: 'No filters applied',
-                  cancel: 'Cancel',
-                  done: 'Done',
-                  clearAllFilters: 'Clear all filters',
-                  clear: 'Clear',
-                  clearFilter: 'Clear {filterName}',
-                  addFilter: 'Add filter',
-                  clearFilters: 'Clear all',
-                  searchInSection: 'Search in {sectionName}',
-                  chooseDate: 'Choose date',
-                  selectDate: 'Select date',
-                  calendarLabel: 'Calendar',
-                  rangeDateLabel: 'Date range',
-                  DateFilterLabel: 'Date filter',
-                  after: 'After',
-                  before: 'Before',
-                  filterByDate: 'Filter by date',
-                  selectDateRange: 'Select date range',
-                  selectFilterDate: 'Select filter date',
-                  StartDateLabel: 'Start date',
-                  EndDateLabel: 'End date',
-                  monthPickerLabel: 'Month',
-                  yearPickerLabel: 'Year',
-                  cancelButtonLabel: 'Cancel',
-                  applyButtonLabel: 'Apply',
-                  clearButtonLabel: 'Clear',
-                  editButtonLabel: 'Edit',
-                  doneButtonLabel: 'Done',
-                  hideButtonLabel: 'Hide',
-                  showButtonLabel: 'Show',
-                  clearAllButtonLabel: 'Clear all',
-                  textFieldLabel: 'Filter',
-                  chooseFiltersLabel: 'Choose filters',
-                  selectAllLabel: 'Select all',
-                  deselectAllLabel: 'Deselect all',
-                  allFilterLabel: 'All',
-                  anyFilterLabel: 'Any',
-                  noneFilterLabel: 'None',
-                  enabledFilterLabel: 'Enabled',
-                  disabledFilterLabel: 'Disabled',
-                  onFilterLabel: 'On',
-                  offFilterLabel: 'Off',
-                  yesFilterLabel: 'Yes',
-                  noFilterLabel: 'No',
-                  trueFilterLabel: 'True',
-                  falseFilterLabel: 'False',
-                  activeFilterLabel: 'Active',
-                  inactiveFilterLabel: 'Inactive',
-                  archivedFilterLabel: 'Archived',
-                  unarchivedFilterLabel: 'Unarchived',
-                  visibleFilterLabel: 'Visible',
-                  hiddenFilterLabel: 'Hidden',
-                  publishedFilterLabel: 'Published',
-                  unpublishedFilterLabel: 'Unpublished',
-                  availableFilterLabel: 'Available',
-                  unavailableFilterLabel: 'Unavailable',
-                  completedFilterLabel: 'Completed',
-                  pendingFilterLabel: 'Pending',
-                  cancelledFilterLabel: 'Cancelled',
-                  refundedFilterLabel: 'Refunded',
-                  partiallyRefundedFilterLabel: 'Partially refunded',
-                  fulfilledFilterLabel: 'Fulfilled',
-                  partiallyFulfilledFilterLabel: 'Partially fulfilled',
-                  unfulfilledFilterLabel: 'Unfulfilled',
-                  paidFilterLabel: 'Paid',
-                  unpaidFilterLabel: 'Unpaid',
-                  overdue: 'Overdue',
-                  authorizedFilterLabel: 'Authorized',
-                  capturedFilterLabel: 'Captured',
-                  declinedFilterLabel: 'Declined',
-                  expiredFilterLabel: 'Expired',
-                  voidedFilterLabel: 'Voided',
-                  processingFilterLabel: 'Processing',
-                  failedFilterLabel: 'Failed',
-                  successFilterLabel: 'Success',
-                  openFilterLabel: 'Open',
-                  closedFilterLabel: 'Closed',
-                  highFilterLabel: 'High',
-                  mediumFilterLabel: 'Medium',
-                  lowFilterLabel: 'Low',
-                  normalFilterLabel: 'Normal',
-                  urgentFilterLabel: 'Urgent',
-                  newFilterLabel: 'New',
-                  inProgressFilterLabel: 'In progress',
-                  onHoldFilterLabel: 'On hold',
-                  resolvedFilterLabel: 'Resolved',
-                  reopenedFilterLabel: 'Reopened',
-                  unknownFilterLabel: 'Unknown',
-                  draft: 'Draft',
-                  scheduled: 'Scheduled',
-                  inReview: 'In review',
-                  approved: 'Approved',
-                  rejected: 'Rejected',
-                  live: 'Live',
-                  ended: 'Ended',
-                  paused: 'Paused',
-                  notStarted: 'Not started',
-                  started: 'Started',
-                  finished: 'Finished',
-                  today: 'Today',
-                  yesterday: 'Yesterday',
-                  lastWeek: 'Last week',
-                  lastMonth: 'Last month',
-                  lastYear: 'Last year',
-                  comingSoon: 'Coming soon',
-                  filterByKeyword: 'Filter by keyword',
-                  selectOption: 'Select option',
-                  chooseDateSecond: 'Choose date',
-                  selectDateSecond: 'Select date',
-                  selectAll: 'Select all',
-                  deselectAll: 'Deselect all',
-                  searchPlaceholder: 'Search',
-                  searchResults: 'Search results',
-                  noResults: 'No results',
-                  noResultsFor: 'No results for "{searchTerm}"',
-                  showingResults: 'Showing {count} of {total} results',
-                  showingAllResults: 'Showing all {total} results',
-                  loadingResults: 'Loading results...',
-                  errorLoadingResults: 'Error loading results',
-                  tryAgain: 'Try again',
-                  retry: 'Retry',
-                  filterResults: 'Filter results',
-                  clearSearch: 'Clear search',
-                  searchFilterLabel: 'Search filter',
-                  searchFilterPlaceholder: 'Search filters',
-                  clearSearchFilter: 'Clear search filter',
-                  searchFilterResults: 'Search filter results',
-                  noSearchFilterResults: 'No search filter results',
-                  searchFilterResultsFor: 'Search filter results for "{searchTerm}"',
-                  showingSearchFilterResults: 'Showing {count} of {total} search filter results',
-                  showingAllSearchFilterResults: 'Showing all {total} search filter results',
-                  loadingSearchFilterResults: 'Loading search filter results...',
-                  errorLoadingSearchFilterResults: 'Error loading search filter results',
-                  searchFilterTryAgain: 'Search filter try again',
-                  searchFilterRetry: 'Search filter retry'
-                },
-                TextFieldSecond: {
-                  characterCount: '{count} of {limit} characters used',
-                  characterCountWithoutLimit: '{count} characters',
-                },
-                Navigation: {
-                  closeMobileNavigationLabel: 'Close navigation',
-                },
-                FooterHelp: {
-                  suggestedText: 'Suggested:',
-                },
-                PickerColorPicker: {
-                  hueSliderLabel: 'Hue slider',
-                  alphaSliderLabel: 'Opacity slider',
-                  colorTextFieldLabel: 'Color value',
-                }
-              }
-            }}
-            features={{ 
-              newDesignLanguage: true,
-              unstableGlobalTheming: true 
-            }}
-          >
+          <AppProvider i18n={polarisI18n}>
             <ApplicationErrorBoundary>
               <Outlet />
             </ApplicationErrorBoundary>
           </AppProvider>
         </ThemeProvider>
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
+        <LiveReload nonce={nonce} />
         
-        {/* Performance monitoring - component was removed during cleanup */}
-        
-        <ScrollRestoration />
-        
-        {/* ENV script moved to end of body for better security */}
-        
-        <Scripts />
-        <LiveReload />
-        
-        
-        {/* Performance monitoring initialization */}
-        <script 
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `
-              // Initialize performance monitoring
-              if (window.performance && performance.mark) {
-                performance.mark('app-interactive');
-              }
-            `,
-          }}
-        />
-        
-        {/* Environment variables for client - SECURITY: Sanitized ENV */}
+        {/* Environment variables for client-side */}
         <script
           nonce={nonce}
           dangerouslySetInnerHTML={{
-            __html: `window.ENV = ${JSON.stringify(ENV).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')};`,
+            __html: `window.ENV = ${JSON.stringify(ENV)}`,
           }}
         />
+      </body>
+    </html>
+  );
+}
+
+export function ErrorBoundary() {
+  return (
+    <html lang="en">
+      <head>
+        <title>Application Error</title>
+        <Meta />
+        <Links />
+      </head>
+      <body>
+        <ApplicationErrorBoundary>
+          <div>Application Error - Please reload the page</div>
+        </ApplicationErrorBoundary>
+        <Scripts />
       </body>
     </html>
   );

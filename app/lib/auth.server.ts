@@ -1,33 +1,24 @@
+/**
+ * Simplified Authentication for WishCraft
+ * Essential auth functions without overengineering
+ */
+
 import { redirect } from "@remix-run/node";
 import { createCookieSessionStorage } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { db } from "~/lib/db.server";
-import { log } from "~/lib/logger.server";
-import { verifyWebhookHMAC } from "~/lib/webhook.server";
-import { generateRandomBytes, createSHA256HashBase64URL, generateRandomString } from "~/lib/crypto.server";
 import crypto from "crypto";
 
-// ============================================================================
-// SESSION MANAGEMENT (2025 SECURITY STANDARDS)
-// ============================================================================
-
-// Ensure SESSION_SECRET is set in production
+// Get session secret with validation
 function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
   
-  if (!secret && process.env.NODE_ENV === 'production') {
-    throw new Error(
-      '🚨 CRITICAL: SESSION_SECRET is not set in production!\n' +
-      'Generate a secure secret with: node scripts/generate-secrets.js'
-    );
+  if (!secret) {
+    throw new Error('SESSION_SECRET environment variable is required');
   }
   
-  // SECURITY FIX: Never allow missing secrets in any environment
-  if (!secret) {
-    throw new Error(
-      '🚨 CRITICAL: SESSION_SECRET environment variable is required in all environments. ' +
-      'Generate a secure secret: `openssl rand -base64 32`'
-    );
+  if (secret.length < 32) {
+    throw new Error('SESSION_SECRET must be at least 32 characters');
   }
   
   return secret;
@@ -35,6 +26,7 @@ function getSessionSecret(): string {
 
 const sessionSecret = getSessionSecret();
 
+// Admin session storage
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__wishcraft_session",
@@ -47,150 +39,106 @@ export const sessionStorage = createCookieSessionStorage({
   },
 });
 
+// Customer session storage
 export const customerSessionStorage = createCookieSessionStorage({
   cookie: {
-    name: "__wishcraft_customer",
+    name: "__wishcraft_customer_session",
     httpOnly: true,
     path: "/",
-    sameSite: "lax", 
+    sameSite: "lax",
     secrets: [sessionSecret],
     secure: process.env.NODE_ENV === "production",
-    maxAge: 60 * 60 * 24 * 7, // 7 days for customer sessions
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   },
 });
 
-// ============================================================================
-// ADMIN AUTHENTICATION (SHOPIFY APP)
-// ============================================================================
-
-// 2025 Simplified Admin Auth - Shopify handles redirects automatically
-export async function requireAdminAuth(request: Request) {
+/**
+ * Require admin authentication
+ */
+export async function requireAdmin(request: Request) {
   try {
     const { admin, session } = await authenticate.admin(request);
     
-    // Verify shop exists in our database (optional - create if not exists)
-    let shop = await db.shops.findUnique({
-      where: { id: session.shop },
-      include: { shop_settings: true }
-    });
-    
-    if (!shop) {
-      // Auto-create shop record for new installations
-      shop = await db.shops.create({
-        data: {
-          id: session.shop,
-          name: session.shop.replace('.myshopify.com', ''),
-          email: '',
-          domain: session.shop,
-          currencyCode: 'USD',
-          updatedAt: new Date(),
-          shop_settings: {
-            create: {
-              id: `settings_${session.shop}`,
-              updatedAt: new Date(),
-              enablePasswordProtection: false,
-              enableGiftMessages: true,
-              enableSocialSharing: true,
-              enableEmailNotifications: true,
-              maxItemsPerRegistry: 100,
-              appActive: true,
-              appUninstalledAt: null
-            }
-          }
-        },
-        include: { shop_settings: true }
-      }) as any;
+    if (!admin || !session) {
+      throw new Error("Not authenticated");
     }
-    
-    return { admin, session, shop };
+
+    return { admin, session };
   } catch (error) {
-    if (error instanceof Response) {
-      throw error; // Re-throw Shopify redirects
-    }
-    
-    log.error("Admin authentication failed", error);
-    throw new Response("Authentication failed", { status: 401 });
+    throw redirect("/auth");
   }
 }
 
-// Safe admin auth that doesn't throw
-export async function getAdminAuth(request: Request) {
+/**
+ * Get admin auth without throwing
+ */
+export async function getAdmin(request: Request) {
   try {
     return await authenticate.admin(request);
   } catch (error) {
-    // In 2025, authentication errors are handled by Shopify automatically
     return null;
   }
 }
 
-// ============================================================================
-// CUSTOMER AUTHENTICATION (CUSTOMER ACCOUNT API)
-// ============================================================================
-
+/**
+ * Customer authentication interface
+ */
 interface CustomerSession {
   customerId: string;
   accessToken: string;
-  refreshToken?: string;
   shop: string;
   expiresAt: number;
-  scope: string[];
 }
 
-export async function requireCustomerAuth(request: Request): Promise<CustomerSession> {
+/**
+ * Require customer authentication
+ */
+export async function requireCustomer(request: Request): Promise<CustomerSession> {
   const session = await getCustomerSession(request);
   
   if (!session) {
     throw redirect("/customer/login");
   }
   
-  // Check if token is expired
   if (Date.now() > session.expiresAt) {
-    // Try to refresh token
-    const refreshedSession = await refreshCustomerToken(session);
-    if (!refreshedSession) {
-      throw redirect("/customer/login");
-    }
-    return refreshedSession;
+    throw redirect("/customer/login");
   }
   
   return session;
 }
 
+/**
+ * Get customer session
+ */
 export async function getCustomerSession(request: Request): Promise<CustomerSession | null> {
   try {
     const cookieSession = await customerSessionStorage.getSession(
       request.headers.get("Cookie")
     );
     
-    const encryptedSession = cookieSession.get("customerSession");
-    if (!encryptedSession) {
-      return null;
-    }
+    const sessionData = cookieSession.get("customerSession");
+    if (!sessionData) return null;
     
-    // Decrypt and validate session
-    const sessionData = decryptSession(encryptedSession);
-    return JSON.parse(sessionData) as CustomerSession;
+    return JSON.parse(decryptSession(sessionData)) as CustomerSession;
   } catch (error) {
-    log.error("Failed to get customer session", error);
     return null;
   }
 }
 
+/**
+ * Create customer session
+ */
 export async function createCustomerSession(
   customerId: string,
   accessToken: string,
   shop: string,
-  scope: string[],
-  expiresIn: number = 3600,
-  refreshToken?: string
+  expiresIn: number = 3600
 ): Promise<string> {
   const session: CustomerSession = {
     customerId,
     accessToken,
-    refreshToken,
     shop,
     expiresAt: Date.now() + (expiresIn * 1000),
-    scope
   };
   
   const encryptedSession = encryptSession(JSON.stringify(session));
@@ -201,162 +149,28 @@ export async function createCustomerSession(
   return await customerSessionStorage.commitSession(cookieSession);
 }
 
+/**
+ * Destroy customer session
+ */
 export async function destroyCustomerSession(request: Request): Promise<string> {
-  const cookieSession = await customerSessionStorage.getSession(
+  const session = await customerSessionStorage.getSession(
     request.headers.get("Cookie")
   );
   
-  return await customerSessionStorage.destroySession(cookieSession);
+  return await customerSessionStorage.destroySession(session);
 }
 
-async function refreshCustomerToken(session: CustomerSession): Promise<CustomerSession | null> {
-  if (!session.refreshToken) {
-    return null;
-  }
-  
-  try {
-    // SECURITY FIX: Use proper shop domain for customer auth endpoint
-    // Format: https://{shop}.myshopify.com/account/oauth/token
-    const shopDomain = session.shop.includes('.myshopify.com') 
-      ? session.shop 
-      : `${session.shop}.myshopify.com`;
-    
-    const response = await fetch(`https://${shopDomain}/account/oauth/token`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
-      },
-      body: new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: session.refreshToken,
-        client_id: process.env.SHOPIFY_API_KEY!,
-        client_secret: process.env.SHOPIFY_API_SECRET!,
-      }),
-    });
-    
-    if (!response.ok) {
-      return null;
-    }
-    
-    const tokenData = await response.json();
-    
-    return {
-      ...session,
-      accessToken: tokenData.access_token,
-      refreshToken: tokenData.refresh_token || session.refreshToken,
-      expiresAt: Date.now() + (tokenData.expires_in * 1000),
-    };
-  } catch (error) {
-    log.error("Token refresh failed", error);
-    return null;
-  }
-}
-
-// ============================================================================
-// CUSTOMER ACCOUNT API UTILITIES
-// ============================================================================
-
-export async function makeCustomerAPIRequest(
-  session: CustomerSession,
-  query: string,
-  variables?: any
-) {
-  // Updated to 2025-07 API version for proper 2025 compliance
-  const apiVersion = '2025-07'; // Latest Shopify API version
-  const response = await fetch(
-    `https://shopify.com/${session.shop}/account/customer/api/${apiVersion}/graphql`,
-    {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${session.accessToken}`,
-        "Content-Type": "application/json",
-        "Origin": process.env.SHOPIFY_APP_URL!,
-        "User-Agent": "WishCraft/1.0",
-      },
-      body: JSON.stringify({ query, variables }),
-    }
-  );
-  
-  if (!response.ok) {
-    throw new Error(`Customer API request failed: ${response.status}`);
-  }
-  
-  return await response.json();
-}
-
-export async function getCustomerProfile(session: CustomerSession) {
-  const query = `#graphql
-    query GetCustomer {
-      customer {
-        id
-        email
-        firstName
-        lastName
-        displayName
-        phoneNumber {
-          phoneNumber
-        }
-        defaultAddress {
-          id
-          address1
-          address2
-          city
-          province
-          zip
-          country
-        }
-      }
-    }
-  `;
-  
-  return await makeCustomerAPIRequest(session, query);
-}
-
-// ============================================================================
-// SECURITY UTILITIES
-// ============================================================================
-
-// SECURITY FIX: Secure encryption key generation
+// Session encryption utilities
 function getEncryptionKey(): Buffer {
-  // SECURITY FIX: Only use dedicated ENCRYPTION_KEY - never fallback to SESSION_SECRET
-  const encryptionKey = process.env.ENCRYPTION_KEY;
-  
-  if (!encryptionKey) {
-    throw new Error(
-      'CRITICAL SECURITY ERROR: ENCRYPTION_KEY environment variable is required for session encryption.\n' +
-      'Do NOT use SESSION_SECRET as encryption key - use dedicated key.\n' + 
-      'Generate with: `openssl rand -base64 32`'
-    );
-  }
-  
-  if (encryptionKey.length < 32) {
-    throw new Error('CRITICAL SECURITY ERROR: ENCRYPTION_KEY must be at least 32 characters long for proper security.');
-  }
-  
-  // SECURITY FIX: ENCRYPTION_SALT is REQUIRED for session security
-  const saltHex = process.env.ENCRYPTION_SALT;
-  
-  if (!saltHex) {
-    throw new Error('CRITICAL SECURITY ERROR: ENCRYPTION_SALT environment variable is required for session encryption. Sessions cannot be recovered without consistent salt. Cannot start application.');
-  }
-  
-  if (saltHex.length < 32) {
-    throw new Error('CRITICAL SECURITY ERROR: ENCRYPTION_SALT must be at least 32 characters (hex) for proper security.');
-  }
-  
-  const salt = Buffer.from(saltHex, 'hex');
-  return crypto.scryptSync(encryptionKey, salt, 32);
+  const key = process.env.ENCRYPTION_KEY || sessionSecret;
+  return Buffer.from(key.slice(0, 32), 'utf8');
 }
-
-const encryptionKey = getEncryptionKey();
 
 function encryptSession(data: string): string {
-  const algorithm = 'aes-256-gcm';
-  const iv = generateRandomBytes(16);
+  const key = getEncryptionKey();
+  const iv = crypto.randomBytes(16);
   
-  const cipher = crypto.createCipheriv(algorithm, encryptionKey, iv);
-  cipher.setAAD(Buffer.from('wishcraft-session'));
-  
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   let encrypted = cipher.update(data, 'utf8', 'hex');
   encrypted += cipher.final('hex');
   
@@ -366,14 +180,13 @@ function encryptSession(data: string): string {
 }
 
 function decryptSession(encryptedData: string): string {
-  const algorithm = 'aes-256-gcm';
+  const key = getEncryptionKey();
   
   const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(authTagHex, 'hex');
   
-  const decipher = crypto.createDecipheriv(algorithm, encryptionKey, iv);
-  decipher.setAAD(Buffer.from('wishcraft-session'));
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(authTag);
   
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
@@ -382,227 +195,43 @@ function decryptSession(encryptedData: string): string {
   return decrypted;
 }
 
+// OAuth utilities for customer auth
 export function generateState(): string {
-  return generateRandomString(32);
+  return crypto.randomBytes(32).toString('hex');
 }
 
 export function generateCodeVerifier(): string {
-  return generateRandomBytes(32).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  return crypto.randomBytes(32).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 }
 
 export function generateCodeChallenge(verifier: string): string {
-  return createSHA256HashBase64URL(verifier);
+  return crypto.createHash('sha256').update(verifier).digest('base64url');
 }
 
-export function generateSessionSecret(): string {
-  return generateRandomBytes(32).toString('base64');
-}
-
-export function isValidShopDomain(shop: string): boolean {
-  if (!shop || typeof shop !== 'string') {
-    return false;
+/**
+ * Make Customer Account API request
+ */
+export async function makeCustomerAPIRequest(
+  session: CustomerSession,
+  query: string,
+  variables?: any
+) {
+  const response = await fetch(`https://shopify.com/${session.shop}/account/customer/api/2025-07/graphql`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.accessToken}`,
+      'X-Shopify-Customer-Access-Token': session.accessToken,
+    },
+    body: JSON.stringify({
+      query,
+      variables: variables || {}
+    })
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Customer API request failed: ${response.statusText}`);
   }
   
-  // Remove protocol if present
-  shop = shop.replace(/^https?:\/\//, '');
-  
-  // Check if it's a valid myshopify.com domain
-  const shopifyDomainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]*\.myshopify\.com$/;
-  
-  return shopifyDomainRegex.test(shop);
-}
-
-
-// ============================================================================
-// SCOPE MANAGEMENT
-// ============================================================================
-
-export interface ScopeRequest {
-  scopes: string[];
-  reason: string;
-  optional?: boolean;
-}
-
-export async function requestAdditionalScopes(
-  request: Request,
-  scopeRequest: ScopeRequest
-): Promise<Response> {
-  const { session } = await requireAdminAuth(request);
-  
-  // Check current scopes
-  const currentScopes = session.scope?.split(',') || [];
-  const requestedScopes = scopeRequest.scopes;
-  const missingScopes = requestedScopes.filter(scope => !currentScopes.includes(scope));
-  
-  if (missingScopes.length === 0) {
-    return new Response(JSON.stringify({ success: true, message: "All scopes already granted" }));
-  }
-  
-  // For embedded apps, redirect to scope request
-  const scopeUrl = new URL(`https://${session.shop}/admin/oauth/authorize`);
-  scopeUrl.searchParams.set('client_id', process.env.SHOPIFY_API_KEY!);
-  scopeUrl.searchParams.set('scope', [...currentScopes, ...missingScopes].join(','));
-  scopeUrl.searchParams.set('redirect_uri', `${process.env.SHOPIFY_APP_URL}/auth/callback`);
-  scopeUrl.searchParams.set('state', generateState());
-  
-  return redirect(scopeUrl.toString());
-}
-
-export function hasRequiredScopes(session: any, requiredScopes: string[]): boolean {
-  const currentScopes = session.scope?.split(',') || [];
-  return requiredScopes.every(scope => currentScopes.includes(scope));
-}
-
-// ============================================================================
-// ROUTE PROTECTION MIDDLEWARE
-// ============================================================================
-
-export function createAuthMiddleware(options: {
-  requireAdmin?: boolean;
-  requireCustomer?: boolean; 
-  requiredScopes?: string[];
-  redirectTo?: string;
-}) {
-  return async function authMiddleware(request: Request) {
-    const url = new URL(request.url);
-    const redirectTo = options.redirectTo || `/auth/login?redirect=${encodeURIComponent(url.pathname)}`;
-    
-    let adminAuth = null;
-    let customerAuth = null;
-    
-    // Check admin authentication
-    if (options.requireAdmin) {
-      try {
-        adminAuth = await requireAdminAuth(request);
-        
-        // Check required scopes
-        if (options.requiredScopes && !hasRequiredScopes(adminAuth.session, options.requiredScopes)) {
-          throw redirect(`/auth/scopes?required=${options.requiredScopes.join(',')}&redirect=${encodeURIComponent(url.pathname)}`);
-        }
-      } catch (error) {
-        if (error instanceof Response) throw error;
-        throw redirect(redirectTo);
-      }
-    }
-    
-    // Check customer authentication
-    if (options.requireCustomer) {
-      try {
-        customerAuth = await requireCustomerAuth(request);
-      } catch (error) {
-        if (error instanceof Response) throw error;
-        throw redirect(`/customer/login?redirect=${encodeURIComponent(url.pathname)}`);
-      }
-    }
-    
-    return { adminAuth, customerAuth };
-  };
-}
-
-// ============================================================================
-// WEBSOCKET AUTHENTICATION
-// ============================================================================
-
-export interface WebSocketAuthResult {
-  shopId: string;
-  customerId?: string;
-  isAdmin: boolean;
-  scopes: string[];
-}
-
-export async function authenticateWebSocket(
-  token: string,
-  shop: string
-): Promise<WebSocketAuthResult | null> {
-  try {
-    // Try admin authentication first
-    const adminSession = await verifyAdminToken(token, shop);
-    if (adminSession) {
-      return {
-        shopId: shop,
-        isAdmin: true,
-        scopes: adminSession.scope?.split(',') || [],
-      };
-    }
-    
-    // Try customer authentication
-    const customerSession = await verifyCustomerToken(token, shop);
-    if (customerSession) {
-      return {
-        shopId: shop,
-        customerId: customerSession.customerId,
-        isAdmin: false,
-        scopes: customerSession.scope,
-      };
-    }
-    
-    return null;
-  } catch (error) {
-    log.error('WebSocket authentication failed', error);
-    return null;
-  }
-}
-
-export async function verifyAdminToken(token: string, shop: string): Promise<any> {
-  try {
-    // Use GraphQL Admin API with latest stable version
-    const shopDomain = shop.includes('.myshopify.com') ? shop : `${shop}.myshopify.com`;
-    const apiVersion = '2025-07'; // Latest Shopify API version for 2025 compliance
-    const response = await fetch(`https://${shopDomain}/admin/api/${apiVersion}/graphql.json`, {
-      method: 'POST',
-      headers: {
-        'X-Shopify-Access-Token': token,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: `#graphql
-          query VerifyShop {
-            shop {
-              id
-              name
-              email
-            }
-          }
-        `
-      })
-    });
-    
-    if (response.ok) {
-      const result = await response.json();
-      if (result.data?.shop) {
-        return { 
-          scope: 'read_customers,write_orders,read_products',
-          shop: result.data.shop
-        };
-      }
-    }
-    
-    return null;
-  } catch (error) {
-    log.error('Admin token verification failed', error);
-    return null;
-  }
-}
-
-async function verifyCustomerToken(token: string, shop: string): Promise<CustomerSession | null> {
-  try {
-    // Decrypt customer token
-    const decryptedToken = decryptSession(token);
-    const session = JSON.parse(decryptedToken) as CustomerSession;
-    
-    // Verify token is not expired
-    if (Date.now() > session.expiresAt) {
-      return null;
-    }
-    
-    // Verify shop matches
-    if (session.shop !== shop) {
-      return null;
-    }
-    
-    return session;
-  } catch (error) {
-    log.error('Customer token verification failed', error);
-    return null;
-  }
+  return await response.json();
 }

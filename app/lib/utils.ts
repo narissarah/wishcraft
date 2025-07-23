@@ -1,26 +1,13 @@
-// Client-side utility functions for WishCraft app
+/**
+ * Client-side utilities for WishCraft
+ * Formatting, validation, and helper functions
+ */
 
 import type { GraphQLResponse } from "./types";
 
-// Re-export Sanitizer from validation.server.ts to avoid duplication
-export { Sanitizer } from "~/lib/validation.server";
-
+// Price formatting
 export function formatPrice(price: string | number, currencyCode = "USD"): string {
-  let numPrice: number;
-  
-  if (typeof price === "string") {
-    numPrice = parseFloat(price);
-    // Validate parseFloat result
-    if (isNaN(numPrice) || !isFinite(numPrice)) {
-      numPrice = 0;
-    }
-  } else {
-    numPrice = price;
-    // Validate number input
-    if (isNaN(numPrice) || !isFinite(numPrice)) {
-      numPrice = 0;
-    }
-  }
+  const numPrice = typeof price === "string" ? parseFloat(price) || 0 : price || 0;
   
   return new Intl.NumberFormat("en-US", {
     style: "currency",
@@ -28,6 +15,7 @@ export function formatPrice(price: string | number, currencyCode = "USD"): strin
   }).format(numPrice);
 }
 
+// Date formatting
 export function formatDate(dateString: string): string {
   const date = new Date(dateString);
   return date.toLocaleDateString("en-US", {
@@ -37,12 +25,13 @@ export function formatDate(dateString: string): string {
   });
 }
 
+// Text utilities
 export function truncateText(text: string, maxLength: number): string {
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength).trim() + "...";
 }
 
-
+// Shopify ID utilities
 export function extractShopifyId(gid: string): string {
   return gid.split("/").pop() || "";
 }
@@ -51,8 +40,9 @@ export function createShopifyGid(resource: string, id: string): string {
   return `gid://shopify/${resource}/${id}`;
 }
 
+// GraphQL response handling
 export function handleGraphQLResponse<T>(response: GraphQLResponse<T>): T {
-  if (response.errors && response.errors.length > 0) {
+  if (response.errors?.length) {
     throw new Error(response.errors[0].message);
   }
   
@@ -63,6 +53,7 @@ export function handleGraphQLResponse<T>(response: GraphQLResponse<T>): T {
   return response.data;
 }
 
+// Performance utilities
 export function debounce<T extends (...args: any[]) => void>(
   func: T,
   delay: number
@@ -74,20 +65,7 @@ export function debounce<T extends (...args: any[]) => void>(
   };
 }
 
-export function throttle<T extends (...args: any[]) => void>(
-  func: T,
-  limit: number
-): (...args: Parameters<T>) => void {
-  let inThrottle: boolean;
-  return (...args: Parameters<T>) => {
-    if (!inThrottle) {
-      func(...args);
-      inThrottle = true;
-      setTimeout(() => (inThrottle = false), limit);
-    }
-  };
-}
-
+// Registry utilities
 export function calculateProgress(purchased: number, total: number): number {
   if (total === 0) return 0;
   return Math.round((purchased / total) * 100);
@@ -107,6 +85,7 @@ export function getEventTypeEmoji(eventType: string): string {
   return emojiMap[eventType] || "🎁";
 }
 
+// Simple validation
 export function validateRegistryData(data: {
   title: string;
   eventDate?: string;
@@ -123,27 +102,18 @@ export function validateRegistryData(data: {
   }
   
   const validEventTypes = [
-    "wedding",
-    "birthday",
-    "baby",
-    "graduation",
-    "anniversary",
-    "holiday",
-    "housewarming",
-    "general",
+    "wedding", "birthday", "baby", "graduation", 
+    "anniversary", "holiday", "housewarming", "general"
   ];
   
   if (!validEventTypes.includes(data.eventType)) {
     errors.push("Invalid event type");
   }
   
-  return {
-    isValid: errors.length === 0,
-    errors,
-  };
+  return { isValid: errors.length === 0, errors };
 }
 
+// URL helper
 export function getRegistryShareUrl(slug: string, domain: string): string {
   return `https://${domain}/registry/${slug}`;
 }
-

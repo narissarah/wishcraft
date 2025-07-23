@@ -4,7 +4,7 @@
   "description": "WishCraft - Shopify Gift Registry App - CSP Compliant",
   "scripts": {
     "build": "npx prisma generate --no-hints && remix build",
-    "railway-build": "npm ci && npx prisma generate --no-hints && npm run build",
+    "railway-build": "npm install && npx prisma generate --no-hints && npm run build",
     "dev": "shopify app dev --use-localhost",
     "start": "node railway-start.js",
     "start:production": "node server.js",

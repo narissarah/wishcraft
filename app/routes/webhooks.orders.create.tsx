@@ -1,129 +1,89 @@
+/**
+ * Simplified Orders Create Webhook
+ * Tracks registry purchases without complex gift message processing
+ */
+
 import crypto from "crypto";
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { apiResponse } from "~/lib/api-response.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 import { createWebhookHandler } from "~/lib/webhook.server";
-import { encryptGiftMessage, validateGiftMessage, sanitizeGiftMessage, logGiftMessageOperation } from "~/lib/crypto.server";
-import { withDatabaseErrorHandling, withErrorHandling } from "~/lib/error-handler.server";
-import { BUSINESS_RULES } from "~/lib/constants.server";
+import { encrypt } from "~/lib/crypto.server";
+import { sanitizeString } from "~/lib/validation.server";
 
-/**
- * Orders Create Webhook - Consolidated Pattern
- * Tracks registry purchases and processes gift messages
- */
-const handler = createWebhookHandler(
-  {
-    topic: "orders.create",
-    requireAuth: true,
-    rateLimit: { max: 20, windowMs: 60000 }
-  },
-  async ({ shop, payload, admin }) => {
-    if (!admin) {
-      throw new Error("No admin context available");
+export const action = createWebhookHandler(
+  { topic: "orders.create", requireAuth: false },
+  async ({ shop, payload }) => {
+  log.info("Orders Create Webhook", { shop, orderId: payload.id });
+
+  const order = payload;
+  
+  // Process each line item for registry purchases
+  for (const item of order.line_items || []) {
+    // Check if this is a registry purchase
+    const registryId = item.properties?.find((p: any) => p.name === '_registry_id')?.value;
+    
+    if (!registryId) continue;
+
+    // Find registry item
+    const registryItem = await db.registry_items.findUnique({
+      where: { id: registryId },
+      include: { registries: true }
+    });
+
+    if (!registryItem) {
+      log.warn("Registry item not found", { registryId, orderId: order.id });
+      continue;
     }
 
-    log.webhook("ORDERS_CREATE", shop, { verified: true });
+    // Extract gift message if present
+    const giftMessageProperty = item.properties?.find((p: any) => 
+      p.name.toLowerCase().includes('gift') || p.name.toLowerCase().includes('message')
+    );
+    const giftMessage = giftMessageProperty?.value;
 
-    const order = payload;
-    
-    try {
-      // Process order items that might be registry purchases
-      for (const item of order.line_items || []) {
-        // Check if this is a registry purchase via line item properties
-        const registryId = item.properties?.find((p: any) => p.name === '_registry_id')?.value;
-        
-        if (registryId) {
-          // Extract gift message from line item properties
-          const giftMessageProperty = item.properties?.find((p: any) => 
-            ['_gift_message', 'gift_message', 'Gift Message', 'message', 'note', 'personal_message'].includes(p.name)
-          );
-          const giftMessage = giftMessageProperty?.value;
-          
-          // Process gift message if present
-          let encryptedGiftMessage = null;
-          const purchaserEmail = order.email || order.customer?.email || 'anonymous';
-          
-          if (giftMessage && giftMessage.trim()) {
-            try {
-              // Validate gift message content
-              const validation = validateGiftMessage(giftMessage);
-              if (validation.isValid) {
-                // Sanitize and encrypt gift message
-                const sanitizedMessage = sanitizeGiftMessage(giftMessage);
-                encryptedGiftMessage = encryptGiftMessage(sanitizedMessage, purchaserEmail, registryId);
-                
-                logGiftMessageOperation('encrypt', purchaserEmail, registryId, true);
-              } else {
-                logGiftMessageOperation('validate', purchaserEmail, registryId, false, validation.error);
-                log.warn('Invalid gift message in order', {
-                  orderId: order.id,
-                  error: validation.error,
-                  shopDomain: shop
-                });
-              }
-            } catch (error) {
-              const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-              logGiftMessageOperation('encrypt', purchaserEmail, registryId, false, errorMessage);
-              log.error('Failed to encrypt gift message', {
-                orderId: order.id,
-                error: errorMessage,
-                shopDomain: shop
-              });
-            }
-          }
-          
-          // Create purchase record with encrypted gift message
-          const purchase = await db.registry_purchases.create({
-            data: {
-              id: crypto.randomUUID(),
-              registryItemId: item.id || '',
-              quantity: item.quantity || 1,
-              unitPrice: parseFloat(item.price) || 0,
-              totalAmount: (parseFloat(item.price) || 0) * (item.quantity || 1),
-              currencyCode: order.currency || 'USD',
-              orderId: order.id.toString(),
-              orderName: order.name,
-              purchaserEmail: purchaserEmail,
-              purchaserName: order.customer?.first_name && order.customer?.last_name
-                ? `${order.customer.first_name} ${order.customer.last_name}`
-                : order.customer?.first_name || 'Anonymous',
-              updatedAt: new Date(),
-              giftMessage: encryptedGiftMessage,
-              status: 'confirmed'
-            }
-          });
+    // Sanitize gift message if provided
+    let sanitizedGiftMessage: string | null = null;
+    if (giftMessage && giftMessage.trim()) {
+      sanitizedGiftMessage = sanitizeString(giftMessage);
+    }
 
-          // Update registry purchased value
-          const itemPrice = parseFloat(item.price) * item.quantity;
-          await db.registries.update({
-            where: { id: registryId },
-            data: {
-              purchasedValue: {
-                increment: itemPrice
-              }
-            }
-          });
+    // Create purchase record
+    const unitPrice = parseFloat(item.price || '0');
+    await db.registry_purchases.create({
+      data: {
+        id: crypto.randomUUID(),
+        registryItemId: registryItem.id,
+        orderId: order.id.toString(),
+        lineItemId: item.id.toString(),
+        quantity: item.quantity,
+        unitPrice,
+        totalAmount: unitPrice * item.quantity,
+        currencyCode: order.currency || 'USD',
+        purchaserName: order.customer ? 
+          `${order.customer.first_name} ${order.customer.last_name}` : 
+          order.billing_address?.name || 'Anonymous',
+        purchaserEmail: order.email || order.customer?.email,
+        giftMessage: sanitizedGiftMessage,
+        updatedAt: new Date(),
+      }
+    });
 
-          log.info('Registry purchase recorded', {
-            registryId,
-            purchaseId: purchase.id,
-            orderId: order.id.toString(),
-            amount: itemPrice,
-            shopId: shop
-          });
+    // Update registry item purchased count
+    await db.registry_items.update({
+      where: { id: registryItem.id },
+      data: {
+        quantityPurchased: {
+          increment: item.quantity
         }
       }
+    });
 
-      return apiResponse.success({ received: true });
-    } catch (error) {
-      log.error(`Error processing order webhook for ${shop}`, error as Error, { 
-        shop,
-        orderId: order.id?.toString() 
-      });
-      throw error;
-    }
+    log.info("Registry purchase processed", {
+      registryId: registryItem.id,
+      quantity: item.quantity,
+      orderId: order.id
+    });
+  }
   }
 );
-
-export const action = handler;

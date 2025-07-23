@@ -111,8 +111,6 @@ export async function handleCustomerAuthCallback(
         accessToken: tokenData.access_token,
         shop,
         expiresAt: Date.now() + (tokenData.expires_in * 1000),
-        scope: config.scopes,
-        refreshToken: tokenData.refresh_token
       },
       `#graphql
         query GetCustomer {
@@ -138,9 +136,7 @@ export async function handleCustomerAuthCallback(
       customer.id,
       tokenData.access_token,
       shop,
-      config.scopes,
-      tokenData.expires_in,
-      tokenData.refresh_token
+      tokenData.expires_in
     );
     
     return sessionCookie;
@@ -434,50 +430,18 @@ export async function requireCustomerRegistryAccess(
   return { customer, registry };
 }
 
-// ============================================================================
-// ERROR HANDLING
-// ============================================================================
+// Simple error handling using unified AppError
+import { AppError } from "~/lib/errors.server";
 
-export class CustomerAuthError extends Error {
-  constructor(
-    message: string,
-    public code: string,
-    public statusCode: number = 401
-  ) {
-    super(message);
-    this.name = 'CustomerAuthError';
-  }
-}
-
-export function handleCustomerAuthError(error: any) {
-  if (error instanceof CustomerAuthError) {
-    return {
-      error: error.message,
-      code: error.code,
-      statusCode: error.statusCode
-    };
-  }
-  
-  // Map common errors
+export function handleCustomerAuthError(error: any): AppError {
+  // Map common errors to appropriate status codes
   if (error.message?.includes('invalid_grant')) {
-    return {
-      error: 'Authentication expired. Please log in again.',
-      code: 'TOKEN_EXPIRED',
-      statusCode: 401
-    };
+    return new AppError('Authentication expired. Please log in again.', 401, 'TOKEN_EXPIRED');
   }
   
   if (error.message?.includes('access_denied')) {
-    return {
-      error: 'Access denied. Please check your permissions.',
-      code: 'ACCESS_DENIED', 
-      statusCode: 403
-    };
+    return new AppError('Access denied. Please check your permissions.', 403, 'ACCESS_DENIED');
   }
   
-  return {
-    error: 'Authentication failed. Please try again.',
-    code: 'AUTH_FAILED',
-    statusCode: 500
-  };
+  return new AppError('Authentication failed. Please try again.', 500, 'AUTH_FAILED');
 }
