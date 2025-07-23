@@ -8,24 +8,18 @@ import { json } from "@remix-run/node";
 import { log } from '~/lib/logger.server';
 import { db } from "~/lib/db.server";
 import crypto from "crypto";
+import { API_CONFIG, RATE_LIMITS as RATE_LIMITS_CONFIG } from '~/lib/constants.server';
 
 // ============================================
-// Constants
+// Re-export centralized constants
 // ============================================
 
-// API Configuration
-export const API_TIMEOUT = 30000;
-export const API_RETRIES = 3;
-export const SHOPIFY_API_VERSION = '2025-07';
+export const API_TIMEOUT = API_CONFIG.TIMEOUT;
+export const API_RETRIES = API_CONFIG.RETRIES;
+export const SHOPIFY_API_VERSION = API_CONFIG.SHOPIFY_API_VERSION;
+export const RATE_LIMITS = RATE_LIMITS_CONFIG;
 
-// Rate Limits (per Shopify guidelines)
-export const RATE_LIMITS = {
-  API_CALLS: 40,        // per 2 seconds (Shopify limit)
-  WEBHOOKS: 100,        // per minute
-  UPLOADS: 5            // per minute
-} as const;
-
-// Cache TTL
+// Legacy cache TTL - consider moving to constants.server.ts
 export const CACHE_TTL = {
   SHORT: 60,            // 1 minute
   DEFAULT: 300,         // 5 minutes  

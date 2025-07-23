@@ -12,17 +12,13 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "db:deploy": "npx prisma db push",
-    "deploy": "node deploy.js",
     "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset",
+    "db:reset": "prisma migrate reset", 
     "db:generate": "prisma generate",
     "typecheck": "tsc --noEmit",
     "lint": "eslint app",
     "lint:fix": "eslint app --fix",
     "build:analyze": "ANALYZE=true npm run build",
-    "deploy:railway": "node deploy.js railway",
-    "deploy:render": "node deploy.js render",
-    "deploy:heroku": "node deploy.js heroku",
     "health:check": "curl -f http://localhost:3000/health || exit 1"
   },
   "dependencies": {

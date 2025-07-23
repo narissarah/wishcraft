@@ -9,22 +9,35 @@ process.env.HOST = process.env.HOST || '0.0.0.0';
 process.env.PORT = process.env.PORT || '3000';
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
-// Comprehensive environment variable validation
+// Enhanced environment variable validation for Railway deployment
 const requiredEnvVars = [
   'DATABASE_URL',
   'SHOPIFY_API_KEY', 
   'SHOPIFY_API_SECRET',
   'SHOPIFY_APP_URL',
   'SESSION_SECRET',
-  'ENCRYPTION_KEY'
+  'ENCRYPTION_KEY',
+  'SHOPIFY_WEBHOOK_SECRET'  // Added based on audit findings
 ];
 
 const recommendedEnvVars = [
   'DATA_ENCRYPTION_KEY',
-  'DATA_ENCRYPTION_SALT',
+  'DATA_ENCRYPTION_SALT', 
   'SEARCH_HASH_KEY',
-  'COLLABORATION_TOKEN_SECRET'
+  'COLLABORATION_TOKEN_SECRET',
+  'REDIS_URL',
+  'SENTRY_DSN'
 ];
+
+// Railway-specific environment checks
+const railwayVars = ['RAILWAY_DEPLOYMENT_ID', 'RAILWAY_ENVIRONMENT', 'RAILWAY_PROJECT_NAME'];
+const railwayDetected = railwayVars.some(v => process.env[v]);
+
+if (railwayDetected) {
+  console.log('🚂 Railway deployment detected');
+  console.log(`📍 Environment: ${process.env.RAILWAY_ENVIRONMENT || 'unknown'}`); 
+  console.log(`🆔 Deployment: ${process.env.RAILWAY_DEPLOYMENT_ID || 'unknown'}`);
+}
 
 const missing = requiredEnvVars.filter(v => !process.env[v]);
 const missingRecommended = recommendedEnvVars.filter(v => !process.env[v]);

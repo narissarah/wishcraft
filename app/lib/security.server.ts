@@ -7,6 +7,7 @@
 import { json } from "@remix-run/node";
 import { generateRandomBytes } from "~/lib/crypto.server";
 import { log } from "~/lib/logger.server";
+import { RATE_LIMITS as CENTRALIZED_RATE_LIMITS } from "~/lib/constants.server";
 
 // ============================================
 // Security Headers Configuration
@@ -473,22 +474,15 @@ export interface RateLimitConfig {
   message?: string;
 }
 
+// Use centralized rate limits with legacy mapping for compatibility
 export const RATE_LIMITS = {
   public: {
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100,
     message: "Too many requests, please try again later"
   },
-  api: {
-    windowMs: 1 * 60 * 1000, // 1 minute
-    max: 60,
-    message: "API rate limit exceeded"
-  },
-  auth: {
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5,
-    message: "Too many authentication attempts"
-  }
+  api: CENTRALIZED_RATE_LIMITS.API_GENERAL,
+  auth: CENTRALIZED_RATE_LIMITS.AUTH
 };
 
 // In-memory storage for rate limit tracking
