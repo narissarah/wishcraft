@@ -428,7 +428,7 @@ model security_audit {
   resource   String
   resourceId String?
   status     String
-  details    String?  // JSON stored as string (was JSONB in migration)
+  details    String?  // JSONB in PostgreSQL, handled as string by Prisma
   timestamp  DateTime @default(now())
 
   @@index([action])
