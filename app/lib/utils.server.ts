@@ -31,14 +31,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   return bcrypt.compare(password, hash);
 }
 
-// Simple response helpers
-export function successResponse(data: any, message?: string) {
-  return json({ success: true, data, message });
-}
-
-export function errorResponse(message: string, statusCode: number = 500) {
-  return json({ success: false, error: message }, { status: statusCode });
-}
+// Response helpers removed - use apiResponse from api-response.server.ts instead
 
 // Pagination helper
 export function getPaginationParams(searchParams: URLSearchParams) {

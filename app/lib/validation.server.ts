@@ -24,6 +24,21 @@ export function createSlug(title: string): string {
 }
 
 /**
+ * Remove HTML tags
+ */
+export function sanitizeHtml(input: string): string {
+  return input.replace(/<[^>]*>/g, '').trim();
+}
+
+/**
+ * Safe number conversion
+ */
+export function toNumber(input: any): number {
+  const num = Number(input);
+  return isNaN(num) ? 0 : num;
+}
+
+/**
  * Common validation schemas
  */
 export const shopifyIdSchema = z.string().min(1);
@@ -51,44 +66,4 @@ export const QuerySchemas = {
     sortBy: z.string().optional(),
     sortOrder: z.enum(["asc", "desc"]).optional(),
   })
-};
-
-/**
- * Parse and validate query parameters
- */
-export function validateQueryParams<T>(
-  searchParams: URLSearchParams,
-  schema: z.ZodSchema<T>
-): T {
-  const params = Object.fromEntries(searchParams.entries());
-  return schema.parse(params);
-}
-
-/**
- * Validate request body
- */
-export async function validateRequestBody<T>(
-  request: Request,
-  schema: z.ZodSchema<T>
-): Promise<T> {
-  const body = await request.json();
-  return schema.parse(body);
-}
-
-/**
- * Sanitizer object for backward compatibility
- */
-export const Sanitizer = {
-  string: sanitizeString,
-  slug: createSlug,
-  sanitizeHtml: (input: string): string => {
-    return input.replace(/<[^>]*>/g, '').trim();
-  },
-  number: (input: any): number => {
-    const num = Number(input);
-    return isNaN(num) ? 0 : num;
-  },
-  boolean: (input: any): boolean => {
-    return Boolean(input);
-  }
 };

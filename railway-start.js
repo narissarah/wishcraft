@@ -20,6 +20,11 @@ const requiredEnvVars = [
   'SHOPIFY_WEBHOOK_SECRET'  // Added based on audit findings
 ];
 
+// Check for SHOPIFY_SCOPES (optional but recommended)
+if (!process.env.SHOPIFY_SCOPES) {
+  console.log('⚠️  SHOPIFY_SCOPES not set, using default scopes from code');
+}
+
 const recommendedEnvVars = [
   'DATA_ENCRYPTION_KEY',
   'DATA_ENCRYPTION_SALT', 
@@ -91,4 +96,13 @@ if (process.env.DATABASE_URL) {
 
 // Start the actual server
 console.log('🚀 Starting main server...');
-import('./server.js');
+
+// Use dynamic import to start server
+(async () => {
+  try {
+    await import('./server.js');
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+})();
