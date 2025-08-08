@@ -4,7 +4,7 @@
     "api/index.js": {
       "runtime": "@vercel/node@3.0.12"
     },
-    "api/app-clean.js": {
+    "api/app.js": {
       "runtime": "@vercel/node@3.0.12"
     },
     "api/app-shopify2025.js": {
