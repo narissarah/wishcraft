@@ -21,6 +21,9 @@
     },
     "api/db-status.js": {
       "runtime": "@vercel/node@3.0.12"
+    },
+    "api/quick-db-check.js": {
+      "runtime": "@vercel/node@3.0.12"
     }
   },
   "rewrites": [
