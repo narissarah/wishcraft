@@ -48,7 +48,7 @@
       "destination": "/api/registry-simple"
     },
     {
-      "source": "/(.*)",
+      "source": "^/(?!api/)(.*)$",
       "destination": "/api/index"
     }
   ]
