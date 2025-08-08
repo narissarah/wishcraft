@@ -18,6 +18,9 @@
     },
     "api/test-db.js": {
       "runtime": "@vercel/node@3.0.12"
+    },
+    "api/db-status.js": {
+      "runtime": "@vercel/node@3.0.12"
     }
   },
   "rewrites": [
