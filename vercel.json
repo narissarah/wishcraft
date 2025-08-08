@@ -7,13 +7,16 @@
     "api/app.js": {
       "runtime": "@vercel/node@3.0.12"
     },
-    "api/registry-fixed.js": {
+    "api/registry-simple.js": {
       "runtime": "@vercel/node@3.0.12"
     },
     "api/auth/shopify.js": {
       "runtime": "@vercel/node@3.0.12"
     },
     "api/auth/callback.js": {
+      "runtime": "@vercel/node@3.0.12"
+    },
+    "api/test-db.js": {
       "runtime": "@vercel/node@3.0.12"
     }
   },
@@ -36,7 +39,7 @@
     },
     {
       "source": "/api/registry",
-      "destination": "/api/registry-fixed"
+      "destination": "/api/registry-simple"
     },
     {
       "source": "/(.*)",
