@@ -207,12 +207,29 @@ export default function handler(req, res) {
         const shop = '${shop}';
         const host = '${host}';
         
-        // Initialize App Bridge
+        // Initialize App Bridge with session token authentication
         const app = window.AppBridge.createApp({
             apiKey: '${process.env.SHOPIFY_API_KEY || 'your-api-key'}',
             host: host,
             forceRedirect: true
         });
+        
+        // Session token handling for authenticated requests
+        let sessionToken = null;
+        
+        // Get session token for API calls
+        async function getSessionToken() {
+            return new Promise((resolve, reject) => {
+                if (window.AppBridge && app) {
+                    app.getState().then(state => {
+                        sessionToken = state.sessionToken;
+                        resolve(sessionToken);
+                    }).catch(reject);
+                } else {
+                    resolve(null);
+                }
+            });
+        }
         
         // App Bridge components
         const TitleBar = window.AppBridge.actions.TitleBar;
@@ -321,10 +338,22 @@ export default function handler(req, res) {
             showToast('Registry creation coming soon!', false);
         }
         
-        // Load registries from API
+        // Load registries from API with session token authentication
         async function loadRegistries() {
             try {
-                const response = await fetch('/api/registry-db?shop=' + encodeURIComponent(shop));
+                const token = await getSessionToken();
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'X-Shopify-Shop-Domain': shop
+                };
+                
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch('/api/registry-db?shop=' + encodeURIComponent(shop), {
+                    headers: headers
+                });
                 const result = await response.json();
                 
                 if (response.ok && result.success) {
@@ -370,10 +399,22 @@ export default function handler(req, res) {
             }
         }
         
-        // Update dashboard statistics
+        // Update dashboard statistics with session token authentication
         async function updateDashboardStats() {
             try {
-                const response = await fetch('/api/registry-db?shop=' + encodeURIComponent(shop));
+                const token = await getSessionToken();
+                const headers = {
+                    'Content-Type': 'application/json',
+                    'X-Shopify-Shop-Domain': shop
+                };
+                
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch('/api/registry-db?shop=' + encodeURIComponent(shop), {
+                    headers: headers
+                });
                 const result = await response.json();
                 
                 if (response.ok && result.success) {

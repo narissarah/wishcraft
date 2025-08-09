@@ -45,6 +45,12 @@
     },
     "api/registry-create-modal.js": {
       "runtime": "@vercel/node@3.0.12"
+    },
+    "api/registry-settings.js": {
+      "runtime": "@vercel/node@3.0.12"
+    },
+    "api/performance-monitor.js": {
+      "runtime": "@vercel/node@3.0.12"
     }
   },
   "rewrites": [
