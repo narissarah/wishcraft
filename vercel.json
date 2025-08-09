@@ -1,19 +1,5 @@
 {
   "buildCommand": "npm run build",
   "framework": "remix",
-  "functions": {
-    "api/index.js": {
-      "runtime": "@vercel/node@3"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/",
-      "destination": "/api/index"
-    },
-    {
-      "source": "/app",
-      "destination": "/app"
-    }
-  ]
+  "regions": ["iad1"]
 }

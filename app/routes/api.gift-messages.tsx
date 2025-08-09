@@ -6,11 +6,8 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { requireAdmin } from "~/lib/auth.server";
-import { encrypt, decrypt } from "~/lib/crypto.server";
-import { sanitizeString } from "~/lib/validation.server";
 import { requireCSRFToken } from "~/lib/csrf.server";
 import { db } from "~/lib/db.server";
-import crypto from "crypto";
 
 export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await requireAdmin(request);
@@ -104,7 +101,8 @@ export async function action({ request }: ActionFunctionArgs) {
       // Sanitize and save message
       let sanitizedMessage = null;
       if (message && message.trim()) {
-        sanitizedMessage = sanitizeString(message);
+        // Basic sanitization - remove HTML and extra whitespace
+        sanitizedMessage = message.trim().replace(/<[^>]*>/g, '');
       }
 
       const updatedPurchase = await db.registry_purchases.update({

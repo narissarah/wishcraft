@@ -7,7 +7,6 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { requireAdmin } from "~/lib/auth.server";
 import { createRegistry, listRegistries, updateRegistry, deleteRegistry } from "~/lib/registry.server";
-import { sanitizeString } from "~/lib/validation.server";
 import { requireCSRFToken } from "~/lib/csrf.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {

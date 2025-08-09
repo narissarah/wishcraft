@@ -1,11 +1,7 @@
-import type { LoaderFunctionArgs, LinksFunction } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import indexStyles from "~/styles/index.css";
-
-export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: indexStyles }
-];
+import "~/styles/index.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);

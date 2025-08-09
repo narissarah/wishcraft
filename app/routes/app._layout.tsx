@@ -8,11 +8,9 @@ import { lazy, Suspense } from "react";
 // Lazy load components to reduce initial bundle size
 const AppBridgeWrapper = lazy(() => import("~/components/AppBridgeProvider").then(m => ({default: m.AppBridgeWrapper})));
 import { Page, Layout, Spinner } from "@shopify/polaris";
-import indexStyles from "~/styles/index.css";
+import "~/styles/index.css";
 
-export const links: LinksFunction = () => [
-  { rel: "stylesheet", href: indexStyles }
-];
+export const links: LinksFunction = () => [];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Use 2025 authentication pattern - this handles redirects automatically
