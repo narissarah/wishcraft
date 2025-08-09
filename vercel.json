@@ -1,13 +1,19 @@
 {
   "buildCommand": "npm run build",
-  "installCommand": "npm install",
   "framework": "remix",
   "functions": {
     "api/index.js": {
-      "runtime": "nodejs20.x"
-    },
-    "api/test-new.js": {
-      "runtime": "nodejs20.x"
+      "runtime": "@vercel/node@3"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/api/index"
+    },
+    {
+      "source": "/app",
+      "destination": "/app"
+    }
+  ]
 }
