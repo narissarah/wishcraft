@@ -27,6 +27,15 @@
     },
     "api/registry-db.js": {
       "runtime": "@vercel/node@3.0.12"
+    },
+    "api/webhooks/customers-data-request.js": {
+      "runtime": "@vercel/node@3.0.12"
+    },
+    "api/webhooks/customers-redact.js": {
+      "runtime": "@vercel/node@3.0.12"
+    },
+    "api/webhooks/shop-redact.js": {
+      "runtime": "@vercel/node@3.0.12"
     }
   },
   "rewrites": [
