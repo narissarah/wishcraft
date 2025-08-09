@@ -17,185 +17,246 @@ export default function handler(req, res) {
     <script src="https://unpkg.com/@shopify/app-bridge@4/umd/index.js"></script>
     
     <style>
+        /* Shopify Polaris Design System Compliant Styles */
         * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body { 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #f6f6f7;
-            line-height: 1.6;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'San Francisco', 'Segoe UI', Roboto, sans-serif;
+            background: var(--p-color-bg-surface-secondary);
+            line-height: 1.5;
+            color: var(--p-color-text);
+            --p-color-bg-surface: #ffffff;
+            --p-color-bg-surface-secondary: #f6f6f7;
+            --p-color-bg-surface-tertiary: #f1f2f3;
+            --p-color-text: #202223;
+            --p-color-text-secondary: #6d7175;
+            --p-color-border: #e1e3e5;
+            --p-color-border-strong: #c9cccf;
+            --p-color-bg-primary: #008060;
+            --p-color-bg-primary-hover: #004c3f;
+            --p-color-bg-primary-pressed: #003d33;
+            --p-color-text-on-primary: #ffffff;
+            --p-space-050: 0.125rem;
+            --p-space-100: 0.25rem;
+            --p-space-200: 0.5rem;
+            --p-space-300: 0.75rem;
+            --p-space-400: 1rem;
+            --p-space-500: 1.25rem;
+            --p-space-600: 1.5rem;
+            --p-space-800: 2rem;
+            --p-font-size-325: 0.8125rem;
+            --p-font-size-350: 0.875rem;
+            --p-font-size-450: 1.125rem;
+            --p-font-size-500: 1.25rem;
+            --p-font-size-600: 1.5rem;
+            --p-border-radius-200: 0.375rem;
+            --p-border-radius-300: 0.5rem;
+            --p-shadow-200: 0 1px 0 0 rgba(22, 29, 37, 0.05);
+            --p-shadow-300: 0 4px 8px -2px rgba(22, 29, 37, 0.1);
         }
         
         .app-container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 2rem;
+            padding: var(--p-space-600);
         }
         
         .app-header {
-            background: white;
-            padding: 1.5rem 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            margin-bottom: 2rem;
+            background: var(--p-color-bg-surface);
+            padding: var(--p-space-500) var(--p-space-600);
+            border-radius: var(--p-border-radius-300);
+            box-shadow: var(--p-shadow-200);
+            border: 1px solid var(--p-color-border);
+            margin-bottom: var(--p-space-600);
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
         
         .app-title {
-            font-size: 1.75rem;
+            font-size: var(--p-font-size-600);
             font-weight: 600;
-            color: #202223;
+            color: var(--p-color-text);
+            display: flex;
+            align-items: center;
+            gap: var(--p-space-200);
         }
         
         .app-nav {
             display: flex;
-            gap: 1rem;
+            gap: var(--p-space-200);
         }
         
         .nav-btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 6px;
+            padding: var(--p-space-300) var(--p-space-500);
+            border: 1px solid var(--p-color-border);
+            border-radius: var(--p-border-radius-200);
             cursor: pointer;
-            font-size: 0.875rem;
+            font-size: var(--p-font-size-325);
             font-weight: 500;
-            transition: all 0.2s ease;
-            background: #f6f6f7;
-            color: #202223;
+            transition: all 0.1s ease;
+            background: var(--p-color-bg-surface);
+            color: var(--p-color-text);
             text-decoration: none;
             display: inline-flex;
             align-items: center;
         }
         
         .nav-btn:hover {
-            background: #e8e8e8;
-            transform: translateY(-1px);
+            background: var(--p-color-bg-surface-tertiary);
+            border-color: var(--p-color-border-strong);
         }
         
         .nav-btn.active {
-            background: #008060;
-            color: white;
-            box-shadow: 0 2px 4px rgba(0,128,96,0.2);
+            background: var(--p-color-bg-primary);
+            color: var(--p-color-text-on-primary);
+            border-color: var(--p-color-bg-primary);
+            box-shadow: var(--p-shadow-200);
         }
         
         .page-content {
-            background: white;
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            background: var(--p-color-bg-surface);
+            padding: var(--p-space-600);
+            border-radius: var(--p-border-radius-300);
+            box-shadow: var(--p-shadow-200);
+            border: 1px solid var(--p-color-border);
             min-height: 500px;
         }
         
         .page-title {
-            font-size: 1.5rem;
+            font-size: var(--p-font-size-600);
             font-weight: 600;
-            color: #202223;
-            margin-bottom: 1rem;
-            border-bottom: 2px solid #008060;
-            padding-bottom: 0.5rem;
+            color: var(--p-color-text);
+            margin-bottom: var(--p-space-400);
         }
         
         .page-description {
-            color: #6d7175;
-            margin-bottom: 2rem;
-            font-size: 1rem;
+            color: var(--p-color-text-secondary);
+            margin-bottom: var(--p-space-600);
+            font-size: var(--p-font-size-350);
         }
         
         .cards-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: var(--p-space-500);
+            margin-bottom: var(--p-space-600);
         }
         
         .card {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 2rem;
-            border-radius: 12px;
-            border-left: 4px solid #008060;
-            transition: transform 0.2s ease;
+            background: var(--p-color-bg-surface);
+            padding: var(--p-space-500);
+            border-radius: var(--p-border-radius-300);
+            border: 1px solid var(--p-color-border);
+            transition: box-shadow 0.1s ease;
         }
         
         .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: var(--p-shadow-300);
         }
         
         .card-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: #202223;
-            margin-bottom: 0.5rem;
+            font-size: var(--p-font-size-350);
+            font-weight: 500;
+            color: var(--p-color-text-secondary);
+            margin-bottom: var(--p-space-200);
         }
         
         .card-value {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: #008060;
-            margin-bottom: 0.5rem;
+            font-size: var(--p-font-size-600);
+            font-weight: 600;
+            color: var(--p-color-text);
+            margin-bottom: var(--p-space-100);
+            line-height: 1.2;
         }
         
         .card-label {
-            color: #6d7175;
-            font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+            color: var(--p-color-text-secondary);
+            font-size: var(--p-font-size-325);
         }
         
         .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 6px;
+            padding: var(--p-space-300) var(--p-space-500);
+            border: 1px solid transparent;
+            border-radius: var(--p-border-radius-200);
             cursor: pointer;
-            font-size: 0.875rem;
+            font-size: var(--p-font-size-325);
             font-weight: 500;
-            transition: all 0.2s ease;
+            transition: all 0.1s ease;
             text-decoration: none;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            margin-right: 1rem;
-            margin-bottom: 1rem;
+            margin-right: var(--p-space-400);
+            margin-bottom: var(--p-space-400);
+            min-height: 36px;
         }
         
         .btn-primary {
-            background: #008060;
-            color: white;
+            background: var(--p-color-bg-primary);
+            color: var(--p-color-text-on-primary);
         }
         
         .btn-primary:hover {
-            background: #005a46;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(0,128,96,0.3);
+            background: var(--p-color-bg-primary-hover);
+        }
+        
+        .btn-primary:active {
+            background: var(--p-color-bg-primary-pressed);
         }
         
         .btn-secondary {
-            background: #f6f6f7;
-            color: #202223;
-            border: 1px solid #d9d9d9;
+            background: var(--p-color-bg-surface);
+            color: var(--p-color-text);
+            border: 1px solid var(--p-color-border);
         }
         
         .btn-secondary:hover {
-            background: #e8e8e8;
-        }
-        
-        .success-message {
-            background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
-            color: #155724;
-            padding: 1rem;
-            border-radius: 8px;
-            border-left: 4px solid #28a745;
-            margin: 1rem 0;
-            font-weight: 500;
+            background: var(--p-color-bg-surface-tertiary);
+            border-color: var(--p-color-border-strong);
         }
         
         .hidden { display: none; }
         
+        /* Responsive Design */
         @media (max-width: 768px) {
-            .app-container { padding: 1rem; }
-            .app-header { flex-direction: column; gap: 1rem; }
-            .app-nav { flex-wrap: wrap; justify-content: center; }
-            .cards-grid { grid-template-columns: 1fr; }
+            .app-container { 
+                padding: var(--p-space-400); 
+            }
+            .app-header { 
+                flex-direction: column; 
+                gap: var(--p-space-400); 
+                padding: var(--p-space-400);
+            }
+            .app-nav { 
+                flex-wrap: wrap; 
+                justify-content: center; 
+                gap: var(--p-space-200);
+            }
+            .cards-grid { 
+                grid-template-columns: 1fr; 
+                gap: var(--p-space-400);
+            }
+            .page-content {
+                padding: var(--p-space-400);
+            }
+        }
+        
+        /* High contrast mode support */
+        @media (prefers-contrast: high) {
+            :root {
+                --p-color-border: #8c9196;
+                --p-color-border-strong: #6d7175;
+            }
+        }
+        
+        /* Reduced motion support */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
@@ -212,14 +273,11 @@ export default function handler(req, res) {
             </nav>
         </div>
 
-        <div class="success-message">
-            ✅ NEW INTERFACE LOADED! Multi-page navigation is now working. Click the tabs above to switch pages.
-        </div>
 
         <!-- Dashboard Page -->
         <div id="page-dashboard" class="page-content">
             <h2 class="page-title">Dashboard Overview</h2>
-            <p class="page-description">Welcome to your WishCraft dashboard. This is the new clean interface with proper navigation.</p>
+            <p class="page-description">Welcome to your WishCraft dashboard. Manage your gift registries and track performance metrics.</p>
             
             <div class="cards-grid">
                 <div class="card">
@@ -250,13 +308,73 @@ export default function handler(req, res) {
             <h2 class="page-title">Registry Management</h2>
             <p class="page-description">Create and manage customer gift registries with complete product integration.</p>
             
-            <div>
-                <button class="btn btn-primary" onclick="showMessage('Registry creation coming soon!')">Create New Registry</button>
-                <button class="btn btn-secondary" onclick="showMessage('Registry list loading...')">Refresh List</button>
+            <div style="margin-bottom: var(--p-space-600);">
+                <button class="btn btn-primary" onclick="showCreateForm()">Create New Registry</button>
+                <button class="btn btn-secondary" onclick="loadRegistries()">Refresh List</button>
             </div>
 
-            <div style="margin-top: 2rem; padding: 2rem; background: #f8f9fa; border-radius: 8px; text-align: center; color: #6d7175;">
-                No registries found. Create your first registry to get started!
+            <!-- Registry Creation Form -->
+            <div id="registry-form" class="hidden" style="margin-bottom: var(--p-space-600);">
+                <div style="background: var(--p-color-bg-surface); padding: var(--p-space-600); border: 1px solid var(--p-color-border); border-radius: var(--p-border-radius-300);">
+                    <h3 style="font-size: var(--p-font-size-500); font-weight: 600; color: var(--p-color-text); margin-bottom: var(--p-space-400);">Create New Registry</h3>
+                    
+                    <div style="display: grid; gap: var(--p-space-400);">
+                        <div>
+                            <label style="display: block; margin-bottom: var(--p-space-200); font-weight: 500; color: var(--p-color-text); font-size: var(--p-font-size-325);">Registry Title *</label>
+                            <input type="text" id="registryTitle" placeholder="e.g., Sarah & John's Wedding Registry" style="width: 100%; padding: var(--p-space-300); border: 1px solid var(--p-color-border); border-radius: var(--p-border-radius-200); font-size: var(--p-font-size-350); background: var(--p-color-bg-surface);">
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: var(--p-space-200); font-weight: 500; color: var(--p-color-text); font-size: var(--p-font-size-325);">Description</label>
+                            <textarea id="registryDescription" placeholder="Tell guests about your special occasion..." rows="3" style="width: 100%; padding: var(--p-space-300); border: 1px solid var(--p-color-border); border-radius: var(--p-border-radius-200); font-size: var(--p-font-size-350); background: var(--p-color-bg-surface); resize: vertical;"></textarea>
+                        </div>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--p-space-400);">
+                            <div>
+                                <label style="display: block; margin-bottom: var(--p-space-200); font-weight: 500; color: var(--p-color-text); font-size: var(--p-font-size-325);">Event Type</label>
+                                <select id="eventType" style="width: 100%; padding: var(--p-space-300); border: 1px solid var(--p-color-border); border-radius: var(--p-border-radius-200); font-size: var(--p-font-size-350); background: var(--p-color-bg-surface);">
+                                    <option value="wedding">Wedding</option>
+                                    <option value="baby_shower">Baby Shower</option>
+                                    <option value="birthday">Birthday</option>
+                                    <option value="holiday">Holiday</option>
+                                    <option value="housewarming">Housewarming</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label style="display: block; margin-bottom: var(--p-space-200); font-weight: 500; color: var(--p-color-text); font-size: var(--p-font-size-325);">Event Date</label>
+                                <input type="date" id="eventDate" style="width: 100%; padding: var(--p-space-300); border: 1px solid var(--p-color-border); border-radius: var(--p-border-radius-200); font-size: var(--p-font-size-350); background: var(--p-color-bg-surface);">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label style="display: block; margin-bottom: var(--p-space-200); font-weight: 500; color: var(--p-color-text); font-size: var(--p-font-size-325);">Privacy Setting</label>
+                            <select id="visibility" style="width: 100%; padding: var(--p-space-300); border: 1px solid var(--p-color-border); border-radius: var(--p-border-radius-200); font-size: var(--p-font-size-350); background: var(--p-color-bg-surface);">
+                                <option value="public">Public - Anyone can find and view</option>
+                                <option value="private">Private - Only people with the link</option>
+                            </select>
+                        </div>
+                        
+                        <div style="display: flex; gap: var(--p-space-300); margin-top: var(--p-space-400);">
+                            <button class="btn btn-primary" onclick="createRegistry()">Create Registry</button>
+                            <button class="btn btn-secondary" onclick="hideCreateForm()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Registries List -->
+            <div id="registries-list">
+                <div id="empty-state" style="padding: var(--p-space-800); background: var(--p-color-bg-surface-tertiary); border-radius: var(--p-border-radius-300); text-align: center; color: var(--p-color-text-secondary);">
+                    <div style="font-size: 48px; margin-bottom: var(--p-space-400);">🎁</div>
+                    <h3 style="font-size: var(--p-font-size-450); font-weight: 500; color: var(--p-color-text); margin-bottom: var(--p-space-200);">No registries yet</h3>
+                    <p>Create your first registry to get started!</p>
+                </div>
+                
+                <div id="registries-grid" class="hidden" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--p-space-500); margin-top: var(--p-space-600);">
+                    <!-- Registry cards will be inserted here -->
+                </div>
             </div>
         </div>
 
@@ -359,7 +477,197 @@ export default function handler(req, res) {
         }
 
         function showMessage(message) {
-            alert(message);
+            // Create a toast notification instead of alert
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: var(--p-color-bg-primary);
+                color: var(--p-color-text-on-primary);
+                padding: var(--p-space-400) var(--p-space-500);
+                border-radius: var(--p-border-radius-300);
+                box-shadow: var(--p-shadow-300);
+                z-index: 1000;
+                font-size: var(--p-font-size-350);
+                max-width: 300px;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        function showCreateForm() {
+            document.getElementById('registry-form').classList.remove('hidden');
+            document.getElementById('registryTitle').focus();
+        }
+
+        function hideCreateForm() {
+            document.getElementById('registry-form').classList.add('hidden');
+            // Clear form
+            document.getElementById('registryTitle').value = '';
+            document.getElementById('registryDescription').value = '';
+            document.getElementById('eventType').value = 'wedding';
+            document.getElementById('eventDate').value = '';
+            document.getElementById('visibility').value = 'public';
+        }
+
+        async function createRegistry() {
+            const title = document.getElementById('registryTitle').value.trim();
+            const description = document.getElementById('registryDescription').value.trim();
+            const eventType = document.getElementById('eventType').value;
+            const eventDate = document.getElementById('eventDate').value;
+            const visibility = document.getElementById('visibility').value;
+
+            if (!title) {
+                showMessage('Please enter a registry title');
+                return;
+            }
+
+            try {
+                // Show loading state
+                const createBtn = document.querySelector('button[onclick="createRegistry()"]');
+                const originalText = createBtn.textContent;
+                createBtn.textContent = 'Creating...';
+                createBtn.disabled = true;
+
+                // Make API call to create registry
+                const response = await fetch('/api/registry-db', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Shopify-Shop-Domain': shop
+                    },
+                    body: JSON.stringify({
+                        title,
+                        description,
+                        eventType,
+                        eventDate,
+                        visibility
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    showMessage('Registry created successfully!');
+                    hideCreateForm();
+                    loadRegistries(); // Refresh the list
+                    updateDashboardStats(); // Update dashboard
+                } else {
+                    throw new Error(result.error || 'Failed to create registry');
+                }
+            } catch (error) {
+                console.error('Error creating registry:', error);
+                showMessage('Error creating registry: ' + error.message);
+            } finally {
+                // Reset button state
+                const createBtn = document.querySelector('button[onclick="createRegistry()"]');
+                createBtn.textContent = originalText;
+                createBtn.disabled = false;
+            }
+        }
+
+        async function loadRegistries() {
+            try {
+                const response = await fetch('/api/registry-db?shop=' + encodeURIComponent(shop));
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    displayRegistries(result.data || []);
+                } else {
+                    console.error('Error loading registries:', result.error);
+                    showMessage('Error loading registries: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error loading registries:', error);
+                showMessage('Error loading registries: ' + error.message);
+            }
+        }
+
+        function displayRegistries(registries) {
+            const emptyState = document.getElementById('empty-state');
+            const registriesGrid = document.getElementById('registries-grid');
+
+            if (registries.length === 0) {
+                emptyState.classList.remove('hidden');
+                registriesGrid.classList.add('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                registriesGrid.classList.remove('hidden');
+                
+                registriesGrid.innerHTML = registries.map(registry => `
+                    <div class="card">
+                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: var(--p-space-300);">
+                            <h3 style="font-size: var(--p-font-size-450); font-weight: 600; color: var(--p-color-text); margin: 0;">${escapeHtml(registry.title)}</h3>
+                            <span style="background: ${registry.visibility === 'public' ? 'var(--p-color-bg-primary)' : '#6d7175'}; color: white; padding: var(--p-space-100) var(--p-space-200); border-radius: var(--p-border-radius-200); font-size: var(--p-font-size-325); text-transform: capitalize;">${registry.visibility}</span>
+                        </div>
+                        ${registry.description ? `<p style="color: var(--p-color-text-secondary); margin-bottom: var(--p-space-300); font-size: var(--p-font-size-350);">${escapeHtml(registry.description)}</p>` : ''}
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: var(--p-font-size-325); color: var(--p-color-text-secondary);">
+                            <span>${registry.eventType ? registry.eventType.replace('_', ' ').replace(/\\b\\w/g, l => l.toUpperCase()) : 'General'}</span>
+                            ${registry.eventDate ? `<span>${new Date(registry.eventDate).toLocaleDateString()}</span>` : ''}
+                        </div>
+                        <div style="margin-top: var(--p-space-400); display: flex; gap: var(--p-space-200);">
+                            <button class="btn btn-secondary" style="font-size: var(--p-font-size-325); padding: var(--p-space-200) var(--p-space-300);" onclick="viewRegistry('${registry.id}')">View</button>
+                            <button class="btn btn-secondary" style="font-size: var(--p-font-size-325); padding: var(--p-space-200) var(--p-space-300);" onclick="editRegistry('${registry.id}')">Edit</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function viewRegistry(id) {
+            showMessage(`Opening registry ${id}...`);
+        }
+
+        function editRegistry(id) {
+            showMessage(`Edit functionality for registry ${id} coming soon!`);
+        }
+
+        async function updateDashboardStats() {
+            // Update dashboard with real data
+            try {
+                const response = await fetch('/api/registry-db?shop=' + encodeURIComponent(shop));
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    const registries = result.data || [];
+                    document.getElementById('dashboard-registries').textContent = registries.length;
+                    
+                    // Calculate total items from registry data
+                    const totalItems = registries.reduce((sum, reg) => sum + (reg.item_count || 0), 0);
+                    document.getElementById('dashboard-items').textContent = totalItems;
+                    
+                    // Calculate total views
+                    const totalViews = registries.reduce((sum, reg) => sum + (reg.views || 0), 0);
+                    document.getElementById('dashboard-views').textContent = totalViews;
+                    
+                    // Calculate completion rate
+                    const totalValue = registries.reduce((sum, reg) => sum + (reg.total_value || 0), 0);
+                    const purchasedValue = registries.reduce((sum, reg) => sum + (reg.purchased_value || 0), 0);
+                    const completionRate = totalValue > 0 ? Math.round((purchasedValue / totalValue) * 100) : 0;
+                    document.getElementById('dashboard-completion').textContent = completionRate + '%';
+                }
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+                // Set default values on error
+                document.getElementById('dashboard-registries').textContent = '0';
+                document.getElementById('dashboard-items').textContent = '0';
+                document.getElementById('dashboard-views').textContent = '0';
+                document.getElementById('dashboard-completion').textContent = '0%';
+            }
         }
 
         // Initialize app
@@ -372,10 +680,18 @@ export default function handler(req, res) {
                     e.preventDefault();
                     const page = this.getAttribute('data-page');
                     showPage(page);
+                    
+                    // Load data when switching to registries page
+                    if (page === 'registries') {
+                        loadRegistries();
+                    }
                 });
             });
             
-            console.log('✅ WishCraft navigation initialized - TRY CLICKING THE TABS!');
+            // Load initial data
+            updateDashboardStats();
+            
+            console.log('✅ WishCraft navigation initialized with functional registry creation!');
         });
     </script>
 </body>

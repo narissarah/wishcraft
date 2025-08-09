@@ -24,6 +24,9 @@
     },
     "api/quick-db-check.js": {
       "runtime": "@vercel/node@3.0.12"
+    },
+    "api/registry-db.js": {
+      "runtime": "@vercel/node@3.0.12"
     }
   },
   "rewrites": [
@@ -45,7 +48,7 @@
     },
     {
       "source": "/api/registry",
-      "destination": "/api/registry-simple"
+      "destination": "/api/registry-db"
     },
     {
       "source": "^/(?!api/)(.*)$",
