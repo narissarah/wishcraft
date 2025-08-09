@@ -1,103 +1,38 @@
 {
   "name": "wishcraft",
   "version": "1.2.0",
-  "description": "WishCraft - Shopify Gift Registry App - CSP Compliant",
+  "description": "WishCraft - Shopify Gift Registry App",
   "scripts": {
-    "build": "npx prisma generate --no-hints && remix build",
-    "railway-build": "npm install && npx prisma generate --no-hints && npm run build",
-    "dev": "shopify app dev --use-localhost",
-    "start": "node railway-start.js",
-    "start:production": "node server.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "db:deploy": "npx prisma db push",
-    "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset", 
-    "db:generate": "prisma generate",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint app",
-    "lint:fix": "eslint app --fix",
-    "build:analyze": "ANALYZE=true npm run build",
-    "health:check": "curl -f http://localhost:3000/health || exit 1"
+    "build": "remix build",
+    "dev": "remix dev",
+    "start": "node server.js",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
     "@remix-run/express": "^2.16.8",
-    "@remix-run/node": "^2.16.8",
+    "@remix-run/node": "^2.16.8", 
     "@remix-run/react": "^2.16.8",
     "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/polaris": "^13.9.5",
     "@shopify/shopify-app-remix": "^3.8.3",
     "@shopify/shopify-app-session-storage-prisma": "^6.0.7",
-    "bcrypt": "^6.0.0",
     "compression": "^1.8.0",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.1",
     "helmet": "^8.1.0",
-    "ioredis": "^5.6.1",
     "morgan": "^1.10.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "web-vitals": "^4.2.4",
-    "winston": "^3.16.0",
-    "zod": "^3.25.76"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
-    "@fullhuman/postcss-purgecss": "7.0.2",
-    "@playwright/test": "^1.54.1",
     "@remix-run/dev": "^2.16.8",
-    "@rollup/rollup-darwin-x64": "4.45.1",
-    "@shopify/app-bridge-types": "^0.1.0",
-    "@types/bcrypt": "^5.0.2",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
-    "@typescript-eslint/eslint-plugin": "^8.37.0",
-    "@typescript-eslint/parser": "^8.37.0",
-    "@vitest/coverage-v8": "^2.1.8",
-    "autoprefixer": "10.4.21",
-    "cssnano": "7.1.0",
-    "eslint": "^9.31.0",
-    "eslint-plugin-react": "^7.37.2",
-    "glob": "^11.0.3",
-    "mkcert": "^3.2.0",
     "prisma": "^6.11.1",
-    "purgecss": "7.0.2",
-    "rollup-plugin-visualizer": "^6.0.3",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3",
-    "vite": "^6.3.5",
-    "vitest": "^2.1.8",
-    "ws": "^8.16.0"
+    "typescript": "^5.8.3"
   },
   "engines": {
     "node": "20.x"
-  },
-  "optionalDependencies": {
-    "@rollup/rollup-darwin-x64": "4.45.1",
-    "@rollup/rollup-linux-x64-musl": "^4.45.1"
-  },
-  "overrides": {
-    "@shopify/network": "3.3.0",
-    "esbuild": "^0.25.8",
-    "estree-util-value-to-estree": "^3.3.3"
-  },
-  "pnpm": {
-    "overrides": {
-      "@shopify/network": "3.3.0",
-      "esbuild": "^0.25.8",
-      "estree-util-value-to-estree": "^3.3.3"
-    }
-  },
-  "type": "module",
-  "sideEffects": false,
-  "keywords": [
-    "shopify",
-    "app",
-    "gift-registry",
-    "wishlist",
-    "e-commerce"
-  ],
-  "author": "WishCraft Team",
-  "license": "MIT"
+  }
 }

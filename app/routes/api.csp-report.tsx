@@ -7,8 +7,18 @@ import type { ActionFunctionArgs } from "@remix-run/node";
 import { log } from "~/lib/logger.server";
 import { db } from "~/lib/db.server";
 import crypto from "crypto";
+import { checkRateLimit, RATE_LIMITS } from "~/lib/rate-limit.server";
 
 export async function action({ request }: ActionFunctionArgs) {
+  // Apply rate limiting to prevent log flooding
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const rateLimit = checkRateLimit(`csp-${ip}`, 30, 60 * 1000); // 30 reports per minute per IP
+  
+  if (!rateLimit.allowed) {
+    log.warn("CSP report rate limit exceeded", { ip });
+    return new Response(null, { status: 204 }); // Still return 204 to prevent retries
+  }
+  
   try {
     const contentType = request.headers.get("content-type");
     

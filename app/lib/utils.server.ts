@@ -5,23 +5,24 @@
 
 import bcrypt from 'bcrypt';
 import { json } from "@remix-run/node";
+import { SHOPIFY_CONFIG } from "~/config/shopify.config";
 
-// Basic constants
-export const API_TIMEOUT = 30000; // 30 seconds
-export const SHOPIFY_API_VERSION = "2025-07";
+// Re-export from centralized config for backward compatibility
+export const API_TIMEOUT = SHOPIFY_CONFIG.API_TIMEOUT;
+export const SHOPIFY_API_VERSION = SHOPIFY_CONFIG.API_VERSION;
 export const DEFAULT_PAGE_SIZE = 50;
-export const MAX_PAGE_SIZE = 250;
+export const MAX_PAGE_SIZE = SHOPIFY_CONFIG.VALIDATION.MAX_ITEMS_PER_REGISTRY;
 
-// Registry limits
+// Registry limits - use centralized config
 export const REGISTRY_LIMITS = {
-  MAX_ITEMS: 250,
-  MAX_TITLE_LENGTH: 255,
-  MAX_DESCRIPTION_LENGTH: 1000,
-  MAX_COLLABORATORS: 50
+  MAX_ITEMS: SHOPIFY_CONFIG.VALIDATION.MAX_ITEMS_PER_REGISTRY,
+  MAX_TITLE_LENGTH: SHOPIFY_CONFIG.VALIDATION.REGISTRY_TITLE_MAX,
+  MAX_DESCRIPTION_LENGTH: SHOPIFY_CONFIG.VALIDATION.REGISTRY_DESCRIPTION_MAX,
+  MAX_COLLABORATORS: SHOPIFY_CONFIG.VALIDATION.MAX_COLLABORATORS
 } as const;
 
 // Hashing utilities
-const SALT_ROUNDS = 10;
+const SALT_ROUNDS = SHOPIFY_CONFIG.SECURITY.SALT_ROUNDS;
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, SALT_ROUNDS);

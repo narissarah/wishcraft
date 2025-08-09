@@ -8,6 +8,7 @@ import { json } from "@remix-run/node";
 import { requireAdmin } from "~/lib/auth.server";
 import { encrypt, decrypt } from "~/lib/crypto.server";
 import { sanitizeString } from "~/lib/validation.server";
+import { requireCSRFToken } from "~/lib/csrf.server";
 import { db } from "~/lib/db.server";
 import crypto from "crypto";
 
@@ -59,6 +60,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
 }
 
 export async function action({ request }: ActionFunctionArgs) {
+  // Validate CSRF token for all mutations
+  await requireCSRFToken(request);
+  
   const { session } = await requireAdmin(request);
   const method = request.method;
   

@@ -5,6 +5,7 @@ import { db } from "~/lib/db.server";
 import { decryptPII } from "~/lib/crypto.server";
 import { verifyInvitationToken } from "~/lib/crypto.server";
 import { apiResponse } from "~/lib/api-response.server";
+import { log } from "~/lib/logger.server";
 
 /**
  * Simplified Collaboration Invitation Handler
@@ -131,7 +132,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
       return apiResponse.success({ message: "Invitation declined" });
     }
   } catch (error) {
-    console.error("Error processing invitation:", error);
+    log.error("Error processing invitation:", error);
     return apiResponse.serverError();
   }
 }

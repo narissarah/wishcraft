@@ -1,5 +1,5 @@
 // Registry API with direct database connection
-import { PrismaClient } from '@prisma/client';
+const { PrismaClient } = require('@prisma/client');
 
 // Use any of the available Postgres URLs from Vercel
 const getDatabaseUrl = () => {
@@ -24,7 +24,7 @@ try {
   prisma = null;
 }
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
     // Set CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');

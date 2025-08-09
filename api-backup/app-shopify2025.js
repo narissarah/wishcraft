@@ -1,7 +1,7 @@
 // WishCraft app - Built for Shopify 2025 Compliant with Multi-Page Navigation
 export default function handler(req, res) {
   try {
-    console.log('WishCraft 2025-compliant multi-page app:', req.method, req.url);
+    console.log('WishCraft 2025-compliant multi-page app v2.0:', req.method, req.url);
     
     const shop = req.query.shop || req.headers['x-shopify-shop-domain'] || 'demo-shop.myshopify.com';
     const host = req.query.host || '';
@@ -12,7 +12,7 @@ export default function handler(req, res) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>WishCraft - Gift Registry Management</title>
+    <title>WishCraft - Gift Registry Management v2.0</title>
     
     <!-- Built for Shopify 2025 Requirements -->
     <meta name="robots" content="noindex">
@@ -796,7 +796,7 @@ export default function handler(req, res) {
 
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
-            console.log('WishCraft 2025-compliant multi-page app initializing...');
+            console.log('WishCraft 2025-compliant multi-page app initializing v2.0 - ' + new Date().toISOString());
             
             // Set up navigation event listeners
             document.querySelectorAll('.nav-btn').forEach(btn => {
@@ -820,9 +820,10 @@ export default function handler(req, res) {
     // Security headers for Built for Shopify 2025
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('X-Frame-Options', 'ALLOWALL');
-    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('ETag', 'wishcraft-v2.0-' + Date.now());
     
     return res.status(200).send(html);
     

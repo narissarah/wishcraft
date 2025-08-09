@@ -6,7 +6,7 @@ export default {
   publicPath: "/build/",
   serverBuildPath: "build/index.js",
   serverConditions: ["node"],
-  serverModuleFormat: "esm",
+  serverModuleFormat: "cjs",
   serverDependenciesToBundle: [
     "@shopify/shopify-app-remix",
     "@shopify/polaris",

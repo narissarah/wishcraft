@@ -1,7 +1,7 @@
 // WishCraft - App Bridge Embedded Application
 // Compliant with Shopify Built for Shopify requirements
 
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   try {
     console.log('App Bridge Embedded App:', req.method, req.url);
     

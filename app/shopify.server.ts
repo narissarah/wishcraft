@@ -1,7 +1,6 @@
-// 2025-07 API Version - Latest version for Built for Shopify compliance
-const SHOPIFY_API_VERSION_2025 = "2025-07";
 import { shopifyApp } from "@shopify/shopify-app-remix/server";
 import { sessionStorage } from "~/lib/session-storage.server";
+import { SHOPIFY_CONFIG } from "~/config/shopify.config";
 
 // Shopify App Configuration (2025 Standards)
 export const shopify = shopifyApp({
@@ -20,7 +19,7 @@ export const shopify = shopifyApp({
   appUrl: process.env.SHOPIFY_APP_URL!,
   authPathPrefix: "/auth",
   sessionStorage,
-  apiVersion: SHOPIFY_API_VERSION_2025 as any, // FIXED: 2025-07 for latest compliance
+  apiVersion: SHOPIFY_CONFIG.API_VERSION as any, // Using centralized config
   
   // 2025 Embedded App Strategy (MANDATORY)
   isEmbeddedApp: true,

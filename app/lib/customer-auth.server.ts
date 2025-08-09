@@ -20,8 +20,10 @@ interface CustomerAccountConfig {
   redirectUri: string;
 }
 
+import { SHOPIFY_CONFIG } from "~/config/shopify.config";
+
 function getCustomerAccountConfig(shop: string): CustomerAccountConfig {
-  const apiVersion = '2025-07'; // Latest Shopify API version for 2025 compliance
+  const apiVersion = SHOPIFY_CONFIG.API_VERSION;
   return {
     authorizationEndpoint: `https://shopify.com/${shop}/account/oauth/authorize`,
     tokenEndpoint: `https://shopify.com/${shop}/account/oauth/token`,

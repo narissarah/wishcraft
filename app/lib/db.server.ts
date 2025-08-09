@@ -12,9 +12,9 @@ const createPrismaClient = () => {
   // Validate DATABASE_URL exists
   if (!process.env.DATABASE_URL) {
     // SECURITY FIX: Don't expose configuration details in error messages
-    console.error('❌ DATABASE_URL environment variable is not set!');
-    console.error('Please set DATABASE_URL in your environment variables or .env file.');
-    console.error('Format: postgresql://user:password@host:port/database');
+    log.error('❌ DATABASE_URL environment variable is not set!');
+    log.error('Please set DATABASE_URL in your environment variables or .env file.');
+    log.error('Format: postgresql://user:password@host:port/database');
     throw new Error('Database configuration error');
   }
   

@@ -67,17 +67,7 @@ export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders, actionH
 export default function App() {
   const { ENV, nonce } = useLoaderData<typeof loader>();
 
-  // Basic client-side error handling
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      window.addEventListener("error", (event) => {
-        console.error("Client error:", event.error);
-      });
-      window.addEventListener("unhandledrejection", (event) => {
-        console.error("Unhandled promise rejection:", event.reason);
-      });
-    }
-  }, []);
+  // Client-side error handling - errors are handled by ErrorBoundary component
 
   return (
     <html lang="en">

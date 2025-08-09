@@ -8,6 +8,7 @@ import { json } from "@remix-run/node";
 import { requireAdmin } from "~/lib/auth.server";
 import { addCollaborator, removeCollaborator, getCollaborators } from "~/lib/collaboration.server";
 import { db } from "~/lib/db.server";
+import { requireCSRFToken } from "~/lib/csrf.server";
 
 // Validate registry access
 async function validateRegistry(registryId: string, adminShop: string) {
@@ -41,6 +42,9 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
+  // Validate CSRF token for all mutations
+  await requireCSRFToken(request);
+  
   const { session } = await requireAdmin(request);
   const registryId = params.id!;
   const method = request.method;

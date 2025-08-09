@@ -1,11 +1,11 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 # SECURITY: Set via environment variable - DO NOT hardcode
-# client_id = "YOUR_NEW_SHOPIFY_API_KEY"
+client_id = "ac161e228a6b078fcdd3fa14586ded14"
 name = "wishcraft"
 handle = "wishcraft"
 # Use environment variable for flexible deployment
-application_url = "{{ SHOPIFY_APP_URL }}"
+application_url = "https://wishcraft-jqqy1p5kz-narissarahs-projects.vercel.app/app"
 embedded = true
 
 [build]
@@ -16,7 +16,7 @@ automatically_update_urls_on_dev = false
 api_version = "2025-07"
 
 # [app_proxy]
-# url = "https://wishcraft-production.up.railway.app/proxy" 
+# url = "https://wishcraft.vercel.app/proxy" 
 # subpath = "apps"
 # prefix = "wishcraft"
 
@@ -30,8 +30,8 @@ use_legacy_install_flow = false
 
 [auth]
 redirect_urls = [
-  "{{ SHOPIFY_APP_URL }}/auth/callback",
-  "{{ SHOPIFY_APP_URL }}/auth/shopify/callback"
+  "https://wishcraft-jqqy1p5kz-narissarahs-projects.vercel.app/auth/callback",
+  "https://wishcraft-jqqy1p5kz-narissarahs-projects.vercel.app/auth/shopify/callback"
 ]
 
 [pos]

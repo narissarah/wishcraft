@@ -1,82 +1,13 @@
 {
-  "buildCommand": "echo 'Build disabled - using API functions only'",
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "remix",
   "functions": {
     "api/index.js": {
-      "runtime": "@vercel/node@3.0.12"
+      "runtime": "nodejs20.x"
     },
-    "api/app.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/registry-simple.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/auth/shopify.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/auth/callback.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/test-db.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/db-status.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/quick-db-check.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/registry-db.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/webhooks/customers-data-request.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/webhooks/customers-redact.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/webhooks/shop-redact.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/app-embedded.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/auth/session-handler.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/registry-create-modal.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/registry-settings.js": {
-      "runtime": "@vercel/node@3.0.12"
-    },
-    "api/performance-monitor.js": {
-      "runtime": "@vercel/node@3.0.12"
+    "api/test-new.js": {
+      "runtime": "nodejs20.x"
     }
-  },
-  "rewrites": [
-    {
-      "source": "/auth/shopify",
-      "destination": "/api/auth/shopify"
-    },
-    {
-      "source": "/auth/callback",
-      "destination": "/api/auth/callback"
-    },
-    {
-      "source": "/auth/shopify/callback",
-      "destination": "/api/auth/callback"
-    },
-    {
-      "source": "/app",
-      "destination": "/api/app-embedded"
-    },
-    {
-      "source": "/api/registry",
-      "destination": "/api/registry-db"
-    },
-    {
-      "source": "^/(?!api/)(.*)$",
-      "destination": "/api/index"
-    }
-  ]
+  }
 }

@@ -4,6 +4,7 @@
  */
 
 import crypto from 'crypto';
+import { log } from './logger.server';
 
 // Environment validation
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
@@ -96,7 +97,7 @@ export function decryptPII(encryptedData: string): string {
     
     return decrypted;
   } catch (error) {
-    console.error('Failed to decrypt PII:', error);
+    log.error('Failed to decrypt PII:', error);
     return '';
   }
 }

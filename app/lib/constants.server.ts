@@ -1,20 +1,22 @@
 /**
  * Minimal constants for WishCraft
- * Only includes values that are actually used
+ * Re-exports from centralized config for backward compatibility
  */
 
-// API Configuration - Only used values
+import { SHOPIFY_CONFIG } from "~/config/shopify.config";
+
+// API Configuration - Re-export from centralized config
 export const API_CONFIG = {
-  TIMEOUT: 30000, // 30 seconds
+  TIMEOUT: SHOPIFY_CONFIG.API_TIMEOUT,
   RETRIES: 3,
-  SHOPIFY_API_VERSION: "2025-07",
-  CACHE_TTL: 300, // 5 minutes
+  SHOPIFY_API_VERSION: SHOPIFY_CONFIG.API_VERSION,
+  CACHE_TTL: SHOPIFY_CONFIG.CACHE.REGISTRY_TTL,
 } as const;
 
-// Validation limits - Only used values
+// Validation limits - Re-export from centralized config
 export const VALIDATION = {
-  REGISTRY_TITLE_MAX: 100,
-  REGISTRY_DESCRIPTION_MAX: 2000,
+  REGISTRY_TITLE_MAX: SHOPIFY_CONFIG.VALIDATION.REGISTRY_TITLE_MAX,
+  REGISTRY_DESCRIPTION_MAX: SHOPIFY_CONFIG.VALIDATION.REGISTRY_DESCRIPTION_MAX,
   EMAIL_MAX: 255,
   NAME_MAX: 100,
   PHONE_MAX: 50,

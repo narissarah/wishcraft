@@ -189,13 +189,9 @@ export interface GraphQLError {
   };
 }
 
-export interface GraphQLResponse<T> {
-  data?: T;
-  errors?: GraphQLError[];
-  extensions?: {
-    [key: string]: any;
-  };
-}
+// GraphQLResponse has been moved to graphql-client.server.ts
+// Import from there if needed:
+// import type { GraphQLResponse } from '~/lib/graphql-client.server';
 
 export interface PaginationInfo {
   hasNextPage: boolean;
