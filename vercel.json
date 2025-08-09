@@ -36,6 +36,15 @@
     },
     "api/webhooks/shop-redact.js": {
       "runtime": "@vercel/node@3.0.12"
+    },
+    "api/app-embedded.js": {
+      "runtime": "@vercel/node@3.0.12"
+    },
+    "api/auth/session-handler.js": {
+      "runtime": "@vercel/node@3.0.12"
+    },
+    "api/registry-create-modal.js": {
+      "runtime": "@vercel/node@3.0.12"
     }
   },
   "rewrites": [
@@ -53,7 +62,7 @@
     },
     {
       "source": "/app",
-      "destination": "/api/app"
+      "destination": "/api/app-embedded"
     },
     {
       "source": "/api/registry",
