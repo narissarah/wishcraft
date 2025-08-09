@@ -13,17 +13,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await requireAdmin(request);
   
   const url = new URL(request.url);
-  const search = url.searchParams.get("search") || undefined;
-  const eventType = url.searchParams.get("eventType") || undefined;
+  const search = url.searchParams.get("search") ?? undefined;
+  const eventType = url.searchParams.get("eventType") ?? undefined;
   const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
   const offset = Math.max(parseInt(url.searchParams.get("offset") || "0"), 0);
 
-  const registries = await listRegistries(session.shop, {
-    search,
-    eventType,
+  const options: Parameters<typeof listRegistries>[1] = {
     limit,
     offset,
-  });
+  };
+  
+  if (search) options.search = search;
+  if (eventType) options.eventType = eventType;
+  
+  const registries = await listRegistries(session.shop, options);
 
   return json({ registries });
 }
@@ -53,23 +56,26 @@ export async function action({ request }: ActionFunctionArgs) {
 
       // Basic validation
       if (!title || !customerEmail || !customerFirstName || !customerLastName) {
-        throw new Response("Required fields missing", { status: 400 });
+        return json({ success: false, error: "Required fields missing" }, { status: 400 });
       }
 
       const eventDate = eventDateStr ? new Date(eventDateStr) : undefined;
 
-      const registry = await createRegistry(session.shop, {
+      const createInput: Parameters<typeof createRegistry>[1] = {
         title,
-        description: description || undefined,
         eventType: eventType || "general",
-        eventDate,
         visibility: visibility || "public",
         customerEmail,
         customerFirstName,
         customerLastName,
-        customerPhone: customerPhone || undefined,
-        accessCode: accessCode || undefined,
-      });
+      };
+      
+      if (description) createInput.description = description;
+      if (eventDate) createInput.eventDate = eventDate;
+      if (customerPhone) createInput.customerPhone = customerPhone;
+      if (accessCode) createInput.accessCode = accessCode;
+      
+      const registry = await createRegistry(session.shop, createInput);
 
       return json({ registry });
     }
@@ -79,16 +85,20 @@ export async function action({ request }: ActionFunctionArgs) {
       const id = formData.get("id") as string;
       
       if (!id) {
-        throw new Response("Registry ID required", { status: 400 });
+        return json({ success: false, error: "Registry ID required" }, { status: 400 });
       }
 
-      const updateData: any = { id };
+      const updateData: { id: string; title?: string; description?: string; eventType?: string; eventDate?: Date; visibility?: 'public' | 'private' | 'friends' | 'password'; accessCode?: string } = { id };
       
       const title = formData.get("title") as string;
       if (title) updateData.title = title;
       
-      const description = formData.get("description") as string;
-      if (description !== null) updateData.description = description;
+      const description = formData.get("description") as string | null;
+      if (description !== null) {
+        if (description) {
+          updateData.description = description;
+        }
+      }
       
       const eventType = formData.get("eventType") as string;
       if (eventType) updateData.eventType = eventType;
@@ -97,7 +107,9 @@ export async function action({ request }: ActionFunctionArgs) {
       if (eventDateStr) updateData.eventDate = new Date(eventDateStr);
       
       const visibility = formData.get("visibility") as string;
-      if (visibility) updateData.visibility = visibility;
+      if (visibility && ['public', 'private', 'friends', 'password'].includes(visibility)) {
+        updateData.visibility = visibility as 'public' | 'private' | 'friends' | 'password';
+      }
       
       const accessCode = formData.get("accessCode") as string;
       if (accessCode !== null) updateData.accessCode = accessCode;
@@ -112,7 +124,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const id = formData.get("id") as string;
       
       if (!id) {
-        throw new Response("Registry ID required", { status: 400 });
+        return json({ success: false, error: "Registry ID required" }, { status: 400 });
       }
 
       const registry = await deleteRegistry(id, session.shop);
@@ -121,6 +133,6 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     
     default:
-      throw new Response("Method not allowed", { status: 405 });
+      return json({ success: false, error: "Method not allowed" }, { status: 405 });
   }
 }

@@ -1,32 +1,31 @@
-import crypto from "crypto";import type { ActionFunctionArgs } from "@remix-run/node";
-import { db } from "~/lib/db.server";
-import { createWebhookHandler } from "~/lib/webhook.server";
+import type { ActionFunctionArgs } from "@remix-run/node";
+import { json } from "@remix-run/node";
 import { log } from "~/lib/logger.server";
+import { db } from "~/lib/db.server";
 
-/**
- * GDPR Webhook: Customer Redact - Refactored with centralized handler
- * Triggered 10 days after customer data request
- * Must delete/anonymize customer personal data
- */
-const handler = createWebhookHandler(
-  {
-    topic: "customers.redact",
-    requireAuth: true,
-    rateLimit: { max: 10, windowMs: 60000 }
-  },
-  async ({ shop, payload }) => {
-    log.info(`Received verified CUSTOMERS_REDACT webhook for ${shop}`);
-
-  const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
-  const customerId = data.customer.id;
-  const customerEmail = data.customer.email;
-  
-  log.info(`Redacting customer data for ${customerEmail} (${customerId})`);
+export const action = async ({ request }: ActionFunctionArgs) => {
+  if (request.method !== "POST") {
+    return json({ success: false, error: "Method not allowed" }, { status: 405 });
+  }
 
   try {
+    const payload = await request.json();
+    const customerId = payload.customer?.id;
+    const customerEmail = payload.customer?.email;
+    const shop = payload.shop_domain;
+    
+    log.webhook("CUSTOMERS_REDACT", shop || "unknown", { 
+      customerId: customerId?.substring(0, 8) + '****' || 'unknown'
+    });
+
+    if (!customerId || !customerEmail || !shop) {
+      return json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    // GDPR compliance: Anonymize customer data
     await db.$transaction(async (tx) => {
-      // 1. Anonymize registries owned by this customer
-      const registriesToAnonymize = await tx.registries.updateMany({
+      // Anonymize registries
+      await tx.registries.updateMany({
         where: { 
           customerId: customerId,
           shopId: shop
@@ -39,7 +38,7 @@ const handler = createWebhookHandler(
         }
       });
 
-      // 2. Anonymize purchases made by this customer
+      // Anonymize purchases
       await tx.registry_purchases.updateMany({
         where: {
           purchaserEmail: customerEmail,
@@ -53,37 +52,16 @@ const handler = createWebhookHandler(
           purchaserEmail: `redacted_${Date.now()}@example.com`
         }
       });
-
-      log.info(`Anonymized ${registriesToAnonymize.count} registries for customer ${customerId}`);
     });
 
-    // Log the redaction
-    await db.audit_logs.create({
-      data: {
-        id: crypto.randomUUID(),
-        action: "customer_data_redacted",
-        resource: "customer",
-        resourceId: customerId,
-        shopId: shop,
-        metadata: JSON.stringify({
-          redactedAt: new Date().toISOString(),
-          customerEmail: customerEmail,
-          webhookId: data.webhook_id,
-          dataRequestId: data.data_request?.id
-        })
-      }
+    log.info("GDPR customer data redaction completed", {
+      customerId: customerId.substring(0, 8) + '****',
+      shopId: shop
     });
 
-    return new Response("OK", { status: 200 });
+    return json({ received: true }, { status: 200 });
   } catch (error) {
-    log.error(`Error processing customer redact webhook for ${shop}`, error as Error);
-    
-    // Still return 200 to prevent webhook retry storms
-    return new Response("OK", { status: 200 });
+    log.error("Failed to process customer redaction webhook", error as Error);
+    return json({ error: "Webhook processing failed" }, { status: 500 });
   }
-  }
-);
-
-export const action = async ({ request }: ActionFunctionArgs) => {
-  return handler(request);
 };

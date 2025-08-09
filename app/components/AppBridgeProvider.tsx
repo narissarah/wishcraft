@@ -44,7 +44,7 @@ export function AppBridgeWrapper({ children, config }: AppBridgeWrapperProps) {
       i18n={enTranslations}
       features={{
         newDesignLanguage: true,
-        polarisSummerEditions2024: true
+        polarisSummerEditions2025: true
       }}
     >
       {children}

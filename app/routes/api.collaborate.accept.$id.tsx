@@ -2,16 +2,9 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { acceptInvitation, declineInvitation } from "~/lib/collaboration.server";
 import { db } from "~/lib/db.server";
-import { decryptPII } from "~/lib/crypto.server";
+import { decrypt } from "~/lib/crypto.server";
 import { verifyInvitationToken } from "~/lib/crypto.server";
-import { apiResponse } from "~/lib/api-response.server";
 import { log } from "~/lib/logger.server";
-
-/**
- * Simplified Collaboration Invitation Handler
- * GET - View invitation details
- * POST - Accept/decline invitation
- */
 
 async function validateInvitation(collaboratorId: string, token: string | null) {
   if (!token) {
@@ -48,9 +41,9 @@ async function validateInvitation(collaboratorId: string, token: string | null) 
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const collaboratorId = params.id;
+  const collaboratorId = params['id'];
   if (!collaboratorId) {
-    return apiResponse.validationError({ id: ["ID required"] });
+    return json({ success: false, error: "ID required" }, { status: 400 });
   }
 
   const url = new URL(request.url);
@@ -58,15 +51,14 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
   
   const validation = await validateInvitation(collaboratorId, token);
   if (!validation.valid || !validation.collaborator) {
-    return apiResponse.error("INVALID_INVITATION", validation.error!, 400);
+    return json({ success: false, error: validation.error! }, { status: 400 });
   }
 
   const collaborator = validation.collaborator;
   const registry = collaborator.registries;
 
-  // Decrypt PII for display
-  const decryptedEmail = decryptPII(collaborator.email);
-  const customerEmail = registry.customerEmail ? decryptPII(registry.customerEmail) : null;
+  const decryptedEmail = decrypt(collaborator.email);
+  const customerEmail = registry.customerEmail ? decrypt(registry.customerEmail) : null;
 
   return json({
     success: true,
@@ -99,40 +91,40 @@ export async function loader({ request, params }: LoaderFunctionArgs) {
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  const collaboratorId = params.id;
+  const collaboratorId = params['id'];
   if (!collaboratorId) {
-    return apiResponse.validationError({ id: ["ID required"] });
+    return json({ success: false, error: "ID required" }, { status: 400 });
   }
 
   const formData = await request.formData();
   const action = formData.get("action");
   const token = formData.get("token") as string;
-  const name = formData.get("name") as string;
 
   if (!action || !["accept", "decline"].includes(action as string)) {
-    return apiResponse.validationError({ action: ["Invalid action"] });
+    return json({ success: false, error: "Invalid action" }, { status: 400 });
   }
 
   const validation = await validateInvitation(collaboratorId, token);
   if (!validation.valid || !validation.collaborator) {
-    return apiResponse.error("INVALID_INVITATION", validation.error!, 400);
+    return json({ success: false, error: validation.error! }, { status: 400 });
   }
 
   const collaborator = validation.collaborator;
 
   try {
     if (action === "accept") {
-      await acceptInvitation({ collaboratorId, token, name });
-      return apiResponse.success({
+      await acceptInvitation(collaboratorId, collaborator.registries.shopId);
+      return json({
+        success: true,
         message: "Invitation accepted",
         redirectUrl: `/app/registries/${collaborator.registryId}`
       });
     } else {
-      await declineInvitation(collaboratorId, token);
-      return apiResponse.success({ message: "Invitation declined" });
+      await declineInvitation(collaboratorId, collaborator.registries.shopId);
+      return json({ success: true, message: "Invitation declined" });
     }
   } catch (error) {
     log.error("Error processing invitation:", error);
-    return apiResponse.serverError();
+    return json({ success: false, error: "Internal server error" }, { status: 500 });
   }
 }

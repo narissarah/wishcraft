@@ -74,6 +74,8 @@ coverage/
 
 # Vercel
 .vercel
+.env.vercel
+.env.vercel.example
 
 # Sentry
 .sentryclirc

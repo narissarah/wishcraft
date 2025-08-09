@@ -18,11 +18,11 @@ async function validateRegistry(registryId: string, adminShop: string) {
   });
 
   if (!registry) {
-    throw new Response("Registry not found", { status: 404 });
+    return json({ success: false, error: "Registry not found" }, { status: 404 });
   }
 
   if (adminShop !== registry.shopId) {
-    throw new Response("Access denied", { status: 403 });
+    return json({ success: false, error: "Access denied" }, { status: 403 });
   }
 
   return registry;
@@ -30,7 +30,7 @@ async function validateRegistry(registryId: string, adminShop: string) {
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
   const { session } = await requireAdmin(request);
-  const registryId = params.id!;
+  const registryId = params['id']!;
   
   // Validate access
   await validateRegistry(registryId, session.shop);
@@ -46,7 +46,7 @@ export async function action({ request, params }: ActionFunctionArgs) {
   await requireCSRFToken(request);
   
   const { session } = await requireAdmin(request);
-  const registryId = params.id!;
+  const registryId = params['id']!;
   const method = request.method;
   
   // Validate access
@@ -61,15 +61,10 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const role = formData.get("role") as "viewer" | "editor";
       
       if (!email || !role) {
-        throw new Response("Email and role required", { status: 400 });
+        return json({ success: false, error: "Email and role required" }, { status: 400 });
       }
       
-      const collaborator = await addCollaborator({
-        registryId,
-        email,
-        role,
-        addedBy: session.shop
-      });
+      const collaborator = await addCollaborator(registryId, email, session.shop);
       
       return json({ collaborator });
     }
@@ -79,15 +74,15 @@ export async function action({ request, params }: ActionFunctionArgs) {
       const collaboratorId = formData.get("collaboratorId") as string;
       
       if (!collaboratorId) {
-        throw new Response("Collaborator ID required", { status: 400 });
+        return json({ success: false, error: "Collaborator ID required" }, { status: 400 });
       }
       
-      await removeCollaborator(collaboratorId, registryId);
+      await removeCollaborator(collaboratorId);
       
       return json({ success: true });
     }
     
     default:
-      throw new Response("Method not allowed", { status: 405 });
+      return json({ success: false, error: "Method not allowed" }, { status: 405 });
   }
 }

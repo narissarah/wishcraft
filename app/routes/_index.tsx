@@ -15,7 +15,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   
   // If no shop parameter, show installation page
   return json({
-    appUrl: process.env.SHOPIFY_APP_URL || "https://wishcraft.vercel.app",
+    appUrl: process.env['SHOPIFY_APP_URL'] || "https://wishcraft.vercel.app",
     appName: "WishCraft Gift Registry"
   });
 };
@@ -49,7 +49,7 @@ export default function Index() {
       </div>
       
       <div className="landing-footer">
-        <p>WishCraft v1.1.6 | Built for Shopify 2025</p>
+        <p>WishCraft v1.2.0 | Built for Shopify 2025</p>
         <p>Deployed on Vercel | Status: Healthy ✅</p>
       </div>
     </div>

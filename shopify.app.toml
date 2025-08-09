@@ -1,5 +1,3 @@
-# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
-
 client_id = "${SHOPIFY_API_KEY}"
 name = "wishcraft"
 handle = "wishcraft"
@@ -13,17 +11,8 @@ automatically_update_urls_on_dev = false
 [webhooks]
 api_version = "2025-07"
 
-# [app_proxy]
-# url = "https://wishcraft.vercel.app/proxy" 
-# subpath = "apps"
-# prefix = "wishcraft"
-
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-# Required scopes for WishCraft gift registry functionality (2025 compliant)
 scopes = "read_customers,read_products,read_orders,write_orders,read_inventory"
-
-# Optional scopes for future features
 use_legacy_install_flow = false
 
 [auth]

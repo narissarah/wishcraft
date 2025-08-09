@@ -1,17 +1,12 @@
-/**
- * Simplified Authentication for WishCraft
- * Essential auth functions without overengineering
- */
-
 import { redirect } from "@remix-run/node";
 import { createCookieSessionStorage } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
-import { db } from "~/lib/db.server";
+import { SHOPIFY_CONFIG } from "~/config/shopify.config";
+import type { CustomerSession, GraphQLVariables } from "~/lib/types";
 import crypto from "crypto";
 
-// Get session secret with validation
 function getSessionSecret(): string {
-  const secret = process.env.SESSION_SECRET;
+  const secret = process.env['SESSION_SECRET'];
   
   if (!secret) {
     throw new Error('SESSION_SECRET environment variable is required');
@@ -26,7 +21,6 @@ function getSessionSecret(): string {
 
 const sessionSecret = getSessionSecret();
 
-// Admin session storage
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__wishcraft_session",
@@ -34,12 +28,11 @@ export const sessionStorage = createCookieSessionStorage({
     path: "/",
     sameSite: "lax",
     secrets: [sessionSecret],
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env["NODE_ENV"] === "production",
     maxAge: 60 * 60 * 24 * 30, // 30 days
   },
 });
 
-// Customer session storage
 export const customerSessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__wishcraft_customer_session",
@@ -47,14 +40,11 @@ export const customerSessionStorage = createCookieSessionStorage({
     path: "/",
     sameSite: "lax",
     secrets: [sessionSecret],
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env["NODE_ENV"] === "production",
     maxAge: 60 * 60 * 24 * 7, // 7 days
   },
 });
 
-/**
- * Require admin authentication
- */
 export async function requireAdmin(request: Request) {
   try {
     const { admin, session } = await authenticate.admin(request);
@@ -69,9 +59,6 @@ export async function requireAdmin(request: Request) {
   }
 }
 
-/**
- * Get admin auth without throwing
- */
 export async function getAdmin(request: Request) {
   try {
     return await authenticate.admin(request);
@@ -80,19 +67,7 @@ export async function getAdmin(request: Request) {
   }
 }
 
-/**
- * Customer authentication interface
- */
-interface CustomerSession {
-  customerId: string;
-  accessToken: string;
-  shop: string;
-  expiresAt: number;
-}
 
-/**
- * Require customer authentication
- */
 export async function requireCustomer(request: Request): Promise<CustomerSession> {
   const session = await getCustomerSession(request);
   
@@ -107,9 +82,6 @@ export async function requireCustomer(request: Request): Promise<CustomerSession
   return session;
 }
 
-/**
- * Get customer session
- */
 export async function getCustomerSession(request: Request): Promise<CustomerSession | null> {
   try {
     const cookieSession = await customerSessionStorage.getSession(
@@ -125,9 +97,6 @@ export async function getCustomerSession(request: Request): Promise<CustomerSess
   }
 }
 
-/**
- * Create customer session
- */
 export async function createCustomerSession(
   customerId: string,
   accessToken: string,
@@ -149,9 +118,6 @@ export async function createCustomerSession(
   return await customerSessionStorage.commitSession(cookieSession);
 }
 
-/**
- * Destroy customer session
- */
 export async function destroyCustomerSession(request: Request): Promise<string> {
   const session = await customerSessionStorage.getSession(
     request.headers.get("Cookie")
@@ -160,42 +126,37 @@ export async function destroyCustomerSession(request: Request): Promise<string> 
   return await customerSessionStorage.destroySession(session);
 }
 
-// Session encryption utilities
 function getEncryptionKey(): Buffer {
-  const key = process.env.ENCRYPTION_KEY || sessionSecret;
+  const key = process.env['ENCRYPTION_KEY'] || sessionSecret;
   return Buffer.from(key.slice(0, 32), 'utf8');
 }
 
 function encryptSession(data: string): string {
   const key = getEncryptionKey();
   const iv = crypto.randomBytes(16);
-  
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
   let encrypted = cipher.update(data, 'utf8', 'hex');
   encrypted += cipher.final('hex');
-  
   const authTag = cipher.getAuthTag();
-  
   return `${iv.toString('hex')}:${authTag.toString('hex')}:${encrypted}`;
 }
 
 function decryptSession(encryptedData: string): string {
   const key = getEncryptionKey();
-  
   const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
+  if (!ivHex || !authTagHex || !encrypted) {
+    throw new Error('Invalid encrypted data format');
+  }
+  
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(authTagHex, 'hex');
-  
   const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
   decipher.setAuthTag(authTag);
-  
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
   decrypted += decipher.final('utf8');
-  
   return decrypted;
 }
 
-// OAuth utilities for customer auth
 export function generateState(): string {
   return crypto.randomBytes(32).toString('hex');
 }
@@ -208,15 +169,12 @@ export function generateCodeChallenge(verifier: string): string {
   return crypto.createHash('sha256').update(verifier).digest('base64url');
 }
 
-/**
- * Make Customer Account API request
- */
 export async function makeCustomerAPIRequest(
   session: CustomerSession,
   query: string,
-  variables?: any
+  variables?: GraphQLVariables
 ) {
-  const response = await fetch(`https://shopify.com/${session.shop}/account/customer/api/2025-07/graphql`, {
+  const response = await fetch(`https://shopify.com/${session.shop}/account/customer/api/${SHOPIFY_CONFIG.API_VERSION}/graphql`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

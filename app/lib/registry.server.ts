@@ -1,10 +1,6 @@
-/**
- * Simplified Registry Operations for WishCraft
- * Core CRUD operations without PII complexity
- */
-
 import { db } from "~/lib/db.server";
-import { encryptRegistryPII, decryptRegistryPII, decryptRegistryForDisplay } from "~/lib/registry-pii.server";
+import { decryptRegistryForDisplay } from "~/lib/registry-pii.server";
+import type { RegistryWithPII } from "~/lib/types";
 import { hashAccessCode } from "~/lib/crypto.server";
 import { sanitizeString, createSlug } from "~/lib/validation.server";
 import crypto from "crypto";
@@ -27,50 +23,37 @@ export interface UpdateRegistryInput extends Partial<CreateRegistryInput> {
   id: string;
 }
 
-/**
- * Create a new registry
- */
 export async function createRegistry(shopId: string, input: CreateRegistryInput) {
-  // Sanitize inputs
   const title = sanitizeString(input.title);
   const slug = createSlug(title);
   
-  // Encrypt PII
-  const encryptedPII = encryptRegistryPII({
-    customerEmail: input.customerEmail,
-    customerFirstName: input.customerFirstName,
-    customerLastName: input.customerLastName,
-    customerPhone: input.customerPhone,
-  });
-  
-  // Hash access code if provided
   const hashedAccessCode = input.accessCode ? hashAccessCode(input.accessCode) : null;
   
   const registry = await db.registries.create({
     data: {
-      id: crypto.randomUUID(),
+      id: `reg_${crypto.randomUUID()}`,
       shopId,
       title,
       slug,
       description: input.description ? sanitizeString(input.description) : null,
       eventType: input.eventType,
-      eventDate: input.eventDate,
+      eventDate: input.eventDate || null,
       visibility: input.visibility,
       accessCode: hashedAccessCode,
       customerId: input.customerId || 'anonymous',
+      customerEmail: input.customerEmail || '',
+      customerFirstName: input.customerFirstName || null,
+      customerLastName: input.customerLastName || null,
+      customerPhone: input.customerPhone || null,
       updatedAt: new Date(),
-      ...encryptedPII,
     },
   });
   
-  return decryptRegistryForDisplay(registry);
+  return decryptRegistryForDisplay(registry as RegistryWithPII);
 }
 
-/**
- * Get registry by ID
- */
 export async function getRegistry(id: string, shopId?: string) {
-  const where: any = { id };
+  const where: { id: string; shopId?: string } = { id };
   if (shopId) {
     where.shopId = shopId;
   }
@@ -87,50 +70,45 @@ export async function getRegistry(id: string, shopId?: string) {
     },
   });
   
-  return registry ? decryptRegistryForDisplay(registry) : null;
+  return registry ? decryptRegistryForDisplay(registry as RegistryWithPII) : null;
 }
 
-/**
- * Update registry
- */
 export async function updateRegistry(input: UpdateRegistryInput) {
   const { id, ...updateData } = input;
   
-  // Prepare update data
-  const data: any = {};
+  const data: Record<string, any> = { updatedAt: new Date() };
   
   if (updateData.title) {
-    data.title = sanitizeString(updateData.title);
-    data.slug = createSlug(data.title);
+    data['title'] = sanitizeString(updateData.title);
+    data['slug'] = createSlug(data['title']);
   }
   
   if (updateData.description !== undefined) {
-    data.description = updateData.description ? sanitizeString(updateData.description) : null;
+    data['description'] = updateData.description ? sanitizeString(updateData.description) : null;
   }
   
-  if (updateData.eventType) data.eventType = updateData.eventType;
-  if (updateData.eventDate !== undefined) data.eventDate = updateData.eventDate;
-  if (updateData.visibility) data.visibility = updateData.visibility;
+  if (updateData.eventType) data['eventType'] = updateData.eventType;
+  if (updateData.eventDate !== undefined) data['eventDate'] = updateData.eventDate || null;
+  if (updateData.visibility) data['visibility'] = updateData.visibility;
   
   if (updateData.accessCode !== undefined) {
-    data.accessCodeHash = updateData.accessCode ? hashAccessCode(updateData.accessCode) : null;
+    data['accessCode'] = updateData.accessCode ? hashAccessCode(updateData.accessCode) : null;
   }
   
-  // Handle PII updates
-  const piiFields = ['customerEmail', 'customerFirstName', 'customerLastName', 'customerPhone'];
-  const piiData: any = {};
-  let hasPIIUpdates = false;
-  
-  for (const field of piiFields) {
-    if (updateData[field as keyof CreateRegistryInput] !== undefined) {
-      hasPIIUpdates = true;
-      piiData[field] = updateData[field as keyof CreateRegistryInput];
-    }
+  if (updateData.customerEmail !== undefined) {
+    data['customerEmail'] = updateData.customerEmail || null;
   }
   
-  if (hasPIIUpdates) {
-    const encryptedPII = encryptRegistryPII(piiData);
-    Object.assign(data, encryptedPII);
+  if (updateData.customerFirstName !== undefined) {
+    data['customerFirstName'] = updateData.customerFirstName || null;
+  }
+  
+  if (updateData.customerLastName !== undefined) {
+    data['customerLastName'] = updateData.customerLastName || null;
+  }
+  
+  if (updateData.customerPhone !== undefined) {
+    data['customerPhone'] = updateData.customerPhone || null;
   }
   
   const registry = await db.registries.update({
@@ -138,27 +116,21 @@ export async function updateRegistry(input: UpdateRegistryInput) {
     data,
   });
   
-  return decryptRegistryForDisplay(registry);
+  return decryptRegistryForDisplay(registry as RegistryWithPII);
 }
 
-/**
- * Delete registry
- */
 export async function deleteRegistry(id: string, shopId: string) {
-  // Soft delete by marking as archived
   const registry = await db.registries.update({
     where: { id, shopId },
     data: {
       status: 'archived',
+      updatedAt: new Date(),
     },
   });
   
-  return decryptRegistryForDisplay(registry);
+  return decryptRegistryForDisplay(registry as RegistryWithPII);
 }
 
-/**
- * List registries for a shop
- */
 export async function listRegistries(shopId: string, options: {
   limit?: number;
   offset?: number;
@@ -174,20 +146,20 @@ export async function listRegistries(shopId: string, options: {
     status = 'active'
   } = options;
   
-  const where: any = {
+  const where: Record<string, any> = {
     shopId,
     status,
   };
   
   if (search) {
-    where.OR = [
+    where['OR'] = [
       { title: { contains: search, mode: 'insensitive' } },
       { description: { contains: search, mode: 'insensitive' } },
     ];
   }
   
   if (eventType) {
-    where.eventType = eventType;
+    where['eventType'] = eventType;
   }
   
   const registries = await db.registries.findMany({
@@ -205,12 +177,9 @@ export async function listRegistries(shopId: string, options: {
     },
   });
   
-  return registries.map(decryptRegistryForDisplay);
+  return registries.map(registry => decryptRegistryForDisplay(registry as RegistryWithPII));
 }
 
-/**
- * Add item to registry
- */
 export async function addItemToRegistry(data: {
   registryId: string;
   productId: string;
@@ -225,12 +194,12 @@ export async function addItemToRegistry(data: {
 }) {
   const item = await db.registry_items.create({
     data: {
-      id: crypto.randomUUID(),
+      id: `reg_${crypto.randomUUID()}`,
       registryId: data.registryId,
       productId: data.productId,
       productHandle: data.productHandle,
       productTitle: data.productTitle,
-      variantTitle: data.variantTitle,
+      variantTitle: data.variantTitle || null,
       quantity: data.quantity || 1,
       priority: data.priority || 'medium',
       notes: data.notes ? sanitizeString(data.notes) : null,
@@ -243,14 +212,11 @@ export async function addItemToRegistry(data: {
   return item;
 }
 
-/**
- * Remove item from registry
- */
 export async function removeItemFromRegistry(itemId: string, registryId: string) {
   await db.registry_items.delete({
     where: {
       id: itemId,
-      registryId, // Ensure item belongs to registry
+      registryId
     },
   });
   

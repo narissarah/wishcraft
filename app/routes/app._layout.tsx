@@ -14,7 +14,7 @@ export const links: LinksFunction = () => [];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Use 2025 authentication pattern - this handles redirects automatically
-  const { admin, session } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
 
   return json({
     shopOrigin: session.shop,

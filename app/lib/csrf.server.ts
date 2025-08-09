@@ -1,21 +1,15 @@
-/**
- * CSRF Protection for WishCraft
- * Implements token-based CSRF protection for API endpoints
- */
-
-import crypto from 'crypto';
-import { createCookieSessionStorage } from '@remix-run/node';
+import crypto from "crypto";
+import { createCookieSessionStorage } from "@remix-run/node";
 import { SHOPIFY_CONFIG } from '~/config/shopify.config';
 
-// CSRF token cookie storage
 const csrfStorage = createCookieSessionStorage({
   cookie: {
     name: '__csrf',
     sameSite: 'lax',
     path: '/',
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    secrets: [process.env.SESSION_SECRET || 'dev-secret'],
+    secure: process.env["NODE_ENV"] === "production",
+    secrets: [process.env['SESSION_SECRET'] || 'dev-secret'],
     maxAge: SHOPIFY_CONFIG.SECURITY.TOKEN_EXPIRY / 1000, // Convert to seconds
   },
 });

@@ -2,14 +2,24 @@ import { redirect } from "@remix-run/node";
 import { generateState, generateCodeVerifier, generateCodeChallenge, createCustomerSession, getCustomerSession, makeCustomerAPIRequest } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
+import type { CustomerSession, RegistryWithPII } from "~/lib/types";
 import crypto from "crypto";
 
-// Re-export getCustomerSession for routes
-export { getCustomerSession } from "~/lib/auth.server";
+const CUSTOMER_PROFILE_QUERY = `#graphql
+  query GetCustomer {
+    customer {
+      id
+      email
+      firstName
+      lastName
+      displayName
+      phoneNumber {
+        phoneNumber
+      }
+    }
+  }
+`;
 
-// ============================================================================
-// CUSTOMER ACCOUNT API CONFIGURATION
-// ============================================================================
 
 interface CustomerAccountConfig {
   authorizationEndpoint: string;
@@ -33,14 +43,11 @@ function getCustomerAccountConfig(shop: string): CustomerAccountConfig {
       "https://api.customers.com/auth/customer.addresses",
       "https://api.customers.com/auth/customer.orders"
     ],
-    clientId: process.env.SHOPIFY_API_KEY!,
-    redirectUri: `${process.env.SHOPIFY_APP_URL}/customer/auth/callback`,
+    clientId: process.env['SHOPIFY_API_KEY']!,
+    redirectUri: `${process.env['SHOPIFY_APP_URL']}/customer/auth/callback`,
   };
 }
 
-// ============================================================================
-// CUSTOMER AUTHENTICATION FLOW
-// ============================================================================
 
 export async function initiateCustomerAuth(
   shop: string, 
@@ -48,12 +55,10 @@ export async function initiateCustomerAuth(
 ): Promise<{ authUrl: string; state: string; codeVerifier: string }> {
   const config = getCustomerAccountConfig(shop);
   
-  // Generate PKCE parameters
   const codeVerifier = generateCodeVerifier();
   const codeChallenge = generateCodeChallenge(codeVerifier);
   const state = generateState();
   
-  // Build authorization URL
   const authUrl = new URL(config.authorizationEndpoint);
   authUrl.searchParams.set('client_id', config.clientId);
   authUrl.searchParams.set('response_type', 'code');
@@ -77,13 +82,12 @@ export async function initiateCustomerAuth(
 export async function handleCustomerAuthCallback(
   shop: string,
   code: string,
-  state: string,
+  _state: string,
   codeVerifier: string
 ): Promise<string> {
   const config = getCustomerAccountConfig(shop);
   
   try {
-    // Exchange authorization code for access token
     const tokenResponse = await fetch(config.tokenEndpoint, {
       method: 'POST',
       headers: {
@@ -92,7 +96,7 @@ export async function handleCustomerAuthCallback(
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: config.clientId,
-        client_secret: process.env.SHOPIFY_API_SECRET!,
+        client_secret: process.env['SHOPIFY_API_SECRET']!,
         code,
         redirect_uri: config.redirectUri,
         code_verifier: codeVerifier,
@@ -106,25 +110,14 @@ export async function handleCustomerAuthCallback(
     
     const tokenData = await tokenResponse.json();
     
-    // Get customer information
     const customerData = await makeCustomerAPIRequest(
       {
-        customerId: '', // Will be filled from response
+        customerId: '',
         accessToken: tokenData.access_token,
         shop,
         expiresAt: Date.now() + (tokenData.expires_in * 1000),
       },
-      `#graphql
-        query GetCustomer {
-          customer {
-            id
-            email
-            firstName
-            lastName
-            displayName
-          }
-        }
-      `
+      CUSTOMER_PROFILE_QUERY
     );
     
     if (customerData.errors) {
@@ -133,7 +126,6 @@ export async function handleCustomerAuthCallback(
     
     const customer = customerData.data.customer;
     
-    // Create customer session
     const sessionCookie = await createCustomerSession(
       customer.id,
       tokenData.access_token,
@@ -149,11 +141,8 @@ export async function handleCustomerAuthCallback(
   }
 }
 
-// ============================================================================
-// CUSTOMER DATA OPERATIONS
-// ============================================================================
 
-export async function getCustomerOrders(customerSession: any) {
+export async function getCustomerOrders(customerSession: CustomerSession) {
   const query = `#graphql
     query GetCustomerOrders($first: Int!) {
       customer {
@@ -195,7 +184,7 @@ export async function getCustomerOrders(customerSession: any) {
   return await makeCustomerAPIRequest(customerSession, query, { first: 20 });
 }
 
-export async function getCustomerAddresses(customerSession: any) {
+export async function getCustomerAddresses(customerSession: CustomerSession) {
   const query = `#graphql
     query GetCustomerAddresses {
       customer {
@@ -227,7 +216,7 @@ export async function getCustomerAddresses(customerSession: any) {
 }
 
 export async function updateCustomerProfile(
-  customerSession: any,
+  customerSession: CustomerSession,
   profileData: {
     firstName?: string;
     lastName?: string;
@@ -291,26 +280,12 @@ export async function getCustomerRegistries(customerId: string, shop: string) {
 export async function linkCustomerToRegistry(
   customerId: string,
   registryId: string,
-  customerSession: any
+  customerSession: CustomerSession
 ) {
   try {
-    // Get customer profile to update registry with current customer info
     const customerProfile = await makeCustomerAPIRequest(
       customerSession,
-      `#graphql
-        query GetCustomer {
-          customer {
-            id
-            email
-            firstName
-            lastName
-            displayName
-            phoneNumber {
-              phoneNumber
-            }
-          }
-        }
-      `
+      CUSTOMER_PROFILE_QUERY
     );
     
     if (customerProfile.errors) {
@@ -319,7 +294,6 @@ export async function linkCustomerToRegistry(
     
     const customer = customerProfile.data.customer;
     
-    // Update registry with customer information
     const updatedRegistry = await db.registries.update({
       where: { id: registryId },
       data: {
@@ -330,7 +304,6 @@ export async function linkCustomerToRegistry(
       }
     });
     
-    // Log activity in audit log
     await db.audit_logs.create({
       data: {
         id: crypto.randomUUID(),
@@ -354,14 +327,11 @@ export async function linkCustomerToRegistry(
   }
 }
 
-// ============================================================================
-// CUSTOMER SESSION UTILITIES
-// ============================================================================
 
 export async function validateCustomerAccess(
   request: Request,
   registryId: string
-): Promise<{ hasAccess: boolean; customer?: any; registry?: any }> {
+): Promise<{ hasAccess: boolean; customer?: CustomerSession; registry?: RegistryWithPII }> {
   try {
     // Get customer session
     const customerSession = await getCustomerSession(request);
@@ -373,7 +343,6 @@ export async function validateCustomerAccess(
     const registry = await db.registries.findUnique({
       where: { 
         id: registryId,
-        // Ensure shop context is validated through customer session
         shopId: customerSession.shop
       }
     });
@@ -382,14 +351,11 @@ export async function validateCustomerAccess(
       return { hasAccess: false };
     }
     
-    // Check if customer owns the registry
     if (registry.customerId === customerSession.customerId) {
       return { hasAccess: true, customer: customerSession, registry };
     }
     
-    // SECURITY FIX: Public registry access with proper validation
     if (registry.visibility === 'public') {
-      // Additional security: Log public access for monitoring
       log.info("Public registry access granted", { 
         registryId: registry.id, 
         shopId: registry.shopId,
@@ -430,20 +396,4 @@ export async function requireCustomerRegistryAccess(
   }
   
   return { customer, registry };
-}
-
-// Simple error handling using unified AppError
-import { AppError } from "~/lib/errors.server";
-
-export function handleCustomerAuthError(error: any): AppError {
-  // Map common errors to appropriate status codes
-  if (error.message?.includes('invalid_grant')) {
-    return new AppError('Authentication expired. Please log in again.', 401, 'TOKEN_EXPIRED');
-  }
-  
-  if (error.message?.includes('access_denied')) {
-    return new AppError('Access denied. Please check your permissions.', 403, 'ACCESS_DENIED');
-  }
-  
-  return new AppError('Authentication failed. Please try again.', 500, 'AUTH_FAILED');
 }

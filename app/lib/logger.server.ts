@@ -1,29 +1,24 @@
-/**
- * Simplified Logger for WishCraft
- * Basic logging without complex Winston configuration
- */
-
-const isDevelopment = process.env.NODE_ENV !== 'production';
+const isDevelopment = process.env["NODE_ENV"] !== "production";
 
 interface LogMeta {
-  [key: string]: any;
+  [key: string]: string | number | boolean | null | undefined | Error | LogMeta | LogMeta[];
 }
 
 class SimpleLogger {
   private formatMessage(level: string, message: string, meta?: LogMeta): string {
     const timestamp = new Date().toISOString();
-    const metaStr = meta && Object.keys(meta).length > 0 ? ` ${JSON.stringify(meta)}` : '';
+    const metaStr = meta && Object.keys(meta).length ? ` ${JSON.stringify(meta)}` : '';
     return `[${timestamp}] ${level.toUpperCase()}: ${message}${metaStr}`;
   }
 
-  error(message: string, error?: Error | any, meta?: LogMeta) {
-    const errorMeta = {
+  error(message: string, error?: Error | unknown, meta?: LogMeta) {
+    const errorMeta: LogMeta = {
       ...meta,
       ...(error instanceof Error ? {
         error: error.message,
         stack: error.stack,
         name: error.name,
-      } : { error }),
+      } : { error: String(error) }),
     };
     
     console.error(this.formatMessage('error', message, errorMeta));
@@ -43,7 +38,6 @@ class SimpleLogger {
     }
   }
 
-  // Webhook logging utility
   webhook(topic: string, shop: string, meta?: LogMeta) {
     const webhookMeta = {
       ...meta,
@@ -54,7 +48,6 @@ class SimpleLogger {
     console.info(this.formatMessage('webhook', `${topic} webhook received`, webhookMeta));
   }
 
-  // Performance timing utility
   time(label: string) {
     console.time(label);
   }

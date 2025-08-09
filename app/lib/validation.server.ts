@@ -1,20 +1,9 @@
-/**
- * Simplified validation utilities for WishCraft
- * Direct validation without unnecessary wrappers
- */
-
 import { z } from "zod";
 
-/**
- * Basic string sanitization
- */
 export function sanitizeString(input: string): string {
   return input.trim().replace(/[<>]/g, '');
 }
 
-/**
- * Create URL-safe slug
- */
 export function createSlug(title: string): string {
   return title
     .toLowerCase()
@@ -23,24 +12,15 @@ export function createSlug(title: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
-/**
- * Remove HTML tags
- */
 export function sanitizeHtml(input: string): string {
   return input.replace(/<[^>]*>/g, '').trim();
 }
 
-/**
- * Safe number conversion
- */
-export function toNumber(input: any): number {
+export function toNumber(input: unknown): number {
   const num = Number(input);
   return isNaN(num) ? 0 : num;
 }
 
-/**
- * Common validation schemas
- */
 export const shopifyIdSchema = z.string().min(1);
 
 export const RegistrySchemas = {

@@ -16,7 +16,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const purchaseId = url.searchParams.get("purchaseId");
   
   if (!purchaseId) {
-    throw new Response("Purchase ID is required", { status: 400 });
+    return json({ success: false, error: "Purchase ID is required" }, { status: 400 });
   }
 
   // Get purchase with gift message
@@ -37,13 +37,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
 
   if (!purchase) {
-    throw new Response("Purchase not found", { status: 404 });
+    return json({ success: false, error: "Purchase not found" }, { status: 404 });
   }
 
   // Verify shop access
   const registryShop = purchase.registry_items?.registries?.shopId;
   if (registryShop !== session.shop) {
-    throw new Response("Access denied", { status: 403 });
+    return json({ success: false, error: "Access denied" }, { status: 403 });
   }
 
   // Get gift message (stored as plain text in this schema)
@@ -72,7 +72,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const message = formData.get("message") as string;
       
       if (!purchaseId) {
-        throw new Response("Purchase ID is required", { status: 400 });
+        return json({ success: false, error: "Purchase ID is required" }, { status: 400 });
       }
 
       // Get purchase to verify access
@@ -90,12 +90,12 @@ export async function action({ request }: ActionFunctionArgs) {
       });
 
       if (!purchase) {
-        throw new Response("Purchase not found", { status: 404 });
+        return json({ success: false, error: "Purchase not found" }, { status: 404 });
       }
 
       const registryShop = purchase.registry_items?.registries?.shopId;
       if (registryShop !== session.shop) {
-        throw new Response("Access denied", { status: 403 });
+        return json({ success: false, error: "Access denied" }, { status: 403 });
       }
 
       // Sanitize and save message
@@ -124,7 +124,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const purchaseId = formData.get("purchaseId") as string;
       
       if (!purchaseId) {
-        throw new Response("Purchase ID is required", { status: 400 });
+        return json({ success: false, error: "Purchase ID is required" }, { status: 400 });
       }
 
       // Verify access and remove gift message
@@ -142,12 +142,12 @@ export async function action({ request }: ActionFunctionArgs) {
       });
 
       if (!purchase) {
-        throw new Response("Purchase not found", { status: 404 });
+        return json({ success: false, error: "Purchase not found" }, { status: 404 });
       }
 
       const registryShop = purchase.registry_items?.registries?.shopId;
       if (registryShop !== session.shop) {
-        throw new Response("Access denied", { status: 403 });
+        return json({ success: false, error: "Access denied" }, { status: 403 });
       }
 
       await db.registry_purchases.update({
@@ -162,6 +162,6 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     
     default:
-      throw new Response("Method not allowed", { status: 405 });
+      return json({ success: false, error: "Method not allowed" }, { status: 405 });
   }
 }

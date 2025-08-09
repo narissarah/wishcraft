@@ -13,17 +13,17 @@
     "@remix-run/node": "^2.16.8",
     "@remix-run/react": "^2.16.8",
     "@remix-run/serve": "^2.16.8",
-    "@rollup/rollup-darwin-x64": "^4.46.2",
-    "@shopify/app-bridge-react": "^4.1.6",
     "@shopify/polaris": "^13.9.5",
     "@shopify/shopify-app-remix": "^3.8.3",
     "@shopify/shopify-app-session-storage-prisma": "^6.0.7",
+    "bcrypt": "^5.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "web-vitals": "^4.2.4"
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@remix-run/dev": "^2.16.8",
+    "@types/bcrypt": "^5.0.2",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "prisma": "^6.11.1",
@@ -31,6 +31,6 @@
     "vite": "^6.0.0"
   },
   "engines": {
-    "node": "20.x"
+    "node": ">=20.0.0"
   }
 }

@@ -1,5 +1,3 @@
-// TypeScript types for WishCraft app
-
 export interface ShopifyProduct {
   id: string;
   title: string;
@@ -185,13 +183,9 @@ export interface GraphQLError {
   path?: Array<string | number>;
   extensions?: {
     code?: string;
-    [key: string]: any;
+    [key: string]: string | number | boolean | null | undefined;
   };
 }
-
-// GraphQLResponse has been moved to graphql-client.server.ts
-// Import from there if needed:
-// import type { GraphQLResponse } from '~/lib/graphql-client.server';
 
 export interface PaginationInfo {
   hasNextPage: boolean;
@@ -205,7 +199,49 @@ export interface EdgeNode<T> {
   cursor: string;
 }
 
+export interface CustomerSession {
+  customerId: string;
+  accessToken: string;
+  shop: string;
+  expiresAt: number;
+  refreshToken?: string;
+}
+
+export interface GraphQLVariables {
+  [key: string]: string | number | boolean | null | GraphQLVariables | Array<string | number | boolean | null>;
+}
+
+export interface RegistryWithPII {
+  id: string;
+  title: string;
+  description: string | null;
+  slug: string;
+  customerEmail: string | null;
+  customerPhone: string | null;
+  customerFirstName: string | null;
+  customerLastName: string | null;
+  eventType: string;
+  eventDate: Date | null;
+  visibility: string;
+  shopId: string;
+  customerId: string | null;
+  accessCode: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  status: string;
+  registry_collaborators?: Array<{
+    id: string;
+    email: string | null;
+    [key: string]: any;
+  }>;
+}
+
 export interface Connection<T> {
   edges: EdgeNode<T>[];
   pageInfo: PaginationInfo;
+}
+
+export interface GraphQLResponse<T> {
+  data?: T;
+  errors?: GraphQLError[];
 }
