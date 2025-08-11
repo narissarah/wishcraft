@@ -89,3 +89,5 @@ certs/
 *.key
 *.crt
 *.p12
+/.DS_Store
+**/.DS_Store
