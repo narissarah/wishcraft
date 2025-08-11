@@ -1,7 +1,16 @@
 import { z } from "zod";
+import { REGISTRY_VISIBILITY, REGISTRY_EVENT_TYPES } from "~/lib/constants";
 
 export function sanitizeString(input: string): string {
-  return input.trim().replace(/[<>]/g, '');
+  // Comprehensive XSS prevention: encode HTML entities
+  return input
+    .trim()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+    .replace(/\//g, '&#x2F;');
 }
 
 export function createSlug(title: string): string {
@@ -13,7 +22,15 @@ export function createSlug(title: string): string {
 }
 
 export function sanitizeHtml(input: string): string {
-  return input.replace(/<[^>]*>/g, '').trim();
+  // Remove all HTML tags and encode entities to prevent XSS
+  return input
+    .replace(/<[^>]*>/g, '')
+    .trim()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
 export function toNumber(input: unknown): number {
@@ -45,5 +62,26 @@ export const QuerySchemas = {
     q: z.string().optional(),
     sortBy: z.string().optional(),
     sortOrder: z.enum(["asc", "desc"]).optional(),
+  })
+};
+
+// Input validation schemas
+export const InputSchemas = {
+  email: z.string().email().max(255),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/).optional(),
+  date: z.string().datetime().or(z.date()),
+  url: z.string().url().max(2048),
+  
+  registry: z.object({
+    title: z.string().min(3).max(100),
+    description: z.string().max(1000).optional(),
+    eventType: z.enum(Object.values(REGISTRY_EVENT_TYPES) as [string, ...string[]]),
+    eventDate: z.string().datetime().optional(),
+    visibility: z.enum(Object.values(REGISTRY_VISIBILITY) as [string, ...string[]]),
+    accessCode: z.string().min(4).max(20).optional(),
+    customerEmail: z.string().email().optional(),
+    customerFirstName: z.string().max(50).optional(),
+    customerLastName: z.string().max(50).optional(),
+    customerPhone: z.string().regex(/^\+?[1-9]\d{1,14}$/).optional(),
   })
 };

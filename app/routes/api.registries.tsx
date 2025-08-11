@@ -8,37 +8,51 @@ import { json } from "@remix-run/node";
 import { requireAdmin } from "~/lib/auth.server";
 import { createRegistry, listRegistries, updateRegistry, deleteRegistry } from "~/lib/registry.server";
 import { requireCSRFToken } from "~/lib/csrf.server";
+import { API_LIMITS } from "~/lib/constants";
+import { log } from "~/lib/logger.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await requireAdmin(request);
-  
-  const url = new URL(request.url);
-  const search = url.searchParams.get("search") ?? undefined;
-  const eventType = url.searchParams.get("eventType") ?? undefined;
-  const limit = Math.min(parseInt(url.searchParams.get("limit") || "20"), 100);
-  const offset = Math.max(parseInt(url.searchParams.get("offset") || "0"), 0);
+  try {
+    const { session } = await requireAdmin(request);
+    
+    const url = new URL(request.url);
+    const search = url.searchParams.get("search") ?? undefined;
+    const eventType = url.searchParams.get("eventType") ?? undefined;
+    const limit = Math.min(parseInt(url.searchParams.get("limit") || API_LIMITS.DEFAULT_PAGE_SIZE.toString()), API_LIMITS.MAX_PAGE_SIZE);
+    const offset = Math.max(parseInt(url.searchParams.get("offset") || "0"), 0);
 
-  const options: Parameters<typeof listRegistries>[1] = {
-    limit,
-    offset,
-  };
-  
-  if (search) options.search = search;
-  if (eventType) options.eventType = eventType;
-  
-  const registries = await listRegistries(session.shop, options);
+    const options: Parameters<typeof listRegistries>[1] = {
+      limit,
+      offset,
+    };
+    
+    if (search) options.search = search;
+    if (eventType) options.eventType = eventType;
+    
+    const registries = await listRegistries(session.shop, options);
 
-  return json({ registries });
+    return json({ 
+      success: true,
+      data: { registries }
+    });
+  } catch (error) {
+    log.error("Registries loader error:", error);
+    return json({ 
+      success: false, 
+      error: "An error occurred loading registry data" 
+    }, { status: 500 });
+  }
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  // Validate CSRF token for all mutations
-  await requireCSRFToken(request);
-  
-  const { session } = await requireAdmin(request);
-  const method = request.method;
-  
-  const formData = await request.formData();
+  try {
+    // Validate CSRF token for all mutations
+    await requireCSRFToken(request);
+    
+    const { session } = await requireAdmin(request);
+    const method = request.method;
+    
+    const formData = await request.formData();
   
   switch (method) {
     case "POST": {
@@ -47,7 +61,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const description = formData.get("description") as string;
       const eventType = formData.get("eventType") as string;
       const eventDateStr = formData.get("eventDate") as string;
-      const visibility = formData.get("visibility") as "public" | "private";
+      const visibility = formData.get("visibility") as "public" | "private" | "friends" | "password";
       const customerEmail = formData.get("customerEmail") as string;
       const customerFirstName = formData.get("customerFirstName") as string;
       const customerLastName = formData.get("customerLastName") as string;
@@ -59,7 +73,7 @@ export async function action({ request }: ActionFunctionArgs) {
         return json({ success: false, error: "Required fields missing" }, { status: 400 });
       }
 
-      const eventDate = eventDateStr ? new Date(eventDateStr) : undefined;
+      const eventDate = eventDateStr && !isNaN(Date.parse(eventDateStr)) ? new Date(eventDateStr) : undefined;
 
       const createInput: Parameters<typeof createRegistry>[1] = {
         title,
@@ -77,7 +91,10 @@ export async function action({ request }: ActionFunctionArgs) {
       
       const registry = await createRegistry(session.shop, createInput);
 
-      return json({ registry });
+      return json({ 
+        success: true,
+        data: { registry }
+      });
     }
     
     case "PUT": {
@@ -104,7 +121,7 @@ export async function action({ request }: ActionFunctionArgs) {
       if (eventType) updateData.eventType = eventType;
       
       const eventDateStr = formData.get("eventDate") as string;
-      if (eventDateStr) updateData.eventDate = new Date(eventDateStr);
+      if (eventDateStr && !isNaN(Date.parse(eventDateStr))) updateData.eventDate = new Date(eventDateStr);
       
       const visibility = formData.get("visibility") as string;
       if (visibility && ['public', 'private', 'friends', 'password'].includes(visibility)) {
@@ -116,7 +133,10 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const registry = await updateRegistry(updateData);
       
-      return json({ registry });
+      return json({ 
+        success: true,
+        data: { registry }
+      });
     }
     
     case "DELETE": {
@@ -129,10 +149,23 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const registry = await deleteRegistry(id, session.shop);
       
-      return json({ registry });
+      return json({ 
+        success: true,
+        data: { registry }
+      });
     }
     
     default:
       return json({ success: false, error: "Method not allowed" }, { status: 405 });
+  }
+  } catch (error) {
+    // Log error for debugging
+    log.error('Registry API error:', error);
+    
+    // Return safe error message
+    return json({ 
+      success: false, 
+      error: 'An error occurred processing your request' 
+    }, { status: 500 });
   }
 }

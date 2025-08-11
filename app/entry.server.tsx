@@ -20,7 +20,7 @@ export default function handleRequest(
   const startTime = Date.now();
   
   // Get nonce from server middleware
-  const nonce = (request as any).nonce;
+  const nonce = (request as Request & { nonce?: string }).nonce;
   
   const markup = renderToString(
     <RemixServer context={remixContext} url={request.url} />
@@ -29,7 +29,7 @@ export default function handleRequest(
   // Set security headers with the same nonce from server
   const url = new URL(request.url);
   const shop = url.searchParams.get('shop');
-  const securityHeaders = getSecurityHeaders(nonce, shop);
+  const securityHeaders = getSecurityHeaders(nonce || '', shop);
   
   Object.entries(securityHeaders).forEach(([key, value]) => {
     if (value) responseHeaders.set(key, value);

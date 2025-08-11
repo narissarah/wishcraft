@@ -1,18 +1,32 @@
 import crypto from "crypto";
 import { createCookieSessionStorage } from "@remix-run/node";
+import type { SessionStorage } from "@remix-run/node";
 import { SHOPIFY_CONFIG } from '~/config/shopify.config';
 
-const csrfStorage = createCookieSessionStorage({
-  cookie: {
-    name: '__csrf',
-    sameSite: 'lax',
-    path: '/',
-    httpOnly: true,
-    secure: process.env["NODE_ENV"] === "production",
-    secrets: [process.env['SESSION_SECRET'] || 'dev-secret'],
-    maxAge: SHOPIFY_CONFIG.SECURITY.TOKEN_EXPIRY / 1000, // Convert to seconds
-  },
-});
+// Lazy initialization for serverless
+let csrfStorage: SessionStorage | null = null;
+
+function getCsrfStorage(): SessionStorage {
+  if (!csrfStorage) {
+    const secret = process.env['SESSION_SECRET'];
+    if (!secret) {
+      throw new Error('SESSION_SECRET environment variable is required for CSRF protection');
+    }
+    
+    csrfStorage = createCookieSessionStorage({
+      cookie: {
+        name: '__csrf',
+        sameSite: 'lax',
+        path: '/',
+        httpOnly: true,
+        secure: process.env['NODE_ENV'] === 'production',
+        secrets: [secret],
+        maxAge: SHOPIFY_CONFIG.SECURITY.TOKEN_EXPIRY / 1000, // Convert to seconds
+      },
+    });
+  }
+  return csrfStorage;
+}
 
 /**
  * Generate a new CSRF token
@@ -25,8 +39,8 @@ export function generateCSRFToken(): string {
  * Get or create CSRF token for a request
  */
 export async function getCSRFToken(request: Request): Promise<string> {
-  const session = await csrfStorage.getSession(request.headers.get('Cookie'));
-  let token = session.get('token');
+  const session = await getCsrfStorage().getSession(request.headers.get('Cookie'));
+  let token = session.get('token') as string | undefined;
   
   if (!token) {
     token = generateCSRFToken();
@@ -40,11 +54,11 @@ export async function getCSRFToken(request: Request): Promise<string> {
  * Get the Set-Cookie header for CSRF token
  */
 export async function getCSRFCookieHeader(request: Request): Promise<string> {
-  const session = await csrfStorage.getSession(request.headers.get('Cookie'));
-  const token = session.get('token') || generateCSRFToken();
+  const session = await getCsrfStorage().getSession(request.headers.get('Cookie'));
+  const token = (session.get('token') as string | undefined) || generateCSRFToken();
   session.set('token', token);
   
-  return await csrfStorage.commitSession(session);
+  return await getCsrfStorage().commitSession(session);
 }
 
 /**
@@ -63,8 +77,8 @@ export async function validateCSRFToken(request: Request): Promise<boolean> {
   }
   
   // Get token from session
-  const session = await csrfStorage.getSession(request.headers.get('Cookie'));
-  const sessionToken = session.get('token');
+  const session = await getCsrfStorage().getSession(request.headers.get('Cookie'));
+  const sessionToken = session.get('token') as string | undefined;
   
   if (!sessionToken) {
     throw new Response('CSRF token missing from session', { status: 403 });

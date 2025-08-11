@@ -1,6 +1,7 @@
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
 import { encrypt, decrypt } from "~/lib/crypto.server";
+import { COLLABORATOR_STATUS } from "~/lib/constants";
 import crypto from "crypto";
 
 export async function acceptInvitation(collaboratorId: string, shopId: string) {
@@ -8,7 +9,7 @@ export async function acceptInvitation(collaboratorId: string, shopId: string) {
     const result = await db.registry_collaborators.update({
       where: { id: collaboratorId },
       data: {
-        status: 'accepted',
+        status: COLLABORATOR_STATUS.ACCEPTED,
         acceptedAt: new Date()
       }
     });
@@ -26,7 +27,7 @@ export async function declineInvitation(collaboratorId: string, shopId: string) 
     const result = await db.registry_collaborators.update({
       where: { id: collaboratorId },
       data: {
-        status: 'declined',
+        status: COLLABORATOR_STATUS.DECLINED,
         updatedAt: new Date()
       }
     });
@@ -48,7 +49,7 @@ export async function addCollaborator(registryId: string, email: string, role: s
         registryId,
         email: encryptedEmail,
         role,
-        status: 'pending',
+        status: COLLABORATOR_STATUS.PENDING,
         invitedAt: new Date(),
         updatedAt: new Date()
       }

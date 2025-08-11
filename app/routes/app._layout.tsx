@@ -6,7 +6,10 @@ import { authenticate } from "~/shopify.server";
 import { lazy, Suspense } from "react";
 
 // Lazy load components to reduce initial bundle size
-const AppBridgeWrapper = lazy(() => import("~/components/AppBridgeProvider").then(m => ({default: m.AppBridgeWrapper})));
+const AppBridgeWrapper = lazy(async () => {
+  const m = await import("~/components/AppBridgeProvider");
+  return { default: m.AppBridgeWrapper };
+});
 import { Page, Layout, Spinner } from "@shopify/polaris";
 import "~/styles/index.css";
 

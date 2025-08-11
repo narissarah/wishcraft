@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { authenticate } from "~/shopify.server";
 import { log } from "~/lib/logger.server";
 import { db } from "~/lib/db.server";
 
@@ -9,16 +10,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    const payload = await request.json();
+    // Authenticate webhook
+    const { shop, payload } = await authenticate.webhook(request);
+    
     const customerId = payload.customer?.id;
     const customerEmail = payload.customer?.email;
-    const shop = payload.shop_domain;
     
-    log.webhook("CUSTOMERS_REDACT", shop || "unknown", { 
+    log.webhook("CUSTOMERS_REDACT", shop, { 
       customerId: customerId?.substring(0, 8) + '****' || 'unknown'
     });
 
-    if (!customerId || !customerEmail || !shop) {
+    if (!customerId || !customerEmail) {
       return json({ error: "Missing required fields" }, { status: 400 });
     }
 

@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { authenticate } from "~/shopify.server";
 import { log } from "~/lib/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -8,15 +9,16 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    const payload = await request.json();
+    // Authenticate webhook
+    const { shop, payload } = await authenticate.webhook(request);
     
-    log.webhook("SHOP_REDACT", payload.shop_domain || "unknown", { verified: true });
+    log.webhook("SHOP_REDACT", shop, { verified: true });
 
     // GDPR compliance: Log the shop data deletion request
     // In production, implement actual data deletion here
     log.info("GDPR shop data redaction requested", {
-      shopId: payload.shop_id || 'unknown',
-      shopDomain: payload.shop_domain || 'unknown'
+      shopId: shop,
+      shopDomain: shop
     });
 
     return json({ received: true }, { status: 200 });

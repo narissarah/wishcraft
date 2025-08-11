@@ -20,7 +20,7 @@ export async function loader({ }: LoaderFunctionArgs) {
   return json({
     nonce,
     ENV: {
-      NODE_ENV: process.env["NODE_ENV"],
+      NODE_ENV: process.env['NODE_ENV'],
       SHOPIFY_APP_URL: process.env['SHOPIFY_APP_URL'],
     }
   });
@@ -35,6 +35,16 @@ export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders, actionH
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Permitted-Cross-Domain-Policies", "none");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  
+  // CORS headers for API routes
+  const origin = headers.get("Origin") || "*";
+  const shopifyOrigins = ["https://*.myshopify.com", "https://admin.shopify.com"];
+  if (shopifyOrigins.some(pattern => origin.match(pattern.replace("*", ".*")))) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-CSRF-Token");
+    headers.set("Access-Control-Allow-Credentials", "true");
+  }
   
   return headers;
 };

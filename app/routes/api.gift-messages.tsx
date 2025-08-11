@@ -8,64 +8,77 @@ import { json } from "@remix-run/node";
 import { requireAdmin } from "~/lib/auth.server";
 import { requireCSRFToken } from "~/lib/csrf.server";
 import { db } from "~/lib/db.server";
+import { log } from "~/lib/logger.server";
 
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await requireAdmin(request);
-  
-  const url = new URL(request.url);
-  const purchaseId = url.searchParams.get("purchaseId");
-  
-  if (!purchaseId) {
-    return json({ success: false, error: "Purchase ID is required" }, { status: 400 });
-  }
+  try {
+    const { session } = await requireAdmin(request);
+    
+    const url = new URL(request.url);
+    const purchaseId = url.searchParams.get("purchaseId");
+    
+    if (!purchaseId) {
+      return json({ success: false, error: "Purchase ID is required" }, { status: 400 });
+    }
 
-  // Get purchase with gift message
-  const purchase = await db.registry_purchases.findUnique({
-    where: { id: purchaseId },
-    include: {
-      registry_items: {
-        include: {
-          registries: {
-            select: {
-              id: true,
-              shopId: true,
+    // Get purchase with gift message
+    const purchase = await db.registry_purchases.findUnique({
+      where: { id: purchaseId },
+      include: {
+        registry_items: {
+          include: {
+            registries: {
+              select: {
+                id: true,
+                shopId: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!purchase) {
-    return json({ success: false, error: "Purchase not found" }, { status: 404 });
+    if (!purchase) {
+      return json({ success: false, error: "Purchase not found" }, { status: 404 });
+    }
+
+    // Verify shop access
+    const registryShop = purchase.registry_items?.registries?.shopId;
+    if (registryShop !== session.shop) {
+      return json({ success: false, error: "Access denied" }, { status: 403 });
+    }
+
+    // Get gift message (stored as plain text in this schema)
+    const giftMessage = purchase.giftMessage || null;
+
+    return json({
+      success: true,
+      data: {
+        purchaseId: purchase.id,
+        giftMessage,
+        hasGiftMessage: !!purchase.giftMessage,
+      }
+    });
+  } catch (error) {
+    log.error("Gift messages loader error:", error);
+    return json({ 
+      success: false, 
+      error: "An error occurred loading gift message data" 
+    }, { status: 500 });
   }
-
-  // Verify shop access
-  const registryShop = purchase.registry_items?.registries?.shopId;
-  if (registryShop !== session.shop) {
-    return json({ success: false, error: "Access denied" }, { status: 403 });
-  }
-
-  // Get gift message (stored as plain text in this schema)
-  const giftMessage = purchase.giftMessage || null;
-
-  return json({
-    purchaseId: purchase.id,
-    giftMessage,
-    hasGiftMessage: !!purchase.giftMessage,
-  });
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  // Validate CSRF token for all mutations
-  await requireCSRFToken(request);
-  
-  const { session } = await requireAdmin(request);
-  const method = request.method;
-  
-  const formData = await request.formData();
-  
-  switch (method) {
+  try {
+    // Validate CSRF token for all mutations
+    await requireCSRFToken(request);
+    
+    const { session } = await requireAdmin(request);
+    const method = request.method;
+    
+    const formData = await request.formData();
+    
+    switch (method) {
     case "POST":
     case "PUT": {
       const purchaseId = formData.get("purchaseId") as string;
@@ -163,5 +176,12 @@ export async function action({ request }: ActionFunctionArgs) {
     
     default:
       return json({ success: false, error: "Method not allowed" }, { status: 405 });
+    }
+  } catch (error) {
+    log.error("Gift messages action error:", error);
+    return json({ 
+      success: false, 
+      error: "An error occurred processing your request" 
+    }, { status: 500 });
   }
 }

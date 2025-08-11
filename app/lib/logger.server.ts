@@ -1,4 +1,4 @@
-const isDevelopment = process.env["NODE_ENV"] !== "production";
+const isDevelopment = process.env['NODE_ENV'] !== 'production';
 
 interface LogMeta {
   [key: string]: string | number | boolean | null | undefined | Error | LogMeta | LogMeta[];
@@ -16,7 +16,8 @@ class SimpleLogger {
       ...meta,
       ...(error instanceof Error ? {
         error: error.message,
-        stack: error.stack,
+        // Only include stack traces in development
+        ...(isDevelopment ? { stack: error.stack } : {}),
         name: error.name,
       } : { error: String(error) }),
     };

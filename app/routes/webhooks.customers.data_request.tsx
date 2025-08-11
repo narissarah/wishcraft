@@ -1,5 +1,6 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
+import { authenticate } from "~/shopify.server";
 import { log } from "~/lib/logger.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -8,9 +9,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    const payload = await request.json();
+    // Authenticate webhook
+    const { shop, payload } = await authenticate.webhook(request);
     
-    log.webhook("CUSTOMERS_DATA_REQUEST", payload.shop_domain || "unknown", { 
+    log.webhook("CUSTOMERS_DATA_REQUEST", shop, { 
       customerId: payload.customer?.id?.substring(0, 8) + '****' || 'unknown'
     });
 
@@ -19,7 +21,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     log.info("GDPR customer data export requested", {
       customerId: payload.customer?.id?.substring(0, 8) + '****' || 'unknown',
       customerEmail: payload.customer?.email?.substring(0, 3) + '****' || 'unknown',
-      shopId: payload.shop_domain || 'unknown'
+      shopId: shop
     });
 
     return json({ received: true }, { status: 200 });

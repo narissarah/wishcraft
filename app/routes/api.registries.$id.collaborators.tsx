@@ -9,6 +9,7 @@ import { requireAdmin } from "~/lib/auth.server";
 import { addCollaborator, removeCollaborator, getCollaborators } from "~/lib/collaboration.server";
 import { db } from "~/lib/db.server";
 import { requireCSRFToken } from "~/lib/csrf.server";
+import { log } from "~/lib/logger.server";
 
 // Validate registry access
 async function validateRegistry(registryId: string, adminShop: string) {
@@ -29,60 +30,91 @@ async function validateRegistry(registryId: string, adminShop: string) {
 }
 
 export async function loader({ request, params }: LoaderFunctionArgs) {
-  const { session } = await requireAdmin(request);
-  const registryId = params['id']!;
-  
-  // Validate access
-  await validateRegistry(registryId, session.shop);
-  
-  // Get collaborators
-  const collaborators = await getCollaborators(registryId);
-  
-  return json({ collaborators });
+  try {
+    const { session } = await requireAdmin(request);
+    const registryId = params.id;
+    
+    if (!registryId) {
+      return json({ success: false, error: "Registry ID is required" }, { status: 400 });
+    }
+    
+    // Validate access
+    await validateRegistry(registryId, session.shop);
+    
+    // Get collaborators
+    const collaborators = await getCollaborators(registryId);
+    
+    return json({ 
+      success: true,
+      data: { collaborators }
+    });
+  } catch (error) {
+    log.error('Collaborators loader error:', error);
+    return json({ 
+      success: false, 
+      error: 'An error occurred loading collaborator data' 
+    }, { status: 500 });
+  }
 }
 
 export async function action({ request, params }: ActionFunctionArgs) {
-  // Validate CSRF token for all mutations
-  await requireCSRFToken(request);
-  
-  const { session } = await requireAdmin(request);
-  const registryId = params['id']!;
-  const method = request.method;
-  
-  // Validate access
-  await validateRegistry(registryId, session.shop);
-  
-  const formData = await request.formData();
-  
-  switch (method) {
-    case "POST": {
-      // Add collaborator
-      const email = formData.get("email") as string;
-      const role = formData.get("role") as "viewer" | "editor";
-      
-      if (!email || !role) {
-        return json({ success: false, error: "Email and role required" }, { status: 400 });
-      }
-      
-      const collaborator = await addCollaborator(registryId, email, session.shop);
-      
-      return json({ collaborator });
+  try {
+    // Validate CSRF token for all mutations
+    await requireCSRFToken(request);
+    
+    const { session } = await requireAdmin(request);
+    const registryId = params.id;
+    
+    if (!registryId) {
+      return json({ success: false, error: "Registry ID is required" }, { status: 400 });
     }
     
-    case "DELETE": {
-      // Remove collaborator
-      const collaboratorId = formData.get("collaboratorId") as string;
-      
-      if (!collaboratorId) {
-        return json({ success: false, error: "Collaborator ID required" }, { status: 400 });
+    const method = request.method;
+    
+    // Validate access
+    await validateRegistry(registryId, session.shop);
+    
+    const formData = await request.formData();
+    
+    switch (method) {
+      case "POST": {
+        // Add collaborator
+        const email = formData.get("email") as string;
+        const role = formData.get("role") as "viewer" | "editor";
+        
+        if (!email || !role) {
+          return json({ success: false, error: "Email and role required" }, { status: 400 });
+        }
+        
+        const collaborator = await addCollaborator(registryId, email, session.shop);
+        
+        return json({ 
+          success: true,
+          data: { collaborator }
+        });
       }
       
-      await removeCollaborator(collaboratorId);
+      case "DELETE": {
+        // Remove collaborator
+        const collaboratorId = formData.get("collaboratorId") as string;
+        
+        if (!collaboratorId) {
+          return json({ success: false, error: "Collaborator ID required" }, { status: 400 });
+        }
+        
+        await removeCollaborator(collaboratorId);
+        
+        return json({ success: true });
+      }
       
-      return json({ success: true });
+      default:
+        return json({ success: false, error: "Method not allowed" }, { status: 405 });
     }
-    
-    default:
-      return json({ success: false, error: "Method not allowed" }, { status: 405 });
+  } catch (error) {
+    log.error("Collaborators API error:", error);
+    return json({ 
+      success: false, 
+      error: "An error occurred processing your request" 
+    }, { status: 500 });
   }
 }

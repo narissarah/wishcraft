@@ -1,5 +1,14 @@
 {
   "buildCommand": "npm run build",
   "framework": "remix",
-  "regions": ["iad1"]
+  "regions": ["iad1"],
+  "functions": {
+    "build/server/index.js": {
+      "maxDuration": 30,
+      "memory": 1024
+    }
+  },
+  "env": {
+    "NODE_ENV": "production"
+  }
 }

@@ -76,11 +76,11 @@ export async function getRegistry(id: string, shopId?: string) {
 export async function updateRegistry(input: UpdateRegistryInput) {
   const { id, ...updateData } = input;
   
-  const data: Record<string, any> = { updatedAt: new Date() };
+  const data: Record<string, unknown> = { updatedAt: new Date() };
   
   if (updateData.title) {
     data['title'] = sanitizeString(updateData.title);
-    data['slug'] = createSlug(data['title']);
+    data['slug'] = createSlug(sanitizeString(updateData.title));
   }
   
   if (updateData.description !== undefined) {
@@ -146,7 +146,7 @@ export async function listRegistries(shopId: string, options: {
     status = 'active'
   } = options;
   
-  const where: Record<string, any> = {
+  const where: Record<string, unknown> = {
     shopId,
     status,
   };

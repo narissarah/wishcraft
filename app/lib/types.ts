@@ -232,7 +232,11 @@ export interface RegistryWithPII {
   registry_collaborators?: Array<{
     id: string;
     email: string | null;
-    [key: string]: any;
+    name?: string | null;
+    role?: string | null;
+    status?: string | null;
+    createdAt?: Date;
+    updatedAt?: Date;
   }>;
 }
 

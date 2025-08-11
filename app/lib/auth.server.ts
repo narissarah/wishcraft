@@ -2,24 +2,31 @@ import { redirect } from "@remix-run/node";
 import { createCookieSessionStorage } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { SHOPIFY_CONFIG } from "~/config/shopify.config";
+import { TIME_CONSTANTS } from "~/lib/constants";
 import type { CustomerSession, GraphQLVariables } from "~/lib/types";
 import crypto from "crypto";
+import { fetchWithTimeout } from "~/lib/fetch-with-timeout.server";
+
+// Lazy initialization to prevent serverless crashes
+let sessionSecret: string | null = null;
 
 function getSessionSecret(): string {
-  const secret = process.env['SESSION_SECRET'];
-  
-  if (!secret) {
-    throw new Error('SESSION_SECRET environment variable is required');
+  if (!sessionSecret) {
+    const secret = process.env['SESSION_SECRET'];
+    
+    if (!secret) {
+      throw new Error('SESSION_SECRET environment variable is required');
+    }
+    
+    if (secret.length < 32) {
+      throw new Error('SESSION_SECRET must be at least 32 characters');
+    }
+    
+    sessionSecret = secret;
   }
   
-  if (secret.length < 32) {
-    throw new Error('SESSION_SECRET must be at least 32 characters');
-  }
-  
-  return secret;
+  return sessionSecret;
 }
-
-const sessionSecret = getSessionSecret();
 
 export const sessionStorage = createCookieSessionStorage({
   cookie: {
@@ -27,9 +34,9 @@ export const sessionStorage = createCookieSessionStorage({
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secrets: [sessionSecret],
-    secure: process.env["NODE_ENV"] === "production",
-    maxAge: 60 * 60 * 24 * 30, // 30 days
+    secrets: [getSessionSecret()],
+    secure: process.env['NODE_ENV'] === 'production',
+    maxAge: TIME_CONSTANTS.SESSION_DURATION_ADMIN,
   },
 });
 
@@ -39,9 +46,9 @@ export const customerSessionStorage = createCookieSessionStorage({
     httpOnly: true,
     path: "/",
     sameSite: "lax",
-    secrets: [sessionSecret],
-    secure: process.env["NODE_ENV"] === "production",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    secrets: [getSessionSecret()],
+    secure: process.env['NODE_ENV'] === 'production',
+    maxAge: TIME_CONSTANTS.SESSION_DURATION_CUSTOMER,
   },
 });
 
@@ -127,7 +134,7 @@ export async function destroyCustomerSession(request: Request): Promise<string> 
 }
 
 function getEncryptionKey(): Buffer {
-  const key = process.env['ENCRYPTION_KEY'] || sessionSecret;
+  const key = process.env['ENCRYPTION_KEY'] || getSessionSecret();
   return Buffer.from(key.slice(0, 32), 'utf8');
 }
 
@@ -142,12 +149,21 @@ function encryptSession(data: string): string {
 }
 
 function decryptSession(encryptedData: string): string {
-  const key = getEncryptionKey();
-  const [ivHex, authTagHex, encrypted] = encryptedData.split(':');
+  if (!encryptedData || typeof encryptedData !== 'string') {
+    throw new Error('Invalid encrypted data');
+  }
+  
+  const parts = encryptedData.split(':');
+  if (parts.length !== 3) {
+    throw new Error('Invalid encrypted data format');
+  }
+  
+  const [ivHex, authTagHex, encrypted] = parts;
   if (!ivHex || !authTagHex || !encrypted) {
     throw new Error('Invalid encrypted data format');
   }
   
+  const key = getEncryptionKey();
   const iv = Buffer.from(ivHex, 'hex');
   const authTag = Buffer.from(authTagHex, 'hex');
   const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv);
@@ -174,7 +190,7 @@ export async function makeCustomerAPIRequest(
   query: string,
   variables?: GraphQLVariables
 ) {
-  const response = await fetch(`https://shopify.com/${session.shop}/account/customer/api/${SHOPIFY_CONFIG.API_VERSION}/graphql`, {
+  const response = await fetchWithTimeout(`https://shopify.com/${session.shop}/account/customer/api/${SHOPIFY_CONFIG.API_VERSION}/graphql`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -184,7 +200,8 @@ export async function makeCustomerAPIRequest(
     body: JSON.stringify({
       query,
       variables: variables || {}
-    })
+    }),
+    timeout: TIME_CONSTANTS.API_TIMEOUT_DEFAULT
   });
   
   if (!response.ok) {

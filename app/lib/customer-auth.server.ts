@@ -2,6 +2,7 @@ import { redirect } from "@remix-run/node";
 import { generateState, generateCodeVerifier, generateCodeChallenge, createCustomerSession, getCustomerSession, makeCustomerAPIRequest } from "~/lib/auth.server";
 import { db } from "~/lib/db.server";
 import { log } from "~/lib/logger.server";
+import { TIME_CONSTANTS } from "~/lib/constants";
 import type { CustomerSession, RegistryWithPII } from "~/lib/types";
 import crypto from "crypto";
 
@@ -34,6 +35,16 @@ import { SHOPIFY_CONFIG } from "~/config/shopify.config";
 
 function getCustomerAccountConfig(shop: string): CustomerAccountConfig {
   const apiVersion = SHOPIFY_CONFIG.API_VERSION;
+  const apiKey = process.env['SHOPIFY_API_KEY'];
+  const appUrl = process.env['SHOPIFY_APP_URL'];
+  
+  if (!apiKey) {
+    throw new Error('SHOPIFY_API_KEY environment variable is required');
+  }
+  if (!appUrl) {
+    throw new Error('SHOPIFY_APP_URL environment variable is required');
+  }
+  
   return {
     authorizationEndpoint: `https://shopify.com/${shop}/account/oauth/authorize`,
     tokenEndpoint: `https://shopify.com/${shop}/account/oauth/token`,
@@ -43,8 +54,8 @@ function getCustomerAccountConfig(shop: string): CustomerAccountConfig {
       "https://api.customers.com/auth/customer.addresses",
       "https://api.customers.com/auth/customer.orders"
     ],
-    clientId: process.env['SHOPIFY_API_KEY']!,
-    redirectUri: `${process.env['SHOPIFY_APP_URL']}/customer/auth/callback`,
+    clientId: apiKey,
+    redirectUri: `${appUrl}/customer/auth/callback`,
   };
 }
 
@@ -88,6 +99,9 @@ export async function handleCustomerAuthCallback(
   const config = getCustomerAccountConfig(shop);
   
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), TIME_CONSTANTS.API_TIMEOUT_DEFAULT);
+    
     const tokenResponse = await fetch(config.tokenEndpoint, {
       method: 'POST',
       headers: {
@@ -96,12 +110,13 @@ export async function handleCustomerAuthCallback(
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         client_id: config.clientId,
-        client_secret: process.env['SHOPIFY_API_SECRET']!,
+        client_secret: process.env['SHOPIFY_API_SECRET'] || '',
         code,
         redirect_uri: config.redirectUri,
         code_verifier: codeVerifier,
       }),
-    });
+      signal: controller.signal,
+    }).finally(() => clearTimeout(timeoutId));
     
     if (!tokenResponse.ok) {
       const error = await tokenResponse.text();
@@ -267,7 +282,8 @@ export async function getCustomerRegistries(customerId: string, shop: string) {
       },
       orderBy: {
         createdAt: 'desc'
-      }
+      },
+      take: 100 // Limit to prevent memory exhaustion
     });
     
     return registries;

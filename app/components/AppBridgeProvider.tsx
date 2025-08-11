@@ -24,10 +24,10 @@ export function AppBridgeWrapper({ children, config }: AppBridgeWrapperProps) {
     // No manual script loading needed - handled by Shopify's admin framework
     
     // Set up contextual navigation for 2025 compliance
-    if (typeof window !== 'undefined' && (window as any).shopify) {
+    if (typeof window !== 'undefined' && 'shopify' in window) {
       // Enable contextual navigation features safely
-      const shopify = (window as any).shopify;
-      if (shopify.config) {
+      const shopify = (window as { shopify?: { config?: { features?: Record<string, boolean> } } }).shopify;
+      if (shopify?.config) {
         const features = shopify.config.features || {};
         shopify.config.features = {
           ...features,
