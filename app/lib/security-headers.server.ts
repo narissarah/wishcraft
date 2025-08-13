@@ -5,17 +5,22 @@ export function getSecurityHeaders(nonce: string, shop: string | null) {
     "X-XSS-Protection": "1; mode=block",
     "Referrer-Policy": "strict-origin-when-cross-origin",
     "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
   };
 
   if (nonce) {
     headers["Content-Security-Policy"] = `
       default-src 'self';
-      script-src 'self' 'nonce-${nonce}' https://cdn.shopify.com;
-      style-src 'self' 'unsafe-inline' https://cdn.shopify.com;
-      img-src 'self' data: https://cdn.shopify.com;
-      font-src 'self' https://fonts.gstatic.com;
-      connect-src 'self' https://*.myshopify.com;
-      frame-ancestors ${shop ? `https://${shop} https://admin.shopify.com` : 'none'};
+      script-src 'self' 'nonce-${nonce}' https://cdn.shopify.com https://www.google-analytics.com;
+      style-src 'self' 'unsafe-inline' https://cdn.shopify.com https://fonts.googleapis.com;
+      img-src 'self' data: https://cdn.shopify.com https://*.myshopify.com;
+      font-src 'self' https://fonts.gstatic.com https://cdn.shopify.com;
+      connect-src 'self' https://*.myshopify.com https://analytics.google.com;
+      frame-ancestors ${shop ? `https://${shop}.myshopify.com https://admin.shopify.com` : 'none'};
+      frame-src 'self';
+      object-src 'none';
+      base-uri 'self';
+      form-action 'self';
     `.replace(/\s+/g, ' ').trim();
   }
 

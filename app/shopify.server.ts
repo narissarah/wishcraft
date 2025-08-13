@@ -105,3 +105,13 @@ export const unauthenticated = new Proxy({} as typeof shopify.unauthenticated, {
     }
   }
 });
+
+export function login(request: Request) {
+  try {
+    const app = getShopify();
+    return app.login(request);
+  } catch (error) {
+    // Note: Cannot use log here to avoid circular imports
+    throw error;
+  }
+}

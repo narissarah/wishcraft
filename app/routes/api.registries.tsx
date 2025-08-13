@@ -10,8 +10,10 @@ import { createRegistry, listRegistries, updateRegistry, deleteRegistry } from "
 import { requireCSRFToken } from "~/lib/csrf.server";
 import { API_LIMITS } from "~/lib/constants";
 import { log } from "~/lib/logger.server";
+import { withApiMiddleware } from "~/lib/api-middleware.server";
+import { apiSuccess, apiError } from "~/lib/api-response.server";
 
-export async function loader({ request }: LoaderFunctionArgs) {
+export const loader = withApiMiddleware(async ({ request }: LoaderFunctionArgs) => {
   try {
     const { session } = await requireAdmin(request);
     
@@ -31,20 +33,14 @@ export async function loader({ request }: LoaderFunctionArgs) {
     
     const registries = await listRegistries(session.shop, options);
 
-    return json({ 
-      success: true,
-      data: { registries }
-    });
+    return apiSuccess({ registries });
   } catch (error) {
     log.error("Registries loader error:", error);
-    return json({ 
-      success: false, 
-      error: "An error occurred loading registry data" 
-    }, { status: 500 });
+    return apiError("An error occurred loading registry data", 500);
   }
-}
+}, { rateLimit: 'read' });
 
-export async function action({ request }: ActionFunctionArgs) {
+export const action = withApiMiddleware(async ({ request }: ActionFunctionArgs) => {
   try {
     // Validate CSRF token for all mutations
     await requireCSRFToken(request);
@@ -70,7 +66,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       // Basic validation
       if (!title || !customerEmail || !customerFirstName || !customerLastName) {
-        return json({ success: false, error: "Required fields missing" }, { status: 400 });
+        return apiError( "Required fields missing", 400);
       }
 
       const eventDate = eventDateStr && !isNaN(Date.parse(eventDateStr)) ? new Date(eventDateStr) : undefined;
@@ -91,10 +87,7 @@ export async function action({ request }: ActionFunctionArgs) {
       
       const registry = await createRegistry(session.shop, createInput);
 
-      return json({ 
-        success: true,
-        data: { registry }
-      });
+      return apiSuccess({ registry });
     }
     
     case "PUT": {
@@ -102,7 +95,7 @@ export async function action({ request }: ActionFunctionArgs) {
       const id = formData.get("id") as string;
       
       if (!id) {
-        return json({ success: false, error: "Registry ID required" }, { status: 400 });
+        return apiError( "Registry ID required", 400);
       }
 
       const updateData: { id: string; title?: string; description?: string; eventType?: string; eventDate?: Date; visibility?: 'public' | 'private' | 'friends' | 'password'; accessCode?: string } = { id };
@@ -133,10 +126,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
       const registry = await updateRegistry(updateData);
       
-      return json({ 
-        success: true,
-        data: { registry }
-      });
+      return apiSuccess({ registry });
     }
     
     case "DELETE": {
@@ -144,28 +134,22 @@ export async function action({ request }: ActionFunctionArgs) {
       const id = formData.get("id") as string;
       
       if (!id) {
-        return json({ success: false, error: "Registry ID required" }, { status: 400 });
+        return apiError( "Registry ID required", 400);
       }
 
       const registry = await deleteRegistry(id, session.shop);
       
-      return json({ 
-        success: true,
-        data: { registry }
-      });
+      return apiSuccess({ registry });
     }
     
     default:
-      return json({ success: false, error: "Method not allowed" }, { status: 405 });
+      return apiError("Method not allowed", 405);
   }
   } catch (error) {
     // Log error for debugging
     log.error('Registry API error:', error);
     
     // Return safe error message
-    return json({ 
-      success: false, 
-      error: 'An error occurred processing your request' 
-    }, { status: 500 });
+    return apiError('An error occurred processing your request', 500);
   }
-}
+}, { rateLimit: 'write', requireCSRF: true });

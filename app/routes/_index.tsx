@@ -53,6 +53,10 @@ export default function Index() {
       <div className="landing-footer">
         <p>WishCraft v{packageJson.version} | Built for Shopify 2025</p>
         <p>Deployed on Vercel | Status: Healthy ✅</p>
+        <div style={{ marginTop: "1rem", fontSize: "0.875rem" }}>
+          <a href="/privacy-policy" style={{ color: "#666", marginRight: "1rem" }}>Privacy Policy</a>
+          <a href="/terms-of-service" style={{ color: "#666" }}>Terms of Service</a>
+        </div>
       </div>
     </div>
   );

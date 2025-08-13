@@ -4,6 +4,7 @@ import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { authenticate } from "~/shopify.server";
 import { lazy, Suspense } from "react";
+import { requireValidIframe } from "~/lib/iframe-protection.server";
 
 // Lazy load components to reduce initial bundle size
 const AppBridgeWrapper = lazy(async () => {
@@ -18,6 +19,9 @@ export const links: LinksFunction = () => [];
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Use 2025 authentication pattern - this handles redirects automatically
   const { session } = await authenticate.admin(request);
+
+  // Built for Shopify: Validate iframe embedding
+  await requireValidIframe({ request } as LoaderFunctionArgs, session.shop);
 
   return json({
     shopOrigin: session.shop,

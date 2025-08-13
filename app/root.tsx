@@ -2,9 +2,11 @@ import type { LinksFunction, LoaderFunctionArgs, HeadersFunction } from "@remix-
 import { json } from "@remix-run/node";
 import { Links, LiveReload, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
+import { useEffect } from "react";
 import "~/styles/index.css";
 import { ThemeProvider } from "~/components/ThemeProvider";
 import { ErrorBoundary as ApplicationErrorBoundary } from "~/components/ErrorBoundary";
+import { getSecurityHeaders } from "~/lib/security-headers.server";
 
 export const links: LinksFunction = () => [
   { rel: "preconnect", href: "https://cdn.shopify.com" },
@@ -14,15 +16,21 @@ export const links: LinksFunction = () => [
   { rel: "dns-prefetch", href: "https://analytics.google.com" },
 ];
 
-export async function loader({ }: LoaderFunctionArgs) {
+export async function loader({ request }: LoaderFunctionArgs) {
   const nonce = Math.random().toString(36).substring(2, 15);
+  
+  // Extract shop from session or headers for security headers
+  const shopDomain = request.headers.get('X-Shop-Domain');
   
   return json({
     nonce,
+    shopDomain,
     ENV: {
       NODE_ENV: process.env['NODE_ENV'],
       SHOPIFY_APP_URL: process.env['SHOPIFY_APP_URL'],
     }
+  }, {
+    headers: getSecurityHeaders(nonce, shopDomain),
   });
 }
 
@@ -52,7 +60,14 @@ export const headers: HeadersFunction = ({ loaderHeaders, parentHeaders, actionH
 export default function App() {
   const { ENV, nonce } = useLoaderData<typeof loader>();
 
-  // Client-side error handling - errors are handled by ErrorBoundary component
+  // Initialize Web Vitals monitoring for Built for Shopify compliance
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      import('~/lib/web-vitals.client').then(({ initializeWebVitals }) => {
+        initializeWebVitals();
+      });
+    }
+  }, []);
 
   return (
     <html lang="en">

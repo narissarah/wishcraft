@@ -1,0 +1,62 @@
+name: Performance Testing
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Build application
+        run: npm run build
+        
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: |
+            https://wishcraft-ten.vercel.app/
+            https://wishcraft-ten.vercel.app/privacy-policy
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+          
+      - name: Validate Performance Budget
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          configPath: './lighthouserc.json'
+          
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const results = require('./lighthouse-results.json');
+            const comment = `## 🚦 Lighthouse Performance Results
+            
+            | Metric | Score | Status |
+            |--------|-------|--------|
+            | Performance | ${results.performance} | ${results.performance >= 75 ? '✅' : '❌'} |
+            | Accessibility | ${results.accessibility} | ${results.accessibility >= 90 ? '✅' : '⚠️'} |
+            | Best Practices | ${results.bestPractices} | ${results.bestPractices >= 85 ? '✅' : '⚠️'} |
+            | SEO | ${results.seo} | ${results.seo >= 90 ? '✅' : '⚠️'} |
+            
+            Built for Shopify requirement: Performance impact must be < 10 points`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
