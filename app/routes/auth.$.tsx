@@ -12,7 +12,7 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   
-  // Debug logging
+  // Debug logging for troubleshooting
   console.log("[AUTH] Loader called for:", url.pathname);
   
   // The auth.$ route handles ALL /auth/* paths
