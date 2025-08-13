@@ -10,6 +10,11 @@ import {
   checkPerformanceCompliance,
   getDailyPerformanceMetrics
 } from "~/lib/db-monitoring.server";
+import { 
+  getNeonStatus, 
+  getNeonOptimizations, 
+  estimateNeonCosts 
+} from "~/lib/neon-status.server";
 import { Card, Page, Layout, Text, Badge, DataTable, Stack, Heading, Box } from "@shopify/polaris";
 
 export async function loader({ request }: LoaderFunctionArgs) {
@@ -22,14 +27,20 @@ export async function loader({ request }: LoaderFunctionArgs) {
     tableSizes, 
     connectionStats, 
     compliance,
-    performanceMetrics
+    performanceMetrics,
+    neonStatus,
+    neonOptimizations,
+    neonCosts
   ] = await Promise.all([
     getDatabaseMetrics(),
     getWorkingSetSize(),
     getTableSizes(),
     getConnectionStats(),
     checkPerformanceCompliance(),
-    getDailyPerformanceMetrics(session.shop)
+    getDailyPerformanceMetrics(session.shop),
+    getNeonStatus(),
+    getNeonOptimizations(),
+    estimateNeonCosts()
   ]);
   
   return json({ 
@@ -39,6 +50,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
     connectionStats, 
     compliance,
     performanceMetrics,
+    neonStatus,
+    neonOptimizations,
+    neonCosts,
     neonDashboard: "https://console.neon.tech"
   });
 }
@@ -51,6 +65,9 @@ export default function Monitoring() {
     connectionStats, 
     compliance,
     performanceMetrics,
+    neonStatus,
+    neonOptimizations,
+    neonCosts,
     neonDashboard
   } = useLoaderData<typeof loader>();
   
@@ -210,6 +227,91 @@ export default function Monitoring() {
             </Stack>
           </Card>
         </Layout.Section>
+        <Layout.Section>
+          <Card>
+            <Stack vertical>
+              <Heading>Neon Integration Status</Heading>
+              
+              <Box paddingBlockStart="200">
+                <Stack vertical gap="200">
+                  <Stack>
+                    <Badge tone={neonStatus.isNeon ? "success" : "critical"}>
+                      {neonStatus.isNeon ? "Connected to Neon" : "Not using Neon"}
+                    </Badge>
+                    {neonStatus.isPooled && (
+                      <Badge tone="success">Pooled Connection</Badge>
+                    )}
+                    {neonStatus.isPreviewBranch && (
+                      <Badge tone="info">Preview Branch</Badge>
+                    )}
+                  </Stack>
+                  
+                  {neonStatus.branchName && (
+                    <Text as="p" variant="bodySm">
+                      Branch: <strong>{neonStatus.branchName}</strong>
+                    </Text>
+                  )}
+                  
+                  {neonOptimizations.available && (
+                    <>
+                      <Box paddingBlockStart="200">
+                        <Text as="h4" variant="headingSm">Active Features:</Text>
+                        <Stack vertical gap="100">
+                          {neonOptimizations.features.map((feature: string, index: number) => (
+                            <Text key={index} as="p" variant="bodySm">{feature}</Text>
+                          ))}
+                        </Stack>
+                      </Box>
+                      
+                      {neonOptimizations.recommendations.length > 0 && (
+                        <Box paddingBlockStart="200">
+                          <Text as="h4" variant="headingSm">Recommendations:</Text>
+                          <Stack vertical gap="100">
+                            {neonOptimizations.recommendations.map((rec: string, index: number) => (
+                              <Text key={index} as="p" variant="bodySm">• {rec}</Text>
+                            ))}
+                          </Stack>
+                        </Box>
+                      )}
+                    </>
+                  )}
+                </Stack>
+              </Box>
+            </Stack>
+          </Card>
+        </Layout.Section>
+        
+        {neonCosts && (
+          <Layout.Section>
+            <Card>
+              <Stack vertical>
+                <Heading>Neon Usage & Costs</Heading>
+                <Box paddingBlockStart="200">
+                  <Stack vertical gap="200">
+                    <Text as="p" variant="bodySm">
+                      <strong>Database Size:</strong> {neonCosts.current.storageGB} GB 
+                      ({neonCosts.usage.storageUsed} of free tier)
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      <strong>Tables:</strong> {neonCosts.current.tables}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      <strong>Total Rows:</strong> {neonCosts.current.rows.toLocaleString()}
+                    </Text>
+                    <Text as="p" variant="bodySm">
+                      <strong>Compute Usage:</strong> ~{neonCosts.usage.computeEstimate} of free tier
+                    </Text>
+                    <Box paddingBlockStart="100">
+                      <Badge tone={neonCosts.usage.withinFreeTier ? "success" : "warning"}>
+                        {neonCosts.usage.withinFreeTier ? "Within Free Tier" : "May Exceed Free Tier"}
+                      </Badge>
+                    </Box>
+                  </Stack>
+                </Box>
+              </Stack>
+            </Card>
+          </Layout.Section>
+        )}
       </Layout>
     </Page>
   );
