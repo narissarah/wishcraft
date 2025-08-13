@@ -9,7 +9,7 @@ export async function acceptInvitation(collaboratorId: string, shopId: string) {
     const result = await db.registry_collaborators.update({
       where: { id: collaboratorId },
       data: {
-        status: COLLABORATOR_STATUS.ACCEPTED,
+        status: COLLABORATOR_STATUS.ACTIVE,
         acceptedAt: new Date()
       }
     });

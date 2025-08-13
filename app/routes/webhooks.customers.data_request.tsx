@@ -1,7 +1,11 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { authenticate } from "~/shopify.server";
 import { log } from "~/lib/logger.server";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  return json({ error: "Method not allowed" }, { status: 405 });
+};
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   if (request.method !== "POST") {

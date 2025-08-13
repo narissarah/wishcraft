@@ -58,6 +58,15 @@ export const REGISTRY_ITEM_STATUS = {
   PARTIALLY_PURCHASED: 'partially_purchased',
 } as const;
 
+// Query Limits
+export const QUERY_LIMITS = {
+  MAX_REGISTRIES_PER_CUSTOMER: 100,
+  MAX_ORDERS_PER_QUERY: 20,
+  MAX_ADDRESSES_PER_QUERY: 10,
+  MAX_COLLABORATORS_PER_REGISTRY: 50,
+  MAX_ITEMS_PER_REGISTRY: 100,
+} as const;
+
 // Type exports
 export type RegistryStatus = typeof REGISTRY_STATUS[keyof typeof REGISTRY_STATUS];
 export type RegistryVisibility = typeof REGISTRY_VISIBILITY[keyof typeof REGISTRY_VISIBILITY];
