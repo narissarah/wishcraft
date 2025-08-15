@@ -2,7 +2,6 @@ import type { EntryContext } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { renderToString } from "react-dom/server";
 import { getSecurityHeaders } from "~/lib/security-headers.server";
-import { shopify } from "~/shopify.server";
 // Environment validation removed - not exported from validation.server
 
 // Environment validation handled at startup
@@ -15,11 +14,11 @@ export default function handleRequest(
 ) {
   const url = new URL(request.url);
   
-  // Skip Shopify headers for auth routes to prevent authentication errors
-  if (!url.pathname.startsWith('/auth/')) {
-    // CRITICAL: Add Shopify document response headers for proper embedded app authentication
-    shopify.addDocumentResponseHeaders(request, responseHeaders);
-  }
+  // TEMPORARILY DISABLED: Shopify headers causing auth issues
+  // TODO: Re-enable once auth flow is working
+  // if (url.pathname.startsWith('/app')) {
+  //   shopify.addDocumentResponseHeaders(request, responseHeaders);
+  // }
   
   // Add performance timing
   const startTime = Date.now();
