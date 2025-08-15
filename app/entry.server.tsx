@@ -13,8 +13,13 @@ export default function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
-  // CRITICAL: Add Shopify document response headers for proper embedded app authentication
-  shopify.addDocumentResponseHeaders(request, responseHeaders);
+  const url = new URL(request.url);
+  
+  // Skip Shopify headers for auth routes to prevent authentication errors
+  if (!url.pathname.startsWith('/auth/')) {
+    // CRITICAL: Add Shopify document response headers for proper embedded app authentication
+    shopify.addDocumentResponseHeaders(request, responseHeaders);
+  }
   
   // Add performance timing
   const startTime = Date.now();
@@ -27,7 +32,6 @@ export default function handleRequest(
   );
   
   // Set security headers with the same nonce from server
-  const url = new URL(request.url);
   const shop = url.searchParams.get('shop');
   const securityHeaders = getSecurityHeaders(nonce || '', shop);
   
