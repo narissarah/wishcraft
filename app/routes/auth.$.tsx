@@ -12,28 +12,27 @@ import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   
-  // Debug logging for troubleshooting
-  console.log("[AUTH] Loader called for:", url.pathname);
+  // Always use login() for ALL auth routes to avoid the error
+  console.log("[AUTH] Loader called for:", url.pathname, "- Using login()");
   
-  // The auth.$ route handles ALL /auth/* paths
-  // For the login flow, we must use login()
-  if (url.pathname === "/auth/login" || url.pathname.startsWith("/auth/login")) {
-    console.log("[AUTH] Using login() for path:", url.pathname);
+  try {
     return login(request);
+  } catch (error) {
+    console.error("[AUTH] Login failed:", error);
+    throw error;
   }
-  
-  // For callback and other auth paths, still use login() 
-  // as authenticate.admin() should not be called from auth routes
-  console.log("[AUTH] Using login() for OAuth flow:", url.pathname);
-  return login(request);
 }
 
 export async function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
   
-  // Debug logging
-  console.log("[AUTH] Action called for:", url.pathname);
+  // Always use login() for ALL auth routes
+  console.log("[AUTH] Action called for:", url.pathname, "- Using login()");
   
-  // For all auth routes, use login()
-  return login(request);
+  try {
+    return login(request);
+  } catch (error) {
+    console.error("[AUTH] Action login failed:", error);
+    throw error;
+  }
 }
