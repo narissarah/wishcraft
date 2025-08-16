@@ -41,10 +41,10 @@ function getShopifyApp() {
       isEmbeddedApp: true,
       useOnlineTokens: true,
       
-      // Enable new embedded auth strategy for 2025
-      future: {
-        unstable_newEmbeddedAuthStrategy: true,
-      },
+      // Temporarily disable new auth strategy to fix login issues
+      // future: {
+      //   unstable_newEmbeddedAuthStrategy: true,
+      // },
       
       webhooks: {
         APP_UNINSTALLED: {

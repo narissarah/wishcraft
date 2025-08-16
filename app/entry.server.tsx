@@ -6,19 +6,25 @@ import { getSecurityHeaders } from "~/lib/security-headers.server";
 
 // Environment validation handled at startup
 
-export default function handleRequest(
+export default async function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
-  // Add Shopify document response headers - REQUIRED for embedded apps
-  // This must be called for ALL routes to ensure proper CSP headers
-  const { shopify } = await import("~/shopify.server");
-  shopify.addDocumentResponseHeaders(request, responseHeaders);
-  
   // Add performance timing
   const startTime = Date.now();
+  
+  // Parse URL to check if this is an auth route
+  const url = new URL(request.url);
+  const isAuthRoute = url.pathname.startsWith('/auth');
+  
+  // Add Shopify document response headers - REQUIRED for embedded apps
+  // BUT skip for auth routes to avoid "authenticate.admin() from configured login path" error
+  if (!isAuthRoute) {
+    const { shopify } = await import("~/shopify.server");
+    shopify.addDocumentResponseHeaders(request, responseHeaders);
+  }
   
   // Get nonce from server middleware
   const nonce = (request as Request & { nonce?: string }).nonce;
