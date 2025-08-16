@@ -1,4 +1,3 @@
-import { login } from "~/shopify.server";
 import type { LoaderFunctionArgs, ActionFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { boundary } from "@shopify/shopify-app-remix/server";
 import { useRouteError } from "@remix-run/react";
@@ -14,10 +13,11 @@ import { useRouteError } from "@remix-run/react";
 export async function loader({ request }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   
-  // Always use login() for ALL auth routes to avoid the error
-  console.log("[AUTH] Loader called for:", url.pathname, "- Using login()");
+  // Dynamically import login to avoid initialization issues
+  console.log("[AUTH] Loader called for:", url.pathname);
   
   try {
+    const { login } = await import("~/shopify.server");
     return login(request);
   } catch (error) {
     console.error("[AUTH] Login failed:", error);
@@ -28,10 +28,11 @@ export async function loader({ request }: LoaderFunctionArgs) {
 export async function action({ request }: ActionFunctionArgs) {
   const url = new URL(request.url);
   
-  // Always use login() for ALL auth routes
-  console.log("[AUTH] Action called for:", url.pathname, "- Using login()");
+  // Dynamically import login to avoid initialization issues
+  console.log("[AUTH] Action called for:", url.pathname);
   
   try {
+    const { login } = await import("~/shopify.server");
     return login(request);
   } catch (error) {
     console.error("[AUTH] Action login failed:", error);

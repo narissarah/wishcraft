@@ -3,9 +3,10 @@ import { json } from "@remix-run/node";
 import { useLoaderData, useRouteError } from "@remix-run/react";
 import { Page, Layout, Text, Card, Button, BlockStack, InlineStack, Badge } from "@shopify/polaris";
 import { boundary } from "@shopify/shopify-app-remix/server";
-import { authenticate } from "~/shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
+  // Dynamic import to avoid initialization issues
+  const { authenticate } = await import("~/shopify.server");
   const { admin, session } = await authenticate.admin(request);
 
   // Get shop details using GraphQL (2025 standard)

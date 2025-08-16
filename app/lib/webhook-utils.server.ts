@@ -1,6 +1,5 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { authenticate } from "~/shopify.server";
 import { log } from "~/lib/logger.server";
 
 /**
@@ -16,6 +15,8 @@ export async function createWebhookHandler(
     }
     
     try {
+      // Dynamic import to avoid initialization issues
+      const { authenticate } = await import("~/shopify.server");
       const { shop, payload } = await authenticate.webhook(request);
       log.webhook(webhookType, shop, { verified: true });
       await handler(shop, payload);

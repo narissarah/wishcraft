@@ -1,6 +1,5 @@
 import { redirect } from "@remix-run/node";
 import { createCookieSessionStorage } from "@remix-run/node";
-import { authenticate } from "~/shopify.server";
 import { SHOPIFY_CONFIG } from "~/config/shopify.config";
 import { TIME_CONSTANTS } from "~/lib/constants";
 import type { CustomerSession, GraphQLVariables } from "~/lib/types";

@@ -2,7 +2,6 @@ import type { LoaderFunctionArgs, HeadersFunction, LinksFunction } from "@remix-
 import { json } from "@remix-run/node";
 import { Link, Outlet, useLoaderData, useRouteError } from "@remix-run/react";
 import { boundary } from "@shopify/shopify-app-remix/server";
-import { authenticate } from "~/shopify.server";
 import { lazy, Suspense } from "react";
 import { requireValidIframe } from "~/lib/iframe-protection.server";
 
@@ -17,7 +16,8 @@ import "~/styles/index.css";
 export const links: LinksFunction = () => [];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  // Use 2025 authentication pattern - this handles redirects automatically
+  // Use 2025 authentication pattern - dynamic import to avoid initialization issues
+  const { authenticate } = await import("~/shopify.server");
   const { session } = await authenticate.admin(request);
 
   // Built for Shopify: Validate iframe embedding

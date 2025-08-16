@@ -1,6 +1,5 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { authenticate } from "~/shopify.server";
 import { log } from "~/lib/logger.server";
 import { db } from "~/lib/db.server";
 
@@ -10,7 +9,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   try {
-    // Authenticate webhook
+    // Authenticate webhook - dynamic import to avoid initialization issues
+    const { authenticate } = await import("~/shopify.server");
     const { shop, payload } = await authenticate.webhook(request);
     
     const customerId = payload.customer?.id;

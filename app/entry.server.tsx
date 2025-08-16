@@ -2,9 +2,6 @@ import type { EntryContext } from "@remix-run/node";
 import { RemixServer } from "@remix-run/react";
 import { renderToString } from "react-dom/server";
 import { getSecurityHeaders } from "~/lib/security-headers.server";
-// Environment validation removed - not exported from validation.server
-
-// Environment validation handled at startup
 
 export default async function handleRequest(
   request: Request,
@@ -15,15 +12,18 @@ export default async function handleRequest(
   // Add performance timing
   const startTime = Date.now();
   
-  // Parse URL to check if this is an auth route
+  // Parse URL to check route type
   const url = new URL(request.url);
-  const isAuthRoute = url.pathname.startsWith('/auth');
   
-  // Add Shopify document response headers - REQUIRED for embedded apps
-  // BUT skip for auth routes to avoid "authenticate.admin() from configured login path" error
-  if (!isAuthRoute) {
-    const { shopify } = await import("~/shopify.server");
-    shopify.addDocumentResponseHeaders(request, responseHeaders);
+  // CRITICAL: Only add Shopify headers for embedded app routes
+  // The library throws an error if we try to add headers on auth routes
+  if (url.pathname.startsWith('/app')) {
+    try {
+      const { shopify } = await import("~/shopify.server");
+      shopify.addDocumentResponseHeaders(request, responseHeaders);
+    } catch (error) {
+      console.error('[ENTRY] Error adding Shopify headers:', error);
+    }
   }
   
   // Get nonce from server middleware
@@ -46,6 +46,25 @@ export default async function handleRequest(
   // Add performance headers
   const renderTime = Date.now() - startTime;
   responseHeaders.set("Server-Timing", `render;dur=${renderTime}`);
+  
+  // CRITICAL: Only add Shopify headers for app routes
+  // Skip for auth, API, and webhook routes to prevent errors
+  const isAppRoute = url.pathname.startsWith('/app');
+  
+  if (isAppRoute && !isAuthRoute && !isApiRoute && !isWebhookRoute) {
+    try {
+      // Lazy load only when absolutely needed
+      const shopifyModule = await import("~/shopify.server");
+      if (shopifyModule.shopify && typeof shopifyModule.shopify.addDocumentResponseHeaders === 'function') {
+        shopifyModule.shopify.addDocumentResponseHeaders(request, responseHeaders);
+      }
+    } catch (error) {
+      // Silently fail - some routes might not need Shopify headers
+      if (process.env.NODE_ENV === 'development') {
+        console.log("[ENTRY] Shopify headers not added for:", url.pathname);
+      }
+    }
+  }
   
   return new Response("<!DOCTYPE html>" + markup, {
     status: responseStatusCode,

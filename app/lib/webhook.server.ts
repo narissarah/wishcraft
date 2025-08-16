@@ -1,8 +1,9 @@
-import { shopify } from "~/shopify.server";
 import { log } from "./logger.server";
 
 export async function processWebhook(request: Request, topic: string) {
   try {
+    // Dynamic import to avoid initialization issues
+    const { shopify } = await import("~/shopify.server");
     const webhookContext = await shopify.authenticate.webhook(request);
     const { topic: webhookTopic, shop } = webhookContext;
     

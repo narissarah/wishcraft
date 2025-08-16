@@ -1,7 +1,6 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { useLoaderData } from "@remix-run/react";
-import { authenticate } from "~/shopify.server";
 import { 
   getDatabaseMetrics, 
   getWorkingSetSize, 
@@ -18,6 +17,8 @@ import {
 import { Card, Page, Layout, Text, Badge, DataTable, Stack, Heading, Box } from "@shopify/polaris";
 
 export async function loader({ request }: LoaderFunctionArgs) {
+  // Dynamic import to avoid initialization issues
+  const { authenticate } = await import("~/shopify.server");
   const { session } = await authenticate.admin(request);
   
   // Only allow shop owners/admins to view monitoring
