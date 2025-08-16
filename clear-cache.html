@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear WishCraft Cache</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #5c6ac4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #4b5aa3;
+        }
+        .success {
+            color: #28a745;
+            margin-top: 20px;
+        }
+        .error {
+            color: #dc3545;
+            margin-top: 20px;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        pre {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Clear WishCraft Cache & Cookies</h1>
+        
+        <div class="info">
+            <p><strong>This page will help you clear all cached data related to WishCraft app.</strong></p>
+            <p>Use this if you're experiencing persistent authentication errors or stale data.</p>
+        </div>
+
+        <button onclick="clearAllData()">Clear All WishCraft Data</button>
+        <button onclick="clearCookies()">Clear Cookies Only</button>
+        <button onclick="clearLocalStorage()">Clear Local Storage Only</button>
+        <button onclick="clearSessionStorage()">Clear Session Storage Only</button>
+        
+        <div id="result"></div>
+
+        <div class="info" style="margin-top: 30px;">
+            <h3>Current Storage Status:</h3>
+            <pre id="status"></pre>
+        </div>
+    </div>
+
+    <script>
+        function showStatus() {
+            const status = {
+                cookies: document.cookie || 'No cookies found',
+                localStorage: Object.keys(localStorage).length + ' items',
+                sessionStorage: Object.keys(sessionStorage).length + ' items',
+                wishcraftData: {
+                    cookies: document.cookie.split(';').filter(c => c.includes('wishcraft')).join('; ') || 'None',
+                    localStorage: Object.keys(localStorage).filter(k => k.toLowerCase().includes('wishcraft') || k.toLowerCase().includes('shopify')),
+                    sessionStorage: Object.keys(sessionStorage).filter(k => k.toLowerCase().includes('wishcraft') || k.toLowerCase().includes('shopify'))
+                }
+            };
+            document.getElementById('status').textContent = JSON.stringify(status, null, 2);
+        }
+
+        function clearCookies() {
+            // Get all cookies
+            const cookies = document.cookie.split(';');
+            
+            // Clear each cookie
+            cookies.forEach(cookie => {
+                const eqPos = cookie.indexOf('=');
+                const name = eqPos > -1 ? cookie.substr(0, eqPos).trim() : cookie.trim();
+                
+                // Clear cookie for all possible paths and domains
+                const paths = ['/', '/app', '/auth', '/api'];
+                const domains = [window.location.hostname, '.' + window.location.hostname, ''];
+                
+                paths.forEach(path => {
+                    domains.forEach(domain => {
+                        document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=' + path + (domain ? '; domain=' + domain : '');
+                    });
+                });
+            });
+            
+            showResult('Cookies cleared', 'success');
+            showStatus();
+        }
+
+        function clearLocalStorage() {
+            try {
+                // Clear all localStorage
+                localStorage.clear();
+                
+                // Also try to clear any Shopify-specific storage
+                if (window.Shopify) {
+                    window.Shopify.clear && window.Shopify.clear();
+                }
+                
+                showResult('Local storage cleared', 'success');
+                showStatus();
+            } catch (e) {
+                showResult('Error clearing local storage: ' + e.message, 'error');
+            }
+        }
+
+        function clearSessionStorage() {
+            try {
+                sessionStorage.clear();
+                showResult('Session storage cleared', 'success');
+                showStatus();
+            } catch (e) {
+                showResult('Error clearing session storage: ' + e.message, 'error');
+            }
+        }
+
+        function clearAllData() {
+            clearCookies();
+            clearLocalStorage();
+            clearSessionStorage();
+            
+            // Clear any service workers
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    registrations.forEach(registration => {
+                        registration.unregister();
+                    });
+                });
+            }
+            
+            // Clear caches
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => {
+                        caches.delete(name);
+                    });
+                });
+            }
+            
+            showResult('All data cleared! Please refresh the page.', 'success');
+            showStatus();
+            
+            // Offer to reload
+            setTimeout(() => {
+                if (confirm('All data cleared. Would you like to reload the page now?')) {
+                    window.location.reload(true);
+                }
+            }, 1000);
+        }
+
+        function showResult(message, type) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = type;
+            resultDiv.innerHTML = '<p>' + message + '</p>';
+        }
+
+        // Show initial status
+        showStatus();
+        
+        // Auto-refresh status every 2 seconds
+        setInterval(showStatus, 2000);
+    </script>
+</body>
+</html>

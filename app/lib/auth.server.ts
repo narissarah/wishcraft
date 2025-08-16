@@ -5,6 +5,7 @@ import { TIME_CONSTANTS } from "~/lib/constants";
 import type { CustomerSession, GraphQLVariables } from "~/lib/types";
 import crypto from "crypto";
 import { fetchWithTimeout } from "~/lib/fetch-with-timeout.server";
+import { authenticate } from "~/shopify.server";
 
 // Lazy initialization to prevent serverless crashes
 let sessionSecret: string | null = null;
