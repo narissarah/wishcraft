@@ -1,5 +1,7 @@
 import { login } from "~/shopify.server";
-import type { LoaderFunctionArgs, ActionFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, ActionFunctionArgs, HeadersFunction } from "@remix-run/node";
+import { boundary } from "@shopify/shopify-app-remix/server";
+import { useRouteError } from "@remix-run/react";
 
 /**
  * Shopify OAuth Authentication Route
@@ -36,3 +38,13 @@ export async function action({ request }: ActionFunctionArgs) {
     throw error;
   }
 }
+
+// Required for embedded apps - error boundary
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
+}
+
+// Required for embedded apps - headers
+export const headers: HeadersFunction = (headersArgs) => {
+  return boundary.headers(headersArgs);
+};

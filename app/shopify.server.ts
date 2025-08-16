@@ -36,10 +36,15 @@ function getShopifyApp() {
       appUrl,
       authPathPrefix: "/auth",
       sessionStorage,
-      apiVersion: ApiVersion.July25,
+      apiVersion: ApiVersion.October24,
       
       isEmbeddedApp: true,
       useOnlineTokens: true,
+      
+      // Enable new embedded auth strategy for 2025
+      future: {
+        unstable_newEmbeddedAuthStrategy: true,
+      },
       
       webhooks: {
         APP_UNINSTALLED: {

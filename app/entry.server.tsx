@@ -12,13 +12,10 @@ export default function handleRequest(
   responseHeaders: Headers,
   remixContext: EntryContext
 ) {
-  const url = new URL(request.url);
-  
-  // TEMPORARILY DISABLED: Shopify headers causing auth issues
-  // TODO: Re-enable once auth flow is working
-  // if (url.pathname.startsWith('/app')) {
-  //   shopify.addDocumentResponseHeaders(request, responseHeaders);
-  // }
+  // Add Shopify document response headers - REQUIRED for embedded apps
+  // This must be called for ALL routes to ensure proper CSP headers
+  const { shopify } = await import("~/shopify.server");
+  shopify.addDocumentResponseHeaders(request, responseHeaders);
   
   // Add performance timing
   const startTime = Date.now();
