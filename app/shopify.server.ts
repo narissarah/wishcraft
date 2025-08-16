@@ -41,10 +41,10 @@ function getShopifyApp() {
       isEmbeddedApp: true,
       useOnlineTokens: true,
       
-      // Temporarily disable new auth strategy to fix login issues
-      // future: {
-      //   unstable_newEmbeddedAuthStrategy: true,
-      // },
+      // Enable new auth strategy for better token handling
+      future: {
+        unstable_newEmbeddedAuthStrategy: true,
+      },
       
       webhooks: {
         APP_UNINSTALLED: {
@@ -81,7 +81,10 @@ export const shopify = new Proxy({} as ReturnType<typeof shopifyApp>, {
       const app = getShopify();
       return Reflect.get(app, prop);
     } catch (error) {
-      // Note: Cannot use log here to avoid circular imports
+      // Re-throw with more context
+      if (error instanceof Error) {
+        throw new Error(`Shopify initialization failed: ${error.message}`);
+      }
       throw error;
     }
   }

@@ -3,21 +3,19 @@ import { boundary } from "@shopify/shopify-app-remix/server";
 import { useRouteError } from "@remix-run/react";
 
 /**
- * Shopify OAuth Authentication Route
- * Handles all /auth/* routes for the OAuth flow
- * Built for Shopify 2025 compliance
- * 
- * IMPORTANT: This route should ONLY use login()
- * The Shopify library handles all authentication internally
+ * DISABLED: This route was causing conflicts with Shopify's built-in auth
+ * The auth.$.tsx route handles all /auth/* paths
  */
 export async function loader({ request }: LoaderFunctionArgs) {
-  // Import login dynamically to avoid circular dependencies
+  console.log("[AUTH.LOGIN] Explicit login route called");
+  // Dynamic import to avoid initialization issues
   const { login } = await import("~/shopify.server");
   return login(request);
 }
 
 export async function action({ request }: ActionFunctionArgs) {
-  // Import login dynamically to avoid circular dependencies
+  console.log("[AUTH.LOGIN] Explicit login action called");
+  // Dynamic import to avoid initialization issues
   const { login } = await import("~/shopify.server");
   return login(request);
 }

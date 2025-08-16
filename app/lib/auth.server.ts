@@ -5,7 +5,7 @@ import { TIME_CONSTANTS } from "~/lib/constants";
 import type { CustomerSession, GraphQLVariables } from "~/lib/types";
 import crypto from "crypto";
 import { fetchWithTimeout } from "~/lib/fetch-with-timeout.server";
-import { authenticate } from "~/shopify.server";
+// Import will be done dynamically in functions to avoid circular dependencies
 
 // Lazy initialization to prevent serverless crashes
 let sessionSecret: string | null = null;
@@ -54,6 +54,8 @@ export const customerSessionStorage = createCookieSessionStorage({
 
 export async function requireAdmin(request: Request) {
   try {
+    // Dynamic import to avoid circular dependencies
+    const { authenticate } = await import("~/shopify.server");
     const { admin, session } = await authenticate.admin(request);
     
     if (!admin || !session) {
@@ -68,6 +70,8 @@ export async function requireAdmin(request: Request) {
 
 export async function getAdmin(request: Request) {
   try {
+    // Dynamic import to avoid circular dependencies
+    const { authenticate } = await import("~/shopify.server");
     return await authenticate.admin(request);
   } catch (error) {
     return null;

@@ -1,7 +1,7 @@
 client_id = "${SHOPIFY_API_KEY}"
 name = "wishcraft"
 handle = "wishcraft"
-application_url = "${SHOPIFY_APP_URL}/app"
+application_url = "${SHOPIFY_APP_URL}"
 embedded = true
 
 [build]

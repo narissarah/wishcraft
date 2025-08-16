@@ -16,7 +16,7 @@ import "~/styles/index.css";
 export const links: LinksFunction = () => [];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  // Use 2025 authentication pattern - dynamic import to avoid initialization issues
+  // Dynamic import to avoid initialization issues
   const { authenticate } = await import("~/shopify.server");
   const { session } = await authenticate.admin(request);
 
@@ -25,7 +25,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   return json({
     shopOrigin: session.shop,
-    apiKey: "", // API key should not be sent to client
+    apiKey: process.env.SHOPIFY_API_KEY || "", // Required for AppBridge
     host: new URL(request.url).searchParams.get("host") || "",
   });
 };
