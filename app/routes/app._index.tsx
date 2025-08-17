@@ -5,8 +5,7 @@ import { Page, Layout, Text, Card, Button, BlockStack, InlineStack, Badge } from
 import { boundary } from "@shopify/shopify-app-remix/server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  // Dynamic import to avoid initialization issues
-  const { authenticate } = await import("~/shopify.server");
+  const { authenticate } = await import("../shopify.server");
   const { admin, session } = await authenticate.admin(request);
 
   // Get shop details using GraphQL (2025 standard)

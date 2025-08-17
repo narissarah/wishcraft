@@ -16,18 +16,24 @@ import "~/styles/index.css";
 export const links: LinksFunction = () => [];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  // Dynamic import to avoid initialization issues
-  const { authenticate } = await import("~/shopify.server");
-  const { session } = await authenticate.admin(request);
+  try {
+    // Use authentication with retry logic for intermittent failures
+    const { authenticateWithRetry } = await import("~/lib/auth-utils.server");
+    const { session } = await authenticateWithRetry(request);
 
-  // Built for Shopify: Validate iframe embedding
-  await requireValidIframe({ request } as LoaderFunctionArgs, session.shop);
+    // Built for Shopify: Validate iframe embedding
+    await requireValidIframe({ request } as LoaderFunctionArgs, session.shop);
 
-  return json({
-    shopOrigin: session.shop,
-    apiKey: process.env.SHOPIFY_API_KEY || "", // Required for AppBridge
-    host: new URL(request.url).searchParams.get("host") || "",
-  });
+    return json({
+      shopOrigin: session.shop,
+      apiKey: process.env.SHOPIFY_API_KEY || "", // Required for AppBridge
+      host: new URL(request.url).searchParams.get("host") || "",
+    });
+  } catch (error) {
+    // Handle authentication errors with proper recovery
+    const { handleAuthError } = await import("~/lib/auth-utils.server");
+    return handleAuthError(request, error);
+  }
 };
 
 export default function App() {

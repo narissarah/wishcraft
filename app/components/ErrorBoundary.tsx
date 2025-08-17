@@ -30,7 +30,9 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   };
   
   handleReload = () => {
-    window.location.reload();
+    // Preserve all URL parameters when reloading
+    // This ensures Shopify auth context is maintained
+    window.location.href = window.location.href;
   };
 
   override render() {

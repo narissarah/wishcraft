@@ -64,7 +64,10 @@ export async function requireAdmin(request: Request) {
 
     return { admin, session };
   } catch (error) {
-    throw redirect("/auth");
+    // Don't redirect to /auth - let Shopify handle authentication
+    // This prevents the "authenticate.admin from login path" error
+    const { login } = await import("~/shopify.server");
+    throw await login(request);
   }
 }
 

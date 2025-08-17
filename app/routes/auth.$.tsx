@@ -1,33 +1,8 @@
-import type { LoaderFunctionArgs, ActionFunctionArgs, HeadersFunction } from "@remix-run/node";
-import { boundary } from "@shopify/shopify-app-remix/server";
-import { useRouteError } from "@remix-run/react";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+import { authenticate } from "../shopify.server";
 
-/**
- * Shopify OAuth Authentication Route
- * Handles all /auth/* routes for the OAuth flow
- * Built for Shopify 2025 compliance
- * 
- * IMPORTANT: This route should ONLY use login()
- * The Shopify library handles all authentication internally
- */
-export async function loader({ request }: LoaderFunctionArgs) {
-  // Import login dynamically to avoid circular dependencies
-  const { login } = await import("~/shopify.server");
-  return login(request);
-}
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  await authenticate.admin(request);
 
-export async function action({ request }: ActionFunctionArgs) {
-  // Import login dynamically to avoid circular dependencies
-  const { login } = await import("~/shopify.server");
-  return login(request);
-}
-
-// Required for embedded apps - error boundary
-export function ErrorBoundary() {
-  return boundary.error(useRouteError());
-}
-
-// Required for embedded apps - headers
-export const headers: HeadersFunction = (headersArgs) => {
-  return boundary.headers(headersArgs);
+  return null;
 };

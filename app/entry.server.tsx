@@ -24,15 +24,11 @@ export default async function handleRequest(
   // Add Shopify headers ONLY for embedded app routes (not auth/api/webhooks)
   if (url.pathname.startsWith('/app')) {
     try {
-      const { shopify } = await import("~/shopify.server");
-      shopify.addDocumentResponseHeaders(request, responseHeaders);
+      const shopify = await import("./shopify.server");
+      shopify.default.addDocumentResponseHeaders(request, responseHeaders);
     } catch (error: any) {
-      // Log but don't fail the request
-      if (error.message?.includes('authenticate.admin')) {
-        console.log('[ENTRY] Expected auth error on login path, ignoring');
-      } else {
-        console.error('[ENTRY] Error adding Shopify headers:', error.message);
-      }
+      // Log but don't fail the request - this is expected during auth flow
+      console.log('[ENTRY] Shopify headers skipped:', error.message);
     }
   }
   

@@ -7,12 +7,27 @@ import { SHOPIFY_CONFIG } from "~/config/shopify.config";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
+  
+  // Preserve ALL Shopify parameters for proper authentication
   const shop = url.searchParams.get("shop");
+  const host = url.searchParams.get("host");
+  const embedded = url.searchParams.get("embedded");
+  const session = url.searchParams.get("session");
+  const timestamp = url.searchParams.get("timestamp");
+  const locale = url.searchParams.get("locale");
   
   // For embedded apps, Shopify handles authentication through the App Bridge
-  // If we have a shop parameter, redirect to the app routes
+  // If we have a shop parameter, redirect to the app routes with ALL params
   if (shop) {
-    return redirect(`/app?shop=${shop}`);
+    const params = new URLSearchParams();
+    params.set("shop", shop);
+    if (host) params.set("host", host);
+    if (embedded) params.set("embedded", embedded);
+    if (session) params.set("session", session);
+    if (timestamp) params.set("timestamp", timestamp);
+    if (locale) params.set("locale", locale);
+    
+    return redirect(`/app?${params.toString()}`);
   }
   
   // If no shop parameter, show installation page
